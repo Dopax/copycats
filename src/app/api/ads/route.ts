@@ -11,6 +11,10 @@ export async function GET() {
                     orderBy: { capturedAt: "desc" },
                     take: 1,
                 },
+                format: true,
+                hook: true,
+                theme: true,
+                angle: true,
             },
             orderBy: { lastSeen: "desc" },
         });

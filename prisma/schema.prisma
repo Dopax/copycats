@@ -23,12 +23,49 @@ model Ad {
   
   archived        Boolean      @default(false)
   priority        Int?         // 1=High, 2=Medium, 3=Low, null=No priority
+  notes           String?
   
   snapshots       AdSnapshot[]
   tags            Tag[]
   
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+
+  formatId        String?
+  format          AdFormat?    @relation(fields: [formatId], references: [id])
+  
+  hookId          String?
+  hook            AdHook?      @relation(fields: [hookId], references: [id])
+
+  themeId         String?
+  theme           AdTheme?     @relation(fields: [themeId], references: [id])
+
+  angleId         String?
+  angle           AdAngle?     @relation(fields: [angleId], references: [id])
+}
+
+model AdFormat {
+  id    String @id @default(uuid())
+  name  String @unique
+  ads   Ad[]
+}
+
+model AdHook {
+  id    String @id @default(uuid())
+  name  String @unique
+  ads   Ad[]
+}
+
+model AdTheme {
+  id    String @id @default(uuid())
+  name  String @unique
+  ads   Ad[]
+}
+
+model AdAngle {
+  id    String @id @default(uuid())
+  name  String @unique
+  ads   Ad[]
 }
 
 model AdSnapshot {
