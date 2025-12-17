@@ -42,30 +42,80 @@ model Ad {
 
   angleId         String?
   angle           AdAngle?     @relation(fields: [angleId], references: [id])
+
+  awarenessLevelId String?
+  awarenessLevel   AdAwarenessLevel? @relation(fields: [awarenessLevelId], references: [id])
+
+  referencedInBatches AdBatch[]
 }
 
 model AdFormat {
   id    String @id @default(uuid())
   name  String @unique
   ads   Ad[]
+  batches AdBatch[]
 }
 
 model AdHook {
-  id    String @id @default(uuid())
-  name  String @unique
-  ads   Ad[]
+  id           String   @id @default(uuid())
+  name         String   @unique
+  type         String?  // FLOATING_ELEMENTS, FB_COMMENT, TIKTOK_COMMENT, TEXT, VFX, FRAME_SELECTION, AUDIO
+  content      String?  // Text content for comment/text hooks
+  videoUrl     String?  // Uploaded or linked video file
+  thumbnailUrl String?
+  
+  ads          Ad[]
+  batchItems   BatchItem[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime? @updatedAt
 }
 
 model AdTheme {
-  id    String @id @default(uuid())
-  name  String @unique
-  ads   Ad[]
+  id       String @id @default(uuid())
+  name     String @unique
+  ads      Ad[]
+  concepts CreativeConcept[]
 }
 
 model AdAngle {
-  id    String @id @default(uuid())
-  name  String @unique
-  ads   Ad[]
+  id       String @id @default(uuid())
+  name     String @unique
+  ads      Ad[]
+  concepts CreativeConcept[]
+}
+
+model AdDemographic {
+  id       String @id @default(uuid())
+  name     String @unique
+  concepts CreativeConcept[]
+}
+
+
+model AdAwarenessLevel {
+  id       String @id @default(uuid())
+  name     String @unique
+  ads      Ad[]
+  batches  AdBatch[]
+}
+
+model CreativeConcept {
+  id            String @id @default(uuid())
+  name          String
+  
+  angleId       String
+  angle         AdAngle @relation(fields: [angleId], references: [id])
+  
+  themeId       String
+  theme         AdTheme @relation(fields: [themeId], references: [id])
+  
+  demographicId String
+  demographic   AdDemographic @relation(fields: [demographicId], references: [id])
+  
+  batches       AdBatch[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model AdSnapshot {
@@ -87,6 +137,48 @@ model Tag {
   id    String @id @default(uuid())
   name  String @unique
   ads   Ad[]
+}
+
+model AdBatch {
+  id          Int      @id @default(autoincrement())
+  name        String
+  status      String   @default("IDEATION") // IDEATION, BRIEFING, EDITING, REVIEW, LAUNCHING, COMPLETED, ARCHIVED
+  batchType   String   // COPYCAT, NET_NEW, ITERATION
+  priority    String?  // HIGH, MEDIUM, LOW
+
+  conceptId   String
+  concept     CreativeConcept @relation(fields: [conceptId], references: [id])
+
+  formatId    String?
+  format      AdFormat? @relation(fields: [formatId], references: [id])
+
+  awarenessLevelId String?
+  awarenessLevel   AdAwarenessLevel? @relation(fields: [awarenessLevelId], references: [id])
+
+  assignee    String?   // Editor Name
+  brief       String?   // Markdown or text
+
+  // If Copycat or Iteration, link to an existing Ad
+  referenceAdId String?
+  referenceAd   Ad?     @relation(fields: [referenceAdId], references: [id])
+
+  items       BatchItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BatchItem {
+  id        String   @id @default(uuid())
+  batchId   Int
+  batch     AdBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  hookId    String?
+  hook      AdHook?  @relation(fields: [hookId], references: [id])
+
+  notes     String?
+  script    String?
+  status    String   @default("PENDING") // PENDING, DONE
 }
 
 model ImportBatch {

@@ -5,6 +5,7 @@ interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
 interface AdTheme { id: string; name: string; }
 interface AdAngle { id: string; name: string; }
+interface AdAwarenessLevel { id: string; name: string; }
 
 interface AdWithSnapshots extends Ad {
     snapshots: AdSnapshot[];
@@ -12,6 +13,7 @@ interface AdWithSnapshots extends Ad {
     hook?: AdHook | null;
     theme?: AdTheme | null;
     angle?: AdAngle | null;
+    awarenessLevel?: AdAwarenessLevel | null;
     notes?: string | null;
 }
 
@@ -28,11 +30,13 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
     const [hooks, setHooks] = useState<AdHook[]>([]);
     const [themes, setThemes] = useState<AdTheme[]>([]);
     const [angles, setAngles] = useState<AdAngle[]>([]);
+    const [awarenessLevels, setAwarenessLevels] = useState<AdAwarenessLevel[]>([]);
 
     const [selectedFormat, setSelectedFormat] = useState<string | null>(ad.format?.id || null);
     const [selectedHook, setSelectedHook] = useState<string | null>(ad.hook?.id || null);
     const [selectedTheme, setSelectedTheme] = useState<string | null>(ad.theme?.id || null);
     const [selectedAngle, setSelectedAngle] = useState<string | null>(ad.angle?.id || null);
+    const [selectedAwareness, setSelectedAwareness] = useState<string | null>(ad.awarenessLevel?.id || null);
 
 
     const toggleArchive = async (e: React.MouseEvent) => {
@@ -121,16 +125,18 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
     // Fetch tags when opening menu
     const loadTags = async () => {
         try {
-            const [formatsRes, hooksRes, themesRes, anglesRes] = await Promise.all([
+            const [formatsRes, hooksRes, themesRes, anglesRes, awarenessRes] = await Promise.all([
                 fetch('/api/formats'),
                 fetch('/api/hooks'),
                 fetch('/api/themes'),
-                fetch('/api/angles')
+                fetch('/api/angles'),
+                fetch('/api/awareness-levels')
             ]);
             setFormats(await formatsRes.json());
             setHooks(await hooksRes.json());
             setThemes(await themesRes.json());
             setAngles(await anglesRes.json());
+            setAwarenessLevels(await awarenessRes.json());
         } catch (e) {
             console.error("Failed to load tags", e);
         }
@@ -192,6 +198,21 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
         }
     };
 
+    const createAwarenessLevel = async (name: string) => {
+        try {
+            const res = await fetch('/api/awareness-levels', {
+                method: 'POST',
+                body: JSON.stringify({ name })
+            });
+            const newLevel = await res.json();
+            setAwarenessLevels([...awarenessLevels, newLevel]);
+            setSelectedAwareness(newLevel.id);
+        } catch (e) {
+            console.error("Failed to create awareness level", e);
+        }
+    };
+
+
     const saveAll = async () => {
         setIsSavingNotes(true);
         try {
@@ -210,7 +231,8 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                     formatId: selectedFormat,
                     hookId: selectedHook,
                     themeId: selectedTheme,
-                    angleId: selectedAngle
+                    angleId: selectedAngle,
+                    awarenessLevelId: selectedAwareness
                 }),
             });
 
@@ -444,6 +466,30 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                         </div>
                     </div>
 
+                    <div className="mb-4">
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Awareness Level</label>
+                        <div className="flex gap-2">
+                            <select
+                                value={selectedAwareness || ""}
+                                onChange={(e) => setSelectedAwareness(e.target.value || null)}
+                                className="flex-1 min-w-0 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <option value="">Select Awareness Level...</option>
+                                {awarenessLevels.map(a => (
+                                    <option key={a.id} value={a.id}>{a.name}</option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={(e) => { e.preventDefault(); const name = prompt("New Awareness Level Name:"); if (name) createAwarenessLevel(name); }}
+                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"
+                                title="Add New Awareness Level"
+                            >
+                                +
+                            </button>
+                        </div>
+                    </div>
+
                     <label className="block text-xs font-medium text-zinc-500 mb-1">Notes</label>
                     <textarea
                         value={notes}
@@ -531,6 +577,11 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                                         {ad.angle.name}
                                     </span>
                                 )}
+                                {ad.awarenessLevel && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border border-cyan-100 dark:border-cyan-800">
+                                        {ad.awarenessLevel.name}
+                                    </span>
+                                )}
                             </div>
                         )}
                         {ad.notes && (
@@ -553,6 +604,14 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
                                 Details
+                            </Link>
+
+                            <Link
+                                href={`/batches?create=true&refAdId=${ad.id}&refAdPostId=${ad.postId}`}
+                                className="px-3 py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors border border-zinc-200 dark:border-zinc-700 flex-shrink-0"
+                                title="Create Batch from this Ad"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
                             </Link>
 
                             {ad.facebookLink && (

@@ -1,8 +1,5 @@
-
-import { PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
     try {
@@ -17,9 +14,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const { name } = await request.json();
+        const { name, type, content, videoUrl, thumbnailUrl } = await request.json();
         const hook = await prisma.adHook.create({
-            data: { name }
+            data: {
+                name,
+                type,
+                content,
+                videoUrl,
+                thumbnailUrl
+            }
         });
         return NextResponse.json(hook);
     } catch (error) {
