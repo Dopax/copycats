@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
+import { useBrand } from "@/context/BrandContext";
 
 const navigation = [
     {
         name: "Dashboard",
-        href: "/",
+        href: "/batches",
         icon: (
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -69,6 +70,15 @@ const navigation = [
             </svg>
         )
     },
+    {
+        name: "Brand Assets",
+        href: "/brand-assets",
+        icon: (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        )
+    },
 ];
 
 function classNames(...classes: string[]) {
@@ -77,6 +87,8 @@ function classNames(...classes: string[]) {
 
 export default function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const { selectedBrand } = useBrand();
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     return (
@@ -117,6 +129,26 @@ export default function Sidebar() {
             </nav>
 
             <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-4">
+                {/* Brand Switcher */}
+                {selectedBrand && (
+                    <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
+                        <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-zinc-800 text-xs flex-shrink-0 cursor-pointer hover:ring-2 ring-zinc-300"
+                            style={{ backgroundColor: selectedBrand.color || "#e4e4e7" }}
+                            onClick={() => router.push("/")}
+                            title={`Switch from ${selectedBrand.name}`}
+                        >
+                            {selectedBrand.logoUrl ? <img src={selectedBrand.logoUrl} className="w-full h-full object-cover rounded-full" /> : selectedBrand.name.charAt(0)}
+                        </div>
+                        {!isCollapsed && (
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">{selectedBrand.name}</p>
+                                <button onClick={() => router.push("/")} className="text-xs text-zinc-500 hover:text-indigo-500">Switch Brand</button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className="flex items-center justify-center p-2 rounded-md text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"

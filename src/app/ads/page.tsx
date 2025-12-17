@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdCard from "@/components/AdCard";
 import { Ad, AdSnapshot } from "@prisma/client";
+import { useBrand } from "@/context/BrandContext";
 
 interface AdWithSnapshots extends Ad {
     snapshots: AdSnapshot[];
@@ -16,6 +17,7 @@ export default function AdsPage() {
     const [isInitialized, setIsInitialized] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { selectedBrand } = useBrand();
 
     // Filters & Sorting
     const [sortBy, setSortBy] = useState("date"); // date, likes, shares
@@ -51,7 +53,7 @@ export default function AdsPage() {
         fetchData();
     }, []);
 
-    // Initialize State from URL/LocalStorage
+    // Initialize State from URL/LocalStorage/Context
     useEffect(() => {
         const params = new URLSearchParams(searchParams.toString());
         const stored = localStorage.getItem("ads_filters");
@@ -60,7 +62,14 @@ export default function AdsPage() {
         const getVal = (key: string) => params.get(key) || storedFilters[key] || "";
 
         if (getVal("sortBy")) setSortBy(getVal("sortBy"));
-        if (getVal("filterBrand")) setFilterBrand(getVal("filterBrand"));
+
+        // If global brand context is active, force it. Otherwise use stored/param.
+        if (selectedBrand) {
+            setFilterBrand(selectedBrand.name);
+        } else {
+            if (getVal("filterBrand")) setFilterBrand(getVal("filterBrand"));
+        }
+
         if (getVal("filterPriority")) setFilterPriority(getVal("filterPriority"));
         if (getVal("filterBatch")) setFilterBatch(getVal("filterBatch"));
         if (getVal("showArchived")) setShowArchived(getVal("showArchived") === "true");
@@ -69,7 +78,7 @@ export default function AdsPage() {
         if (getVal("customEndDate")) setCustomEndDate(getVal("customEndDate"));
 
         setIsInitialized(true);
-    }, []);
+    }, [selectedBrand]); // Add selectedBrand dependency
 
     // Sync State to URL/LocalStorage
     useEffect(() => {
@@ -114,6 +123,17 @@ export default function AdsPage() {
         }
     }, [loading]);
 
+    // Auto-correction: Clear stored filter if it matches no ads (validating against loaded data)
+    useEffect(() => {
+        if (!loading && isInitialized && filterBrand && !selectedBrand) {
+            const availableBrands = new Set(ads.map(ad => ad.brand).filter(Boolean));
+            if (!availableBrands.has(filterBrand)) {
+                // Keep stickiness only for valid brands
+                setFilterBrand("");
+            }
+        }
+    }, [loading, isInitialized, ads, filterBrand, selectedBrand]);
+
     const filteredAds = ads
         .filter((ad) => {
             // Archived Logic
@@ -121,6 +141,9 @@ export default function AdsPage() {
             // if (!showArchived && ad.archived) return false;
 
             // Brand Logic
+            // If selectedBrand matches, we are already good, but we filter by exact string match of 'brand' column
+            // Note: AdSpy brand names might differ slightly from our Profile names.
+            // For now, strict string match.
             if (filterBrand && ad.brand !== filterBrand) return false;
 
             // Batch Logic
@@ -244,7 +267,7 @@ export default function AdsPage() {
                             <option value="null">No Priority</option>
                         </select>
 
-                        {/* Brand Filter */}
+                        {/* Brand Filter - Hide if context active? Or just allow override? Let's allow override but default to context */}
                         <select
                             value={filterBrand}
                             onChange={(e) => setFilterBrand(e.target.value)}

@@ -70,44 +70,57 @@ async function processAd(element: any, $: any) {
         videoUrl = el.find('video source').attr('src') || el.find('video').attr('src');
     }
 
-    // Convert local video file paths to AdSpy CDN URLs
     if (videoUrl && (videoUrl.includes('AdSpy') || videoUrl.includes('_files'))) {
-        // Extract just the filename from the relative path
-        // e.g., "AdSpy%2025.11.25_files/bzwxOVppazh2dP1n.mp4" -> "bzwxOVppazh2dP1n.mp4"
         const filename = videoUrl.split('/').pop();
-        if (uParam) {
-            adLink = decodeURIComponent(uParam);
+        if (filename) {
+            videoUrl = `https://content.adspy.com/${filename}`;
         }
-    } catch (e) {
-        // Keep original if parsing fails
     }
-}
 
-// 7. Metrics
-const likesText = el.find('img[src*="like.png"]').parent().next('.line').text();
-const likes = parseNumber(likesText);
+    const thumbnailUrl = el.find('.poster').attr('src') || el.find('img.poster').attr('src') || el.find('video').attr('poster');
 
-const commentsText = el.find('span:contains("Comments")').text();
-const comments = parseNumber(commentsText);
+    // 6. Ad Link
+    let adLink = el.find('a[href*="facebook.com/l.php"]').attr('href') ||
+        el.find('a[href*="bit.ly"]').attr('href') ||
+        null;
 
-const sharesText = el.find('span:contains("Shares")').text();
-const shares = parseNumber(sharesText);
+    if (adLink && adLink.includes('u=')) {
+        try {
+            const urlParams = new URLSearchParams(adLink.split('?')[1]);
+            const uParam = urlParams.get('u');
+            if (uParam) {
+                adLink = decodeURIComponent(uParam);
+            }
+        } catch (e) {
+            // Keep original
+        }
+    }
 
-return {
-    postId,
-    brand,
-    headline,
-    description,
-    adLink,
-    videoUrl,
-    thumbnailUrl,
-    publishDate,
-    lastSeen: lastSeenDate,
-    likes,
-    shares,
-    comments,
-    facebookLink
-};
+    // 7. Metrics
+    const likesText = el.find('img[src*="like.png"]').parent().next('.line').text() || "0";
+    const likes = parseNumber(likesText);
+
+    const commentsText = el.find('span:contains("Comments")').text() || "0";
+    const comments = parseNumber(commentsText);
+
+    const sharesText = el.find('span:contains("Shares")').text() || "0";
+    const shares = parseNumber(sharesText);
+
+    return {
+        postId,
+        brand,
+        headline,
+        description,
+        adLink,
+        videoUrl,
+        thumbnailUrl,
+        publishDate,
+        lastSeen: lastSeenDate,
+        likes,
+        shares,
+        comments,
+        facebookLink
+    };
 }
 
 export async function GET(req: Request) {
@@ -164,15 +177,60 @@ export async function POST(req: Request) {
                         // console.log(`Creating new ad ${adData.postId}`);
                         ad = await prisma.ad.create({
                             data: {
-                                success: true,
-                                processed: processedCount,
-                                totalFound: adElements.length,
-                                message: `Successfully processed ${processedCount} ads`,
-                                batchId: importBatch.id
-                            });
-
-                    } catch (error) {
-                        console.error("Parsing error:", error);
-                        return NextResponse.json({ error: "Parsing failed" }, { status: 500 });
+                                postId: adData.postId,
+                                brand: adData.brand,
+                                description: adData.description,
+                                headline: adData.headline,
+                                adLink: adData.adLink,
+                                facebookLink: adData.facebookLink,
+                                videoUrl: adData.videoUrl,
+                                thumbnailUrl: adData.thumbnailUrl,
+                                publishDate: adData.publishDate,
+                                firstSeen: adData.publishDate || new Date(),
+                                lastSeen: adData.lastSeen || new Date(),
+                            }
+                        });
+                    } else {
+                        // Update existing ad
+                        ad = await prisma.ad.update({
+                            where: { id: ad.id },
+                            data: {
+                                lastSeen: adData.lastSeen || new Date(),
+                                videoUrl: adData.videoUrl || undefined, // Update video URL if we have a better one?
+                            }
+                        });
                     }
+
+                    // Create Snapshot
+                    await prisma.adSnapshot.create({
+                        data: {
+                            adId: ad.id,
+                            likes: adData.likes,
+                            shares: adData.shares,
+                            comments: adData.comments,
+                            importBatchId: importBatch.id,
+                            capturedAt: new Date()
+                        }
+                    });
+
+                    processedCount++;
+
+                } catch (dbError) {
+                    console.error(`Database error for ${adData.postId}:`, dbError);
                 }
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            processed: processedCount,
+            totalFound: adElements.length,
+            message: `Successfully processed ${processedCount} ads`,
+            batchId: importBatch.id
+        });
+
+    } catch (error) {
+        console.error("Parsing error:", error);
+        return NextResponse.json({ error: "Parsing failed" }, { status: 500 });
+    }
+}

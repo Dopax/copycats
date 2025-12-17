@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useBrand } from "@/context/BrandContext";
 
 // Types
 interface Batch {
@@ -26,8 +27,8 @@ const STATUS_COLUMNS = [
     { key: "BRIEFING", label: "Briefing", color: "bg-blue-50 dark:bg-blue-900/10" },
     { key: "EDITING", label: "Editing", color: "bg-amber-50 dark:bg-amber-900/10" },
     { key: "REVIEW", label: "Review", color: "bg-purple-50 dark:bg-purple-900/10" },
-    { key: "LAUNCHING", label: "Launching", color: "bg-green-50 dark:bg-green-900/10" },
-    { key: "COMPLETED", label: "Completed", color: "bg-zinc-100 dark:bg-zinc-800" },
+    { key: "AI_BOOST", label: "AI Boost", color: "bg-indigo-50 dark:bg-indigo-900/10" },
+    { key: "LAUNCHED", label: "Launched", color: "bg-green-50 dark:bg-green-900/10" },
 ];
 
 function BatchesContent() {
@@ -38,6 +39,7 @@ function BatchesContent() {
 
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { selectedBrand, isLoading: isBrandLoading } = useBrand();
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,10 +56,13 @@ function BatchesContent() {
 
     // Duplicate Warning State
     const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+    const [duplicateBatchId, setDuplicateBatchId] = useState<number | null>(null);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (!isBrandLoading) {
+            fetchData();
+        }
+    }, [selectedBrand, isBrandLoading]);
 
     // Effect to check URL params for initial modal state
     useEffect(() => {
@@ -76,34 +81,42 @@ function BatchesContent() {
                 setNewBatchName(refPostId ? `Copycat of ${refPostId}` : "");
 
                 // CHECK FOR DUPLICATES
-                checkForDuplicates(refId);
+                checkForDuplicates(refId, refPostId || undefined);
             }
         }
     }, [searchParams, batches]); // Add batches to dependency to check against loaded data
 
-    const checkForDuplicates = (refId: string) => {
+    const checkForDuplicates = (refId: string, refPostId?: string) => {
         // Simple client-side check against loaded batches
         // Ideally this would be a server check, but client-side is faster for immediate feedback
-        const existingBatch = batches.find(b => (b as any).referenceAdId === refId); // Need to expose referenceAdId in Batch type or fetch it
+        const existingBatch = batches.find(b => (b as any).referenceAdId === refId);
 
-        // Since list endpoint might not return referenceAdId, let's just warn if we see a name match or similar
-        // Actually, let's fetch strictly to be sure
+        // Fetch strictly to be sure
         fetch(`/api/batches?referenceAdId=${refId}`).then(res => res.json()).then(data => {
             if (data && data.length > 0) {
-                setDuplicateWarning(`Warning: A batch for Ad ${refId} already exists (Batch #${data[0].id}: ${data[0].name}).`);
+                const existing = data[0];
+                setDuplicateWarning(
+                    `You already have a batch for Ad ${refPostId || 'selected'}: "${existing.name}"`
+                );
+                setDuplicateBatchId(existing.id);
             } else {
                 setDuplicateWarning(null);
+                setDuplicateBatchId(null);
             }
-        }).catch(() => setDuplicateWarning(null));
+        }).catch(() => {
+            setDuplicateWarning(null);
+            setDuplicateBatchId(null);
+        });
     };
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
+            const query = selectedBrand ? `?brandId=${selectedBrand.id}` : '';
             const [batchesRes, conceptsRes, formatsRes] = await Promise.all([
-                fetch('/api/batches'),
-                fetch('/api/concepts'),
-                fetch('/api/formats')
+                fetch(`/api/batches${query}`),
+                fetch(`/api/concepts${query}`),
+                fetch('/api/formats') // Formats are global for now? Or brand restricted? Should probably be brand restricted eventually. Leaving global for now.
             ]);
 
             if (batchesRes.ok) setBatches(await batchesRes.json());
@@ -130,7 +143,9 @@ function BatchesContent() {
                     priority: newBatchPriority,
                     conceptId: newBatchConcept,
                     formatId: newBatchFormat || null,
-                    referenceAdId: (newBatchType === 'COPYCAT' || newBatchType === 'ITERATION') ? referenceAdId : null
+                    formatId: newBatchFormat || null,
+                    referenceAdId: (newBatchType === 'COPYCAT' || newBatchType === 'ITERATION') ? referenceAdId : null,
+                    brandId: selectedBrand?.id
                 }),
             });
 
@@ -387,7 +402,14 @@ function BatchesContent() {
                                     <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                     <div className="text-sm text-amber-800">
                                         <p className="font-medium">Duplicate Batch</p>
-                                        <p className="text-xs mt-0.5">{duplicateWarning}</p>
+                                        <p className="text-xs mt-0.5">
+                                            {duplicateWarning}
+                                            {duplicateBatchId && (
+                                                <Link href={`/batches/${duplicateBatchId}`} target="_blank" className="underline font-bold ml-1 hover:text-amber-900">
+                                                    View Batch #{duplicateBatchId} →
+                                                </Link>
+                                            )}
+                                        </p>
                                     </div>
                                 </div>
                             )}

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const brandId = searchParams.get('brandId');
+
         const batches = await prisma.adBatch.findMany({
+            where: brandId ? { brandId } : undefined,
             include: {
                 concept: {
                     include: {
@@ -45,6 +49,7 @@ export async function POST(request: Request) {
                 assignee: data.assignee,
                 brief: data.brief,
                 referenceAdId: data.referenceAdId,
+                brandId: data.brandId,
             },
             include: {
                 concept: true

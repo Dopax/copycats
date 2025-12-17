@@ -13,13 +13,13 @@ export async function GET(request: Request, { params }: { params: { id: string }
                     include: {
                         angle: true,
                         theme: true,
-                        demographic: true
+                        demographic: true,
+                        awarenessLevel: true
                     }
                 },
                 format: true,
                 items: { include: { hook: true } },
-                referenceAd: true,
-                awarenessLevel: true
+                referenceAd: true
             },
         });
 
@@ -54,7 +54,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 formatId: data.formatId,
                 conceptId: data.conceptId,
                 referenceAdId: data.referenceAdId,
-                awarenessLevelId: data.awarenessLevelId
+                aiAdCopy: data.aiAdCopy,
+                aiImagePrompt: data.aiImagePrompt,
+                aiVideoPrompt: data.aiVideoPrompt
             },
         });
 

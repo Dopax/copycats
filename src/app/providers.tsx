@@ -2,10 +2,14 @@
 
 import { ThemeProvider } from "next-themes";
 
+import { BrandProvider } from "@/context/BrandContext";
+
 export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            {children}
+            <BrandProvider>
+                {children}
+            </BrandProvider>
         </ThemeProvider>
     );
 }

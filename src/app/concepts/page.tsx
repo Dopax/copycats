@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useBrand } from "@/context/BrandContext";
 
 interface Angle { id: string; name: string; }
 interface Theme { id: string; name: string; }
@@ -12,15 +13,19 @@ interface CreativeConcept {
     angle: Angle;
     theme: Theme;
     demographic: Demographic;
+    awarenessLevel?: { id: string; name: string; };
+    batches: { id: number; name: string; status: string; }[];
 }
 
 export default function ConceptsPage() {
+    const { selectedBrand, isLoading: isBrandLoading } = useBrand();
     const [concepts, setConcepts] = useState<CreativeConcept[]>([]);
 
     // Dropdown Data
     const [angles, setAngles] = useState<Angle[]>([]);
     const [themes, setThemes] = useState<Theme[]>([]);
     const [demographics, setDemographics] = useState<Demographic[]>([]);
+    const [awarenessLevels, setAwarenessLevels] = useState<{ id: string; name: string; }[]>([]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
@@ -29,25 +34,31 @@ export default function ConceptsPage() {
     const [selectedAngle, setSelectedAngle] = useState<string>("");
     const [selectedTheme, setSelectedTheme] = useState<string>("");
     const [selectedDemographic, setSelectedDemographic] = useState<string>("");
+    const [selectedAwarenessLevel, setSelectedAwarenessLevel] = useState<string>("");
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (!isBrandLoading) {
+            fetchData();
+        }
+    }, [selectedBrand, isBrandLoading]);
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [anglesRes, themesRes, demographicsRes, conceptsRes] = await Promise.all([
+            const query = selectedBrand ? `?brandId=${selectedBrand.id}` : '';
+            const [anglesRes, themesRes, demographicsRes, awarenessRes, conceptsRes] = await Promise.all([
                 fetch('/api/angles'),
                 fetch('/api/themes'),
                 fetch('/api/demographics'),
-                fetch('/api/concepts')
+                fetch('/api/awareness-levels'),
+                fetch(`/api/concepts${query}`)
             ]);
 
-            setAngles(await anglesRes.json());
-            setThemes(await themesRes.json());
-            setDemographics(await demographicsRes.json());
-            setConcepts(await conceptsRes.json());
+            if (anglesRes.ok) setAngles(await anglesRes.json());
+            if (themesRes.ok) setThemes(await themesRes.json());
+            if (demographicsRes.ok) setDemographics(await demographicsRes.json());
+            if (awarenessRes.ok) setAwarenessLevels(await awarenessRes.json());
+            if (conceptsRes.ok) setConcepts(await conceptsRes.json());
         } catch (error) {
             console.error("Failed to load data", error);
         } finally {
@@ -75,6 +86,46 @@ export default function ConceptsPage() {
         }
     };
 
+    const handleCreateAwarenessLevel = async () => {
+        const name = prompt("Enter new Awareness Level name:");
+        if (!name) return;
+
+        try {
+            const res = await fetch('/api/awareness-levels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (res.ok) {
+                const newLvl = await res.json();
+                setAwarenessLevels([...awarenessLevels, newLvl]);
+                setSelectedAwarenessLevel(newLvl.id);
+            }
+        } catch (error) {
+            console.error("Failed to create awareness level", error);
+        }
+    };
+
+    const handleCreateTheme = async () => {
+        const name = prompt("Enter new Theme name:");
+        if (!name) return;
+
+        try {
+            const res = await fetch('/api/themes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (res.ok) {
+                const newTheme = await res.json();
+                setThemes([...themes, newTheme]);
+                setSelectedTheme(newTheme.id);
+            }
+        } catch (error) {
+            console.error("Failed to create theme", error);
+        }
+    };
+
     const handleCreateConcept = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedAngle || !selectedTheme || !selectedDemographic) {
@@ -90,7 +141,9 @@ export default function ConceptsPage() {
                 body: JSON.stringify({
                     angleId: selectedAngle,
                     themeId: selectedTheme,
-                    demographicId: selectedDemographic
+                    demographicId: selectedDemographic,
+                    awarenessLevelId: selectedAwarenessLevel || undefined,
+                    brandId: selectedBrand?.id
                 })
             });
 
@@ -101,6 +154,7 @@ export default function ConceptsPage() {
                 setSelectedAngle("");
                 setSelectedTheme("");
                 setSelectedDemographic("");
+                setSelectedAwarenessLevel("");
             } else {
                 alert("Failed to create concept.");
             }
@@ -136,7 +190,7 @@ export default function ConceptsPage() {
             {/* Concept Creator Card */}
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">New Concept Matrix</h2>
-                <form onSubmit={handleCreateConcept} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <form onSubmit={handleCreateConcept} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
 
                     {/* Angle */}
                     <div className="space-y-1">
@@ -153,7 +207,16 @@ export default function ConceptsPage() {
 
                     {/* Theme */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Theme</label>
+                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
+                            Theme
+                            <button
+                                type="button"
+                                onClick={handleCreateTheme}
+                                className="text-indigo-600 hover:text-indigo-500 text-[10px]"
+                            >
+                                + New
+                            </button>
+                        </label>
                         <select
                             value={selectedTheme}
                             onChange={(e) => setSelectedTheme(e.target.value)}
@@ -186,6 +249,28 @@ export default function ConceptsPage() {
                         </select>
                     </div>
 
+                    {/* Awareness Level */}
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
+                            Awareness
+                            <button
+                                type="button"
+                                onClick={handleCreateAwarenessLevel}
+                                className="text-indigo-600 hover:text-indigo-500 text-[10px]"
+                            >
+                                + New
+                            </button>
+                        </label>
+                        <select
+                            value={selectedAwarenessLevel}
+                            onChange={(e) => setSelectedAwarenessLevel(e.target.value)}
+                            className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                        >
+                            <option value="">Select Awareness...</option>
+                            {awarenessLevels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        </select>
+                    </div>
+
                     {/* Submit */}
                     <button
                         type="submit"
@@ -205,57 +290,75 @@ export default function ConceptsPage() {
                 {isLoading ? (
                     <div className="p-8 text-center text-zinc-500">Loading concepts...</div>
                 ) : (
-                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Concept Name (ID)</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Angle</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Theme</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Demographic</th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                            {concepts.map((concept) => (
-                                <tr key={concept.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-semibold text-zinc-900 dark:text-white">{concept.name}</div>
-                                        <div className="text-xs text-zinc-400 font-mono mt-0.5">{concept.id.split('-')[0]}...</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-300">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800">
-                                            {concept.angle.name}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-300">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 border border-pink-100 dark:border-pink-800">
-                                            {concept.theme.name}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-300">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800">
-                                            {concept.demographic.name}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                        <button
-                                            onClick={() => handleDelete(concept.id)}
-                                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {concepts.length === 0 && (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 text-sm">
-                                        No concepts defined yet. Use the matrix above to create your first concept.
-                                    </td>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Concept Name (ID)</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Matrix</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Active Batches</th>
+                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                {concepts.map((concept) => (
+                                    <tr key={concept.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-semibold text-zinc-900 dark:text-white">{concept.name}</div>
+                                            <div className="text-xs text-zinc-400 font-mono mt-0.5">{concept.id.split('-')[0]}...</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">
+                                            <div className="flex flex-wrap gap-2">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800" title="Angle">
+                                                    {concept.angle.name}
+                                                </span>
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 border border-pink-100 dark:border-pink-800" title="Theme">
+                                                    {concept.theme.name}
+                                                </span>
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800" title="Demographic">
+                                                    {concept.demographic.name}
+                                                </span>
+                                                {concept.awarenessLevel && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-100 dark:border-violet-800" title="Awareness Level">
+                                                        {concept.awarenessLevel.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-1.5">
+                                                {concept.batches && concept.batches.length > 0 ? (
+                                                    concept.batches.map(batch => (
+                                                        <a key={batch.id} href={`/batches/${batch.id}`} className="text-xs flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 hover:underline">
+                                                            <span className="font-mono bg-indigo-50 dark:bg-indigo-900/30 px-1 rounded text-[10px] text-indigo-700 dark:text-indigo-300">BATCH{batch.id}</span>
+                                                            <span className="truncate max-w-[150px]">{batch.name}</span>
+                                                        </a>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-zinc-400 italic">No batches yet</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                            <button
+                                                onClick={() => handleDelete(concept.id)}
+                                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {concepts.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 text-sm">
+                                            No concepts defined yet. Use the matrix above to create your first concept.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>

@@ -50,10 +50,14 @@ model Ad {
 }
 
 model AdFormat {
-  id    String @id @default(uuid())
-  name  String @unique
-  ads   Ad[]
-  batches AdBatch[]
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  audioChoice String?  // e.g. "Text Only", "Music Only", "Voice Over", "Person Talking"
+  ads         Ad[]
+  batches     AdBatch[]
+  brandId     String?
+  brand       Brand?   @relation(fields: [brandId], references: [id])
 }
 
 model AdHook {
@@ -69,6 +73,9 @@ model AdHook {
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime? @updatedAt
+  
+  brandId      String?
+  brand        Brand?    @relation(fields: [brandId], references: [id])
 }
 
 model AdTheme {
@@ -76,6 +83,8 @@ model AdTheme {
   name     String @unique
   ads      Ad[]
   concepts CreativeConcept[]
+  brandId  String?
+  brand    Brand?   @relation(fields: [brandId], references: [id])
 }
 
 model AdAngle {
@@ -83,12 +92,16 @@ model AdAngle {
   name     String @unique
   ads      Ad[]
   concepts CreativeConcept[]
+  brandId  String?
+  brand    Brand?   @relation(fields: [brandId], references: [id])
 }
 
 model AdDemographic {
   id       String @id @default(uuid())
   name     String @unique
   concepts CreativeConcept[]
+  brandId  String?
+  brand    Brand?   @relation(fields: [brandId], references: [id])
 }
 
 
@@ -96,7 +109,9 @@ model AdAwarenessLevel {
   id       String @id @default(uuid())
   name     String @unique
   ads      Ad[]
-  batches  AdBatch[]
+  concepts CreativeConcept[]
+  brandId  String?
+  brand    Brand?   @relation(fields: [brandId], references: [id])
 }
 
 model CreativeConcept {
@@ -112,10 +127,54 @@ model CreativeConcept {
   demographicId String
   demographic   AdDemographic @relation(fields: [demographicId], references: [id])
   
+  awarenessLevelId String?
+  awarenessLevel   AdAwarenessLevel? @relation(fields: [awarenessLevelId], references: [id])
+  
+  brandId       String?
+  brand         Brand?   @relation(fields: [brandId], references: [id])
+
   batches       AdBatch[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model Brand {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  logoUrl   String?  // Can be an image URL or null
+  color     String?  // Hex code for profile avatar background
+  
+  batches   AdBatch[]
+  concepts  CreativeConcept[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  color2    String?  // Hex code for secondary color
+  fontUrl   String?  // URL for font image/file
+  offerBrief String? // Fundamental text
+
+  assets    BrandAsset[]
+  
+  formats   AdFormat[]
+  hooks     AdHook[]
+  themes    AdTheme[]
+  angles    AdAngle[]
+  demographics AdDemographic[]
+  awarenessLevels AdAwarenessLevel[]
+}
+
+model BrandAsset {
+  id        String   @id @default(uuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  
+  url       String
+  name      String?
+  type      String   @default("IMAGE") // IMAGE, VIDEO, etc.
+  
+  createdAt DateTime @default(now())
 }
 
 model AdSnapshot {
@@ -142,21 +201,26 @@ model Tag {
 model AdBatch {
   id          Int      @id @default(autoincrement())
   name        String
-  status      String   @default("IDEATION") // IDEATION, BRIEFING, EDITING, REVIEW, LAUNCHING, COMPLETED, ARCHIVED
+  status      String   @default("IDEATION") // IDEATION, BRIEFING, EDITING, REVIEW, AI_BOOST, LAUNCHED, ARCHIVED
   batchType   String   // COPYCAT, NET_NEW, ITERATION
   priority    String?  // HIGH, MEDIUM, LOW
 
   conceptId   String
   concept     CreativeConcept @relation(fields: [conceptId], references: [id])
+  
+  brandId     String?
+  brand       Brand?          @relation(fields: [brandId], references: [id])
 
   formatId    String?
   format      AdFormat? @relation(fields: [formatId], references: [id])
 
-  awarenessLevelId String?
-  awarenessLevel   AdAwarenessLevel? @relation(fields: [awarenessLevelId], references: [id])
-
   assignee    String?   // Editor Name
   brief       String?   // Markdown or text
+
+  // AI Boost Fields
+  aiAdCopy      String?
+  aiImagePrompt String?
+  aiVideoPrompt String?
 
   // If Copycat or Iteration, link to an existing Ad
   referenceAdId String?

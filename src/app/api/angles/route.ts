@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const brandId = searchParams.get('brandId');
+
         const angles = await prisma.adAngle.findMany({
+            where: brandId ? {
+                OR: [
+                    { brandId: null },
+                    { brandId: brandId }
+                ]
+            } : {},
             orderBy: { name: 'asc' }
         });
         return NextResponse.json(angles);
@@ -14,14 +23,17 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const { name } = await request.json();
+        const { name, brandId } = await request.json();
 
         if (!name) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
         }
 
         const angle = await prisma.adAngle.create({
-            data: { name }
+            data: {
+                name,
+                brandId: brandId || null
+            }
         });
 
         return NextResponse.json(angle);
