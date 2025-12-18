@@ -236,8 +236,27 @@ export default function BatchDetailPage() {
             } else {
                 router.push('/batches');
             }
-            if (hooksRes.ok) setHooks(await hooksRes.json());
 
+            if (hooksRes.ok) {
+                const fetchedHooks = await hooksRes.json();
+
+                // Ensure "Editor Choice" hook exists
+                if (!fetchedHooks.some((h: any) => h.name === "Editor Choice")) {
+                    try {
+                        const createRes = await fetch('/api/hooks', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: "Editor Choice" })
+                        });
+                        if (createRes.ok) {
+                            fetchedHooks.push(await createRes.json());
+                        }
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+                setHooks(fetchedHooks);
+            }
 
         } catch (error) {
             console.error("Failed to load data", error);
