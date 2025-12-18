@@ -24,8 +24,8 @@ interface Batch {
     brief?: string;
     concept: {
         name: string;
-        angle: { name: string };
-        theme: { name: string };
+        angle: { name: string; description?: string; brainClicks?: string };
+        theme: { name: string; description?: string };
         demographic: { name: string };
         awarenessLevel?: { name: string };
         conceptDoc?: string;
@@ -482,17 +482,50 @@ export default function BatchDetailPage() {
 
                 {/* Concept Context Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                    <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+
+                    {/* Angle Hover Card */}
+                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
                         <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Angle</span>
                         <span className="font-medium text-amber-600 dark:text-amber-400">{batch.concept.angle.name}</span>
+
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.concept.angle.name}</h4>
+                            {batch.concept.angle.description && <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-2">{batch.concept.angle.description}</p>}
+                            {batch.concept.angle.brainClicks && (
+                                <div className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2 rounded border border-amber-100 dark:border-amber-900/50">
+                                    <span className="font-bold">Original: </span>{batch.concept.angle.brainClicks}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+
+                    {/* Theme Hover Card */}
+                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
                         <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Theme</span>
                         <span className="font-medium text-pink-600 dark:text-pink-400">{batch.concept.theme.name}</span>
+
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.concept.theme.name}</h4>
+                            {batch.concept.theme.description ? (
+                                <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.concept.theme.description}</p>
+                            ) : (
+                                <p className="text-xs text-zinc-400 italic">No description available.</p>
+                            )}
+                        </div>
                     </div>
-                    <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+
+                    {/* Demographic Hover Card */}
+                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
                         <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Demographic</span>
                         <span className="font-medium text-emerald-600 dark:text-emerald-400">{batch.concept.demographic.name}</span>
+
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-1">Target Audience</h4>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.concept.demographic.name}</p>
+                        </div>
                     </div>
                     <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                         <div>
