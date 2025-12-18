@@ -377,225 +377,223 @@ export default function AdDetailPage() {
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+                {/* Notes & Tags Section */}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Analysis & Notes</h3>
 
-            {/* Notes & Tags Section */ }
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Analysis & Notes</h3>
+                    <div className="space-y-4">
+                        {/* Format Selector */}
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Format</label>
+                            <div className="flex gap-2">
+                                <select
+                                    value={selectedFormat || ""}
+                                    onChange={(e) => setSelectedFormat(e.target.value || null)}
+                                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
+                                >
+                                    <option value="">Select Format...</option>
+                                    {formats.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                                <button
+                                    onClick={() => { const name = prompt("New Format Name:"); if (name) createTag('formats', name, setFormats, formats).then(id => id && setSelectedFormat(id)); }}
+                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
+                                >+</button>
+                            </div>
+                        </div>
 
-        <div className="space-y-4">
-            {/* Format Selector */}
-            <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Format</label>
-                <div className="flex gap-2">
-                    <select
-                        value={selectedFormat || ""}
-                        onChange={(e) => setSelectedFormat(e.target.value || null)}
-                        className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
-                    >
-                        <option value="">Select Format...</option>
-                        {formats.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                    </select>
-                    <button
-                        onClick={() => { const name = prompt("New Format Name:"); if (name) createTag('formats', name, setFormats, formats).then(id => id && setSelectedFormat(id)); }}
-                        className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
-                    >+</button>
-                </div>
-            </div>
+                        {/* Hook Selector */}
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Hook</label>
+                            <div className="flex gap-2">
+                                <select
+                                    value={selectedHook || ""}
+                                    onChange={(e) => setSelectedHook(e.target.value || null)}
+                                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
+                                >
+                                    <option value="">Select Hook...</option>
+                                    {hooks.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                                </select>
+                                {/* Extract Video Button */}
+                                {ad.videoUrl && (
+                                    <button
+                                        onClick={extractHook}
+                                        disabled={isExtractingHook}
+                                        className="px-3 py-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 disabled:opacity-50"
+                                        title="Extract First 3.5s as Video Hook"
+                                    >
+                                        {isExtractingHook ? (
+                                            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm8.486-8.486a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243z" /></svg>
+                                        )}
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { const name = prompt("New Hook Name:"); if (name) createTag('hooks', name, setHooks, hooks).then(id => id && setSelectedHook(id)); }}
+                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
+                                >+</button>
+                            </div>
+                        </div>
 
-            {/* Hook Selector */}
-            <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Hook</label>
-                <div className="flex gap-2">
-                    <select
-                        value={selectedHook || ""}
-                        onChange={(e) => setSelectedHook(e.target.value || null)}
-                        className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
-                    >
-                        <option value="">Select Hook...</option>
-                        {hooks.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-                    </select>
-                    {/* Extract Video Button */}
-                    {ad.videoUrl && (
-                        <button
-                            onClick={extractHook}
-                            disabled={isExtractingHook}
-                            className="px-3 py-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 disabled:opacity-50"
-                            title="Extract First 3.5s as Video Hook"
-                        >
-                            {isExtractingHook ? (
-                                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm8.486-8.486a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243z" /></svg>
+                        {/* Theme Selector */}
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Theme</label>
+                            <div className="flex gap-2">
+                                <select
+                                    value={selectedTheme || ""}
+                                    onChange={(e) => setSelectedTheme(e.target.value || null)}
+                                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
+                                >
+                                    <option value="">Select Theme...</option>
+                                    {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                                <button
+                                    onClick={() => { const name = prompt("New Theme Name:"); if (name) createTag('themes', name, setThemes, themes).then(id => id && setSelectedTheme(id)); }}
+                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
+                                >+</button>
+                            </div>
+                        </div>
+
+                        {/* Angle Selector */}
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Angle</label>
+                            <div className="flex gap-2">
+                                <select
+                                    value={selectedAngle || ""}
+                                    onChange={(e) => setSelectedAngle(e.target.value || null)}
+                                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
+                                >
+                                    <option value="">Select Angle...</option>
+                                    {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                </select>
+                                <button
+                                    onClick={() => { const name = prompt("New Angle Name:"); if (name) createTag('angles', name, setAngles, angles).then(id => id && setSelectedAngle(id)); }}
+                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
+                                >+</button>
+                            </div>
+                        </div>
+
+                        {/* Awareness Level Selector */}
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Awareness Level</label>
+                            <div className="flex gap-2">
+                                <select
+                                    value={selectedAwareness || ""}
+                                    onChange={(e) => setSelectedAwareness(e.target.value || null)}
+                                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
+                                >
+                                    <option value="">Select Awareness Level...</option>
+                                    {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                </select>
+                                <button
+                                    onClick={() => { const name = prompt("New Awareness Level Name:"); if (name) createTag('awareness-levels', name, setAwarenessLevels, awarenessLevels).then(id => id && setSelectedAwareness(id)); }}
+                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
+                                >+</button>
+                            </div>
+                        </div>
+
+                        {/* Why it works */}
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Why do you think this ad works?</label>
+                            <textarea
+                                value={whyItWorks}
+                                onChange={(e) => setWhyItWorks(e.target.value)}
+                                placeholder="Explain your thoughts..."
+                                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
+                            />
+                        </div>
+
+                        {/* Other Notes */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <input
+                                    type="checkbox"
+                                    id="showNotesDetails"
+                                    checked={showNotesField}
+                                    onChange={(e) => setShowNotesField(e.target.checked)}
+                                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <label htmlFor="showNotesDetails" className="text-xs font-medium text-zinc-500 select-none cursor-pointer">
+                                    Other Notes
+                                </label>
+                            </div>
+                            {showNotesField && (
+                                <textarea
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    placeholder="Add your notes here..."
+                                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
+                                />
                             )}
+                        </div>
+
+                        <button
+                            onClick={saveDetails}
+                            disabled={isSavingNotes}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+                        >
+                            {isSavingNotes ? "Saving..." : "Save Analysis"}
                         </button>
-                    )}
-                    <button
-                        onClick={() => { const name = prompt("New Hook Name:"); if (name) createTag('hooks', name, setHooks, hooks).then(id => id && setSelectedHook(id)); }}
-                        className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
-                    >+</button>
+                    </div>
+                </div>
+
+                {/* Right Column: Metrics Chart */}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-fit">
+                    <h3 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">
+                        Virality History
+                    </h3>
+                    <div className="h-[400px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                                <XAxis
+                                    dataKey="date"
+                                    stroke="#6B7280"
+                                    fontSize={12}
+                                    tickMargin={10}
+                                />
+                                <YAxis
+                                    stroke="#6B7280"
+                                    fontSize={12}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: "#1F2937",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        color: "#F3F4F6",
+                                    }}
+                                />
+                                <Legend />
+                                <Line
+                                    type="monotone"
+                                    dataKey="likes"
+                                    stroke="#6366F1" // Indigo
+                                    strokeWidth={2}
+                                    dot={false}
+                                    name="Likes"
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="comments"
+                                    stroke="#EC4899" // Pink
+                                    strokeWidth={2}
+                                    dot={false}
+                                    name="Comments"
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="shares"
+                                    stroke="#10B981" // Emerald
+                                    strokeWidth={2}
+                                    dot={false}
+                                    name="Shares"
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
-
-            {/* Theme Selector */}
-            <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Theme</label>
-                <div className="flex gap-2">
-                    <select
-                        value={selectedTheme || ""}
-                        onChange={(e) => setSelectedTheme(e.target.value || null)}
-                        className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
-                    >
-                        <option value="">Select Theme...</option>
-                        {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                    <button
-                        onClick={() => { const name = prompt("New Theme Name:"); if (name) createTag('themes', name, setThemes, themes).then(id => id && setSelectedTheme(id)); }}
-                        className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
-                    >+</button>
-                </div>
-            </div>
-
-            {/* Angle Selector */}
-            <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Angle</label>
-                <div className="flex gap-2">
-                    <select
-                        value={selectedAngle || ""}
-                        onChange={(e) => setSelectedAngle(e.target.value || null)}
-                        className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
-                    >
-                        <option value="">Select Angle...</option>
-                        {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                    <button
-                        onClick={() => { const name = prompt("New Angle Name:"); if (name) createTag('angles', name, setAngles, angles).then(id => id && setSelectedAngle(id)); }}
-                        className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
-                    >+</button>
-                </div>
-            </div>
-
-            {/* Awareness Level Selector */}
-            <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Awareness Level</label>
-                <div className="flex gap-2">
-                    <select
-                        value={selectedAwareness || ""}
-                        onChange={(e) => setSelectedAwareness(e.target.value || null)}
-                        className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
-                    >
-                        <option value="">Select Awareness Level...</option>
-                        {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                    <button
-                        onClick={() => { const name = prompt("New Awareness Level Name:"); if (name) createTag('awareness-levels', name, setAwarenessLevels, awarenessLevels).then(id => id && setSelectedAwareness(id)); }}
-                        className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
-                    >+</button>
-                </div>
-            </div>
-
-            {/* Why it works */}
-            <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Why do you think this ad works?</label>
-                <textarea
-                    value={whyItWorks}
-                    onChange={(e) => setWhyItWorks(e.target.value)}
-                    placeholder="Explain your thoughts..."
-                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
-                />
-            </div>
-
-            {/* Other Notes */}
-            <div>
-                <div className="flex items-center gap-2 mb-2">
-                    <input
-                        type="checkbox"
-                        id="showNotesDetails"
-                        checked={showNotesField}
-                        onChange={(e) => setShowNotesField(e.target.checked)}
-                        className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label htmlFor="showNotesDetails" className="text-xs font-medium text-zinc-500 select-none cursor-pointer">
-                        Other Notes
-                    </label>
-                </div>
-                {showNotesField && (
-                    <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Add your notes here..."
-                        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
-                    />
-                )}
-            </div>
-
-            <button
-                onClick={saveDetails}
-                disabled={isSavingNotes}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
-            >
-                {isSavingNotes ? "Saving..." : "Save Analysis"}
-            </button>
         </div>
-    </div>
-
-    {/* Right Column: Metrics Chart */ }
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-fit">
-        <h3 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">
-            Virality History
-        </h3>
-        <div className="h-[400px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                    <XAxis
-                        dataKey="date"
-                        stroke="#6B7280"
-                        fontSize={12}
-                        tickMargin={10}
-                    />
-                    <YAxis
-                        stroke="#6B7280"
-                        fontSize={12}
-                    />
-                    <Tooltip
-                        contentStyle={{
-                            backgroundColor: "#1F2937",
-                            border: "none",
-                            borderRadius: "8px",
-                            color: "#F3F4F6",
-                        }}
-                    />
-                    <Legend />
-                    <Line
-                        type="monotone"
-                        dataKey="likes"
-                        stroke="#6366F1" // Indigo
-                        strokeWidth={2}
-                        dot={false}
-                        name="Likes"
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="comments"
-                        stroke="#EC4899" // Pink
-                        strokeWidth={2}
-                        dot={false}
-                        name="Comments"
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="shares"
-                        stroke="#10B981" // Emerald
-                        strokeWidth={2}
-                        dot={false}
-                        name="Shares"
-                    />
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
-    </div>
-        </div >
     );
 }
