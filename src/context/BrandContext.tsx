@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 export interface Brand {
     id: string;
@@ -53,6 +54,18 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem("selectedBrand");
         }
     };
+
+    const router = useRouter();
+    const pathname = usePathname();
+
+    useEffect(() => {
+        if (!isLoading) {
+            // Strict Protection: Redirect to Home (Login) if no brand selected
+            if (!selectedBrand && pathname !== '/') {
+                router.push('/');
+            }
+        }
+    }, [selectedBrand, isLoading, pathname, router]);
 
     return (
         <BrandContext.Provider value={{ selectedBrand, setSelectedBrand: setBrand, isLoading }}>

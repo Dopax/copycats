@@ -6,103 +6,34 @@ const prisma = new PrismaClient()
 async function main() {
     console.log('Start seeding ...')
 
-    // 1. Hooks
-    const hooksData = [
-        'Negative Hook',
-        'Benefit Hook',
-        'Question Hook',
-        'Stat Hook',
-        'Story Hook',
-        'Contrarian Hook'
-    ]
-    const hooks = []
-    for (const name of hooksData) {
-        const h = await prisma.adHook.upsert({
-            where: { name },
-            update: {},
-            create: { name }
-        })
-        hooks.push(h)
-    }
+    // 0. Brand (Davincified)
+    // We keep this to ensure at least one brand exists for login
+    const brand = await prisma.brand.upsert({
+        where: { name: 'Davincified' },
+        update: {},
+        create: {
+            name: 'Davincified',
+            color: '#161618',
+            color2: '#ffffff'
+        }
+    })
 
-    // 2. Formats
-    const formatsData = [
-        'UGC Testimonial',
-        'UGC Problem/Solution',
-        'Static Image',
-        'Carousel',
-        'Green Screen',
-        'Unboxing',
-        'Founder Story'
-    ]
-    const formats = []
-    for (const name of formatsData) {
-        const f = await prisma.adFormat.upsert({
-            where: { name },
-            update: {},
-            create: { name }
-        })
-        formats.push(f)
-    }
+    // 1. Hooks (Empty)
+    // User requested to remove irrelevant seed data
+    // const hooksData = [...] 
 
-    // 3. Themes
-    const themesData = [
-        'Sustainability',
-        'Luxury',
-        'Affordability',
-        'Health',
-        'Convenience',
-        'Gift'
-    ]
-    const themes = []
-    for (const name of themesData) {
-        const t = await prisma.adTheme.upsert({
-            where: { name },
-            update: {},
-            create: { name }
-        })
-        themes.push(t)
-    }
+    // 2. Formats (Empty)
 
-    // 4. Angles
-    const anglesData = [
-        'Save Money',
-        'Save Time',
-        'Feel Better',
-        'Look Better',
-        'Social Status',
-        'Fear Of Missing Out'
-    ]
-    const angles = []
-    for (const name of anglesData) {
-        const a = await prisma.adAngle.upsert({
-            where: { name },
-            update: {},
-            create: { name }
-        })
-        angles.push(a)
-    }
+    // 3. Themes (Empty)
 
-    // 5. Demographics
-    const demographicsData = [
-        'Gen Z',
-        'Millennials',
-        'Parents',
-        'Students',
-        'Professionals',
-        'Seniors'
-    ]
-    const demos = []
-    for (const name of demographicsData) {
-        const d = await prisma.adDemographic.upsert({
-            where: { name },
-            update: {},
-            create: { name }
-        })
-        demos.push(d)
-    }
+    // 4. Angles (Empty)
 
-    // 6. Awareness Levels (New)
+    // 5. Demographics (Empty)
+
+    // 6. Awareness Levels (Likely needed for logic, so keeping them is safe, or User might want to define them per brand? 
+    // User specifically asked for these standard Marketing Levels in previous prompt.
+    // "Most Aware", etc. These are universal specific marketing terms.
+    // I will KEEP Awareness Levels because they are structural)
     const awarenessData = [
         'Most Aware',
         'Product Aware',
@@ -110,50 +41,15 @@ async function main() {
         'Problem Aware',
         'Problem Unaware'
     ]
-    const awarenessLevels = []
     for (const name of awarenessData) {
-        const al = await prisma.adAwarenessLevel.upsert({
+        await prisma.adAwarenessLevel.upsert({
             where: { name },
             update: {},
             create: { name }
         })
-        awarenessLevels.push(al)
     }
 
-    // 7. Sample Concept
-    // Check if concept exists to avoid dupes if running multiple times (upsert logic works for refs but simple create might fail if run again without cleanup? No unique constraint on concept name?)
-    // Basic create is fine for seed usually.
-    // But since we made awareness mandatory, old seed would fail.
-    const concept = await prisma.creativeConcept.create({
-        data: {
-            name: "Eco-Friendly Budget Hack",
-            angleId: angles[0].id, // Save Money
-            themeId: themes[0].id, // Sustainability
-            demographicId: demos[1].id, // Millennials
-            awarenessLevelId: awarenessLevels[1].id // Problem Aware
-        }
-    })
-
-    // 8. Sample Batch
-    await prisma.adBatch.create({
-        data: {
-            name: "Sustainability UGC Batch",
-            batchType: "NET_NEW",
-            priority: "HIGH",
-            conceptId: concept.id,
-            formatId: formats[0].id,
-            status: "BRIEFING",
-            brief: "Focus on the money-saving aspect of being eco-friendly.",
-            items: {
-                create: [
-                    { status: 'PENDING', hookId: hooks[0].id, notes: "Start with 'Stop throwing away money...'" },
-                    { status: 'PENDING', hookId: hooks[1].id, notes: "Show the bill comparison." }
-                ]
-            }
-        }
-    })
-
-    console.log('Seeding finished.')
+    console.log('Seeding finished (Clean).')
 }
 
 main()

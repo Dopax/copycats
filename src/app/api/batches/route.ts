@@ -7,7 +7,7 @@ export async function GET(request: Request) {
         const brandId = searchParams.get('brandId');
 
         const batches = await prisma.adBatch.findMany({
-            where: brandId ? { brandId } : undefined,
+            where: { brandId: brandId || null },
             include: {
                 concept: {
                     include: {
