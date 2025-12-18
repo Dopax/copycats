@@ -24,6 +24,7 @@ model Ad {
   archived        Boolean      @default(false)
   priority        Int?         // 1=High, 2=Medium, 3=Low, null=No priority
   notes           String?
+  whyItWorks      String?
   
   snapshots       AdSnapshot[]
   tags            Tag[]
@@ -142,6 +143,8 @@ model CreativeConcept {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  conceptDoc    String?
 }
 
 model Brand {
@@ -149,6 +152,8 @@ model Brand {
   name      String   @unique
   logoUrl   String?  // Can be an image URL or null
   color     String?  // Hex code for profile avatar background
+  
+  offerBrief String? // Information about the product/market/avatar for AI generation
   
   batches   AdBatch[]
   concepts  CreativeConcept[]
@@ -158,7 +163,6 @@ model Brand {
   
   color2    String?  // Hex code for secondary color
   fontUrl   String?  // URL for font image/file
-  offerBrief String? // Fundamental text
 
   assets    BrandAsset[]
   

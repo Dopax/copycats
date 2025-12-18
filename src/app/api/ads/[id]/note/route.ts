@@ -7,11 +7,11 @@ const prisma = new PrismaClient();
 export async function POST(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-        const { notes } = await request.json();
+        const { notes, whyItWorks } = await request.json();
 
         const updatedAd = await prisma.ad.update({
             where: { id },
-            data: { notes },
+            data: { notes, whyItWorks },
         });
 
         return NextResponse.json(updatedAd);

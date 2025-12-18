@@ -13,7 +13,8 @@ export async function GET(request: Request) {
                     { brandId: brandId }
                 ]
             } : {},
-            orderBy: { name: 'asc' }
+            orderBy: { name: 'asc' },
+            include: { brand: true }
         });
         return NextResponse.json(hooks);
     } catch (error) {

@@ -14,7 +14,6 @@ interface AdWithSnapshots extends Ad {
     theme?: AdTheme | null;
     angle?: AdAngle | null;
     awarenessLevel?: AdAwarenessLevel | null;
-    notes?: string | null;
 }
 
 export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
@@ -119,8 +118,11 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
     };
 
     const [notes, setNotes] = useState(ad.notes || "");
+    const [whyItWorks, setWhyItWorks] = useState((ad as any).whyItWorks || "");
+    const [showNotesField, setShowNotesField] = useState(!!ad.notes);
     const [showNotes, setShowNotes] = useState(false);
     const [isSavingNotes, setIsSavingNotes] = useState(false);
+    const [isExtractingHook, setIsExtractingHook] = useState(false);
 
     // Fetch tags when opening menu
     const loadTags = async () => {
@@ -167,6 +169,45 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
             setSelectedHook(newHook.id);
         } catch (e) {
             console.error("Failed to create hook", e);
+        }
+    };
+
+    const extractHook = async () => {
+        if (!ad.videoUrl) {
+            alert("No video available to extract hook from.");
+            return;
+        }
+
+        const defaultName = `Hook from ${ad.brand || 'Ad'}`;
+        const name = prompt("Enter a name for this video hook:", defaultName);
+        if (!name) return;
+
+        setIsExtractingHook(true);
+        try {
+            const res = await fetch('/api/hooks/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    videoUrl: ad.videoUrl,
+                    name,
+                    brandId: (ad as any).brandId
+                })
+            });
+
+            if (res.ok) {
+                const newHook = await res.json();
+                setHooks([...hooks, newHook]);
+                setSelectedHook(newHook.id);
+                alert("Hook extracted and saved successfully!");
+            } else {
+                const err = await res.json();
+                alert(`Failed to extract hook: ${err.error || 'Unknown error'}`);
+            }
+        } catch (e) {
+            console.error("Failed to extract hook", e);
+            alert("Error extracting hook");
+        } finally {
+            setIsExtractingHook(false);
         }
     };
 
@@ -220,7 +261,7 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
             await fetch(`/api/ads/${ad.id}/note`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notes }),
+                body: JSON.stringify({ notes, whyItWorks }),
             });
 
             // Save Tags
@@ -406,10 +447,25 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                                     <option key={h.id} value={h.id}>{h.name}</option>
                                 ))}
                             </select>
+                            {/* Extract Video Button */}
+                            {ad.videoUrl && (
+                                <button
+                                    onClick={(e) => { e.preventDefault(); extractHook(); }}
+                                    disabled={isExtractingHook}
+                                    className="flex-shrink-0 px-3 py-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 disabled:opacity-50"
+                                    title="Extract First 3.5s as Video Hook"
+                                >
+                                    {isExtractingHook ? (
+                                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    ) : (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm8.486-8.486a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243z" /></svg>
+                                    )}
+                                </button>
+                            )}
                             <button
                                 onClick={(e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) createHook(name); }}
                                 className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"
-                                title="Add New Hook"
+                                title="Add New Hook (Text Only)"
                             >
                                 +
                             </button>
@@ -490,14 +546,37 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                         </div>
                     </div>
 
-                    <label className="block text-xs font-medium text-zinc-500 mb-1">Notes</label>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Why do you think this ad works?</label>
                     <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Add your notes here..."
-                        className="flex-1 w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none mb-3 min-h-[100px]"
+                        value={whyItWorks}
+                        onChange={(e) => setWhyItWorks(e.target.value)}
+                        placeholder="Explain your thoughts..."
+                        className="flex-1 w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none mb-4 min-h-[80px]"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     />
+
+                    <div className="flex items-center gap-2 mb-2">
+                        <input
+                            type="checkbox"
+                            id={`showNotes-${ad.id}`}
+                            checked={showNotesField}
+                            onChange={(e) => setShowNotesField(e.target.checked)}
+                            className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label htmlFor={`showNotes-${ad.id}`} className="text-xs font-medium text-zinc-500 select-none cursor-pointer">
+                            Other Notes
+                        </label>
+                    </div>
+
+                    {showNotesField && (
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Add your notes here..."
+                            className="flex-1 w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none mb-3 min-h-[80px]"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        />
+                    )}
                     <div className="flex gap-2">
                         <button
                             onClick={(e) => { e.preventDefault(); saveAll(); }}

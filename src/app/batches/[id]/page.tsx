@@ -28,6 +28,7 @@ interface Batch {
         theme: { name: string };
         demographic: { name: string };
         awarenessLevel?: { name: string };
+        conceptDoc?: string;
     };
     format?: { name: string };
     assignee?: string;
@@ -145,12 +146,47 @@ const BatchSection = ({
 };
 
 
+function ViewDocModal({ content, onClose }: { content: string, onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
+                    <h3 className="font-bold text-lg dark:text-white">Concept Document (Buyer Persona)</h3>
+                    <button onClick={onClose} className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div className="p-6 overflow-y-auto font-mono text-sm leading-relaxed whitespace-pre-wrap dark:text-zinc-300">
+                    {content}
+                </div>
+                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2 bg-zinc-50 dark:bg-zinc-800/50">
+                    <button
+                        onClick={() => navigator.clipboard.writeText(content)}
+                        className="px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 text-sm font-medium transition-colors"
+                    >
+                        Copy to Clipboard
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function BatchDetailPage() {
     const { id } = useParams();
     const router = useRouter();
     const [batch, setBatch] = useState<Batch | null>(null);
     const [hooks, setHooks] = useState<Hook[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Modal State
+    const [viewingDoc, setViewingDoc] = useState<string | null>(null);
 
     // Accordion State
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -439,9 +475,19 @@ export default function BatchDetailPage() {
                         <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Demographic</span>
                         <span className="font-medium text-emerald-600 dark:text-emerald-400">{batch.concept.demographic.name}</span>
                     </div>
-                    <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
-                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Awareness Level</span>
-                        <span className="font-medium text-cyan-600 dark:text-cyan-400">{batch.concept.awarenessLevel?.name || "Not set"}</span>
+                    <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                        <div>
+                            <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Awareness Level</span>
+                            <span className="font-medium text-cyan-600 dark:text-cyan-400">{batch.concept.awarenessLevel?.name || "Not set"}</span>
+                        </div>
+                        {(batch.concept as any).conceptDoc && (
+                            <button
+                                onClick={() => setViewingDoc((batch.concept as any).conceptDoc)}
+                                className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-2 py-1 rounded hover:bg-indigo-200 transition-colors"
+                            >
+                                View Persona
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -625,8 +671,9 @@ export default function BatchDetailPage() {
                     </div>
                 </BatchSection>
 
+                {/* Doc View Modal */}
+                {viewingDoc && <ViewDocModal content={viewingDoc} onClose={() => setViewingDoc(null)} />}
             </div>
-
         </div>
     );
 }

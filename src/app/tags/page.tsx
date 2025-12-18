@@ -35,6 +35,7 @@ interface Hook extends Tag {
     content?: string;
     videoUrl?: string;
     thumbnailUrl?: string;
+    brand?: { name: string } | null;
 }
 
 interface ThemeTag extends Tag {
@@ -151,7 +152,7 @@ function HookCard({ hook, onEdit, onDelete }: { hook: Hook, onEdit: (h: Hook) =>
     return (
         <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col gap-3">
             {/* Media Area */}
-            <div className="aspect-video bg-black rounded-md overflow-hidden relative group">
+            <div className="aspect-[9/16] bg-black rounded-md overflow-hidden relative group">
                 {hook.videoUrl ? (
                     <video
                         src={hook.videoUrl}
@@ -172,6 +173,13 @@ function HookCard({ hook, onEdit, onDelete }: { hook: Hook, onEdit: (h: Hook) =>
                 {hook.type && (
                     <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold rounded uppercase">
                         {hook.type.replace('_', ' ')}
+                    </div>
+                )}
+                {/* Brand Badge */}
+                {hook.brand && (
+                    <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-sm text-white text-[9px] font-medium rounded flex items-center gap-1 border border-white/10">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                        {hook.brand.name}
                     </div>
                 )}
             </div>

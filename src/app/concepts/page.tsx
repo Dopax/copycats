@@ -27,6 +27,39 @@ interface CreativeConcept {
     demographic: Demographic;
     awarenessLevel?: { id: string; name: string; };
     batches: { id: number; name: string; status: string; }[];
+    conceptDoc?: string;
+}
+
+function ViewDocModal({ content, onClose }: { content: string, onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
+                    <h3 className="font-bold text-lg dark:text-white">Concept Document (Buyer Persona)</h3>
+                    <button onClick={onClose} className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div className="p-6 overflow-y-auto font-mono text-sm leading-relaxed whitespace-pre-wrap dark:text-zinc-300">
+                    {content}
+                </div>
+                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2 bg-zinc-50 dark:bg-zinc-800/50">
+                    <button
+                        onClick={() => navigator.clipboard.writeText(content)}
+                        className="px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 text-sm font-medium transition-colors"
+                    >
+                        Copy to Clipboard
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 export default function ConceptsPage() {
@@ -42,6 +75,10 @@ export default function ConceptsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
 
+    // Doc Generation State
+    const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+    const [viewingDoc, setViewingDoc] = useState<string | null>(null);
+
     // Form State
     const [selectedAngle, setSelectedAngle] = useState<string>("");
     const [selectedTheme, setSelectedTheme] = useState<string>("");
@@ -55,6 +92,30 @@ export default function ConceptsPage() {
     // New Item Form Data
     const [newThemeData, setNewThemeData] = useState({ name: "", description: "" });
     const [newAngleData, setNewAngleData] = useState({ name: "", category: "", description: "", brainClicks: "" });
+
+    const handleGenerateDoc = async (id: string) => {
+        setGeneratingIds(prev => new Set(prev).add(id));
+        try {
+            const res = await fetch(`/api/concepts/${id}/generate-doc`, { method: 'POST' });
+            if (res.ok) {
+                const updated = await res.json();
+                setConcepts(prev => prev.map(c => c.id === id ? updated : c));
+            } else {
+                const err = await res.json();
+                console.error("Doc generation error response:", err);
+                alert(`Failed to generate doc: ${err.details || err.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error("Failed to generate doc", error);
+            alert("Error creating concept document.");
+        } finally {
+            setGeneratingIds(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        }
+    };
 
     useEffect(() => {
         if (!isBrandLoading) {
@@ -355,6 +416,7 @@ export default function ConceptsPage() {
                                 <tr>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Concept Name (ID)</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Matrix</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Buyer Persona (Doc)</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Active Batches</th>
                                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
                                 </tr>
@@ -391,6 +453,42 @@ export default function ConceptsPage() {
                                                 )}
                                             </div>
                                         </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {concept.conceptDoc ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                                    <button
+                                                        onClick={() => setViewingDoc(concept.conceptDoc!)}
+                                                        className="text-xs text-indigo-600 hover:text-indigo-900 underline font-medium"
+                                                    >
+                                                        View Buyer Persona
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleGenerateDoc(concept.id)}
+                                                    disabled={generatingIds.has(concept.id)}
+                                                    className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                                >
+                                                    {generatingIds.has(concept.id) ? (
+                                                        <>
+                                                            <svg className="animate-spin -ml-0.5 mr-2 h-3 w-3 text-indigo-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                            Generating...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg className="mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                            </svg>
+                                                            Generate Persona
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1.5">
                                                 {concept.batches && concept.batches.length > 0 ? (
@@ -417,7 +515,7 @@ export default function ConceptsPage() {
                                 ))}
                                 {concepts.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 text-sm">
+                                        <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 text-sm">
                                             No concepts defined yet. Use the matrix above to create your first concept.
                                         </td>
                                     </tr>
@@ -427,6 +525,9 @@ export default function ConceptsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Doc View Modal */}
+            {viewingDoc && <ViewDocModal content={viewingDoc} onClose={() => setViewingDoc(null)} />}
 
             {/* Theme Modal */}
             {showThemeModal && (
