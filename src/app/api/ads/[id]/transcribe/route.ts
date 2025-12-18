@@ -7,8 +7,15 @@ import os from 'os';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
 
-// Set ffmpeg path
-if (ffmpegStatic) {
+// Force path to local node_modules to avoid webpack bundling issues with ffmpeg-static
+const ffmpegPath = path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg.exe');
+
+// Check if it exists, otherwise fallback to ffmpeg-static's export or system path
+if (fs.existsSync(ffmpegPath)) {
+    console.log("Using local ffmpeg binary:", ffmpegPath);
+    ffmpeg.setFfmpegPath(ffmpegPath);
+} else if (ffmpegStatic) {
+    console.warn("Local binary not found, trying import path:", ffmpegStatic);
     ffmpeg.setFfmpegPath(ffmpegStatic);
 } else {
     console.warn("ffmpeg-static not found, relying on system PATH");
