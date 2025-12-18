@@ -40,6 +40,7 @@ interface Batch {
         description: string;
         videoUrl: string | null;
         thumbnailUrl: string | null;
+        transcript?: string;
     };
     // AI Boost Fields
     aiAdCopy?: string;
@@ -271,6 +272,44 @@ export default function BatchDetailPage() {
     // Modal State
     const [viewingDoc, setViewingDoc] = useState<string | null>(null);
     const [selectingHookForItem, setSelectingHookForItem] = useState<string | null>(null);
+
+    // Transcript State
+    const [transcribingRef, setTranscribingRef] = useState(false);
+
+    const handleTranscribeRef = async () => {
+        if (!batch?.referenceAd?.videoUrl) return;
+
+        // We need the Ad ID. The current type definition has items, but check if we have the reference ad's internal ID
+        // The interface info comes from the API include which puts all fields.
+        const refAdId = (batch.referenceAd as any).id;
+        if (!refAdId) return;
+
+        setTranscribingRef(true);
+        try {
+            const res = await fetch(`/api/ads/${refAdId}/transcribe`, { method: 'POST' });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || "Transcription failed");
+
+            // Update local state by manually modifying the batch object (shallow copy)
+            setBatch(prev => {
+                if (!prev || !prev.referenceAd) return prev;
+                return {
+                    ...prev,
+                    referenceAd: {
+                        ...prev.referenceAd!,
+                        transcript: data.transcript
+                    }
+                };
+            });
+            alert("Transcript generated!");
+        } catch (error: any) {
+            console.error(error);
+            alert(`Failed: ${error.message}`);
+        } finally {
+            setTranscribingRef(false);
+        }
+    };
 
     // Accordion State
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -665,6 +704,44 @@ export default function BatchDetailPage() {
                                     </div>
                                     <div className="p-3">
                                         <p className="text-xs font-semibold text-zinc-900 dark:text-white line-clamp-2">{batch.referenceAd.headline || "No Headline"}</p>
+
+                                        {/* Transcript Button/Content */}
+                                        <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                            {!batch.referenceAd.transcript ? (
+                                                <button
+                                                    onClick={handleTranscribeRef}
+                                                    disabled={transcribingRef || !batch.referenceAd.videoUrl}
+                                                    className="w-full py-1.5 text-xs font-medium text-center bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                                >
+                                                    {transcribingRef ? (
+                                                        <>
+                                                            <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                                            Transcribing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                                                            Generete Script
+                                                        </>
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold text-zinc-500 uppercase">Script</span>
+                                                        <button
+                                                            onClick={() => navigator.clipboard.writeText(batch.referenceAd?.transcript || "")}
+                                                            className="text-[10px] text-indigo-600 hover:underline"
+                                                        >
+                                                            Copy
+                                                        </button>
+                                                    </div>
+                                                    <div className="max-h-32 overflow-y-auto text-xs text-zinc-600 dark:text-zinc-400 font-mono bg-zinc-50 dark:bg-black/20 p-2 rounded border border-zinc-100 dark:border-zinc-800">
+                                                        {batch.referenceAd.transcript}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
