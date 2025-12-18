@@ -560,8 +560,8 @@ export default function BatchDetailPage() {
                                                 <div className="w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-800 dark:text-zinc-200 text-2xl border-2 border-zinc-200 dark:border-zinc-700 shadow-sm">
                                                     {getVariationLabel(index)}
                                                 </div>
-                                                <span className="text-[10px] font-mono text-zinc-400 select-all" title={item.id}>
-                                                    {item.id.split('-')[0]}
+                                                <span className="text-[10px] font-mono text-zinc-400 select-all" title="Variation ID">
+                                                    BATCH{batch.id}{getVariationLabel(index)}
                                                 </span>
                                             </div>
                                             <div className="flex-1 space-y-4">
