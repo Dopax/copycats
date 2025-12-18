@@ -238,24 +238,7 @@ export default function BatchDetailPage() {
             }
 
             if (hooksRes.ok) {
-                const fetchedHooks = await hooksRes.json();
-
-                // Ensure "Editor Choice" hook exists
-                if (!fetchedHooks.some((h: any) => h.name === "Editor Choice")) {
-                    try {
-                        const createRes = await fetch('/api/hooks', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ name: "Editor Choice" })
-                        });
-                        if (createRes.ok) {
-                            fetchedHooks.push(await createRes.json());
-                        }
-                    } catch (e) {
-                        // Ignore
-                    }
-                }
-                setHooks(fetchedHooks);
+                setHooks(await hooksRes.json());
             }
 
         } catch (error) {
@@ -624,8 +607,8 @@ export default function BatchDetailPage() {
                                                     <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Hook</label>
                                                     <div className="flex gap-2">
                                                         <select value={item.hook?.id || ""} onChange={(e) => updateItem(item.id, { hookId: e.target.value })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500">
-                                                            <option value="">Select Hook...</option>
-                                                            {hooks.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                                                            <option value="">Editor's Choice</option>
+                                                            {hooks.filter(h => h.name !== 'Editor Choice').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                                                         </select>
                                                         <button onClick={async (e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) { const id = await createHook(name); if (id) updateItem(item.id, { hookId: id }); } }} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="px-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors">+</button>
                                                     </div>
