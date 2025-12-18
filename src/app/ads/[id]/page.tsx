@@ -72,8 +72,12 @@ export default function AdDetailPage() {
         setTranscribing(true);
         try {
             const res = await fetch(`/api/ads/${ad.id}/transcribe`, { method: 'POST' });
-            if (!res.ok) throw new Error("Transcription failed");
             const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || data.details || "Transcription failed");
+            }
+
             setAd(prev => prev ? ({ ...prev, transcript: data.transcript }) : null);
         } catch (error: any) {
             console.error(error);
