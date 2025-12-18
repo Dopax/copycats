@@ -464,8 +464,6 @@ export default function BatchDetailPage() {
     if (isLoading) return <div className="p-10 text-center text-zinc-500">Loading Batch Details...</div>;
     if (!batch) return null;
 
-    // --- SECTIONS ---
-
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-20">
             {/* Header / Navigation */}
@@ -669,8 +667,8 @@ export default function BatchDetailPage() {
                                                             onClick={(e) => { e.stopPropagation(); setSelectingHookForItem(item.id); }}
                                                             disabled={getSectionState("PRODUCTION", batch.status) === "future"}
                                                             className={`flex-1 text-left px-3 py-2 rounded-lg border text-sm flex items-center justify-between group transition-colors ${item.hookId
-                                                                    ? "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white"
-                                                                    : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500 italic"
+                                                                ? "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white"
+                                                                : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500 italic"
                                                                 }`}
                                                         >
                                                             <div className="flex items-center gap-2 overflow-hidden">
@@ -844,5 +842,6 @@ export default function BatchDetailPage() {
                     />
                 )}
             </div>
-            );
+        </div>
+    );
 }
