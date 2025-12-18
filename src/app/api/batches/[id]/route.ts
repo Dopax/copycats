@@ -33,8 +33,16 @@ export async function GET(request: Request, { params }: { params: { id: string }
             if (Array.isArray(raw) && raw.length > 0) {
                 (batch.concept as any).conceptDoc = (raw[0] as any).conceptDoc;
             }
+
+            // Also patch BatchItems name field
+            const rawItems = await prisma.$queryRaw`SELECT id, name FROM BatchItem WHERE batchId = ${id}`;
+            const itemMap = new Map((rawItems as any[]).map((r: any) => [r.id, r.name]));
+            batch.items.forEach((item: any) => {
+                item.name = itemMap.get(item.id);
+            });
+
         } catch (e) {
-            console.warn("Failed to patch conceptDoc", e);
+            console.warn("Failed to patch data (conceptDoc or item names)", e);
         }
 
         return NextResponse.json(batch);

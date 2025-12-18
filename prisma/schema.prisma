@@ -249,6 +249,7 @@ model BatchItem {
   hookId    String?
   hook      AdHook?  @relation(fields: [hookId], references: [id])
 
+  name      String?
   notes     String?
   script    String?
   status    String   @default("PENDING") // PENDING, DONE
