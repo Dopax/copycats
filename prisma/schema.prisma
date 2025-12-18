@@ -193,6 +193,8 @@ model Creator {
   email         String?
   phone         String?
   source        String?
+  messagingPlatform String? // Upwork, Slack, Zoho, Whatsapp, Instagram, Gorgias
+  paymentMethod     String? // Upwork, Paypal, Bank, Free Kit
   type          String   @default("TEMPORARY") // TEMPORARY, REPEAT, PERMANENT
   joinedAt      DateTime @default(now())
   

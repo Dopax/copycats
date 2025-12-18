@@ -15,6 +15,7 @@ export async function GET() {
                 hook: true,
                 theme: true,
                 angle: true,
+                awarenessLevel: true,
             },
             orderBy: { lastSeen: "desc" },
         });

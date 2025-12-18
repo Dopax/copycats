@@ -15,7 +15,20 @@ export async function GET(request: Request) {
             } : {},
             orderBy: { name: 'asc' }
         });
-        return NextResponse.json(levels);
+
+        // Custom Sort Order
+        const order = ['Most Aware', 'Product Aware', 'Solution Aware', 'Problem Aware', 'Problem Unaware'];
+        const sortedLevels = levels.sort((a, b) => {
+            const indexA = order.indexOf(a.name);
+            const indexB = order.indexOf(b.name);
+
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB; // Both in list
+            if (indexA !== -1) return -1; // A is in list (Priority)
+            if (indexB !== -1) return 1;  // B is in list (Priority)
+            return a.name.localeCompare(b.name); // Neither (Alphabetical)
+        });
+
+        return NextResponse.json(sortedLevels);
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch awareness levels" }, { status: 500 });
     }

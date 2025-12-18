@@ -16,9 +16,15 @@ interface Creator {
     email?: string;
     phone?: string;
     source?: string;
+    messagingPlatform?: string;
+    paymentMethod?: string;
     type: string; // TEMPORARY, REPEAT, PERMANENT
     joinedAt: string;
 }
+
+const MESSAGING_PLATFORMS = ["Upwork", "Slack", "Zoho", "Whatsapp", "Instagram", "Gorgias"];
+const PAYMENT_METHODS = ["Upwork", "Paypal", "Bank", "Free Kit"];
+const SOURCES = ["InReach", "Instagram", "Free Kit", "Facebook", "Fiverr", "Upwork", "OutReach"];
 
 export default function CreatorsPage() {
     const { selectedBrand } = useBrand();
@@ -136,9 +142,9 @@ export default function CreatorsPage() {
                             <tr>
                                 <th className="px-6 py-4">Name</th>
                                 <th className="px-6 py-4">Location</th>
-                                <th className="px-6 py-4">Stats</th>
+                                <th className="px-6 py-4">Payment & Stats</th>
                                 <th className="px-6 py-4">Demographic</th>
-                                <th className="px-6 py-4">Contact</th>
+                                <th className="px-6 py-4">Contact & Msg</th>
                                 <th className="px-6 py-4">Type/Source</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
@@ -161,6 +167,7 @@ export default function CreatorsPage() {
                                     <td className="px-6 py-4">
                                         <div className="text-zinc-900 dark:text-white font-medium">${c.pricePerVideo || 0}</div>
                                         <div className="text-xs text-zinc-500">{c.collabCount} collabs</div>
+                                        {c.paymentMethod && <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{c.paymentMethod}</div>}
                                     </td>
                                     <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 max-w-[150px] truncate" title={c.demographic}>
                                         {c.demographic || '-'}
@@ -168,6 +175,7 @@ export default function CreatorsPage() {
                                     <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
                                         <div>{c.email || '-'}</div>
                                         <div className="text-xs opacity-70">{c.phone || '-'}</div>
+                                        {c.messagingPlatform && <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium mt-1">{c.messagingPlatform}</div>}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
@@ -264,7 +272,27 @@ export default function CreatorsPage() {
 
                             <div>
                                 <label className="block text-sm text-zinc-500 mb-1">Source</label>
-                                <input className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" placeholder="e.g. Upwork, Direct Outreach" value={formData.source || ''} onChange={e => setFormData({ ...formData, source: e.target.value })} />
+                                <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={formData.source || ''} onChange={e => setFormData({ ...formData, source: e.target.value })}>
+                                    <option value="">Select Source</option>
+                                    {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-zinc-500 mb-1">Messaging Platform</label>
+                                    <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={formData.messagingPlatform || ''} onChange={e => setFormData({ ...formData, messagingPlatform: e.target.value })}>
+                                        <option value="">Select Platform</option>
+                                        {MESSAGING_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-zinc-500 mb-1">Payment Method</label>
+                                    <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={formData.paymentMethod || ''} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}>
+                                        <option value="">Select Method</option>
+                                        {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                </div>
                             </div>
 
                             <div className="flex justify-end gap-3 mt-6">

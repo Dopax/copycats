@@ -20,6 +20,11 @@ export async function GET(
                         capturedAt: "asc",
                     },
                 },
+                format: true,
+                hook: true,
+                theme: true,
+                angle: true,
+                awarenessLevel: true,
             },
         });
 

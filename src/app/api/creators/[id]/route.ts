@@ -28,6 +28,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 email: data.email,
                 phone: data.phone,
                 source: data.source,
+                messagingPlatform: data.messagingPlatform,
+                paymentMethod: data.paymentMethod,
                 type: data.type,
                 joinedAt: data.joinedAt ? new Date(data.joinedAt) : undefined,
             }

@@ -41,6 +41,8 @@ export async function POST(request: Request) {
                 email: data.email,
                 phone: data.phone,
                 source: data.source,
+                messagingPlatform: data.messagingPlatform,
+                paymentMethod: data.paymentMethod,
                 type: data.type || "TEMPORARY",
                 joinedAt: data.joinedAt ? new Date(data.joinedAt) : new Date(),
                 brandId: data.brandId
