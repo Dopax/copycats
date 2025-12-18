@@ -78,9 +78,11 @@ model AdHook {
   brand        Brand?    @relation(fields: [brandId], references: [id])
 }
 
+
 model AdTheme {
   id       String @id @default(uuid())
   name     String @unique
+  description String?
   ads      Ad[]
   concepts CreativeConcept[]
   brandId  String?
@@ -90,6 +92,9 @@ model AdTheme {
 model AdAngle {
   id       String @id @default(uuid())
   name     String @unique
+  category String?
+  description String?
+  brainClicks String?
   ads      Ad[]
   concepts CreativeConcept[]
   brandId  String?
@@ -201,7 +206,7 @@ model Tag {
 model AdBatch {
   id          Int      @id @default(autoincrement())
   name        String
-  status      String   @default("IDEATION") // IDEATION, BRIEFING, EDITING, REVIEW, AI_BOOST, LAUNCHED, ARCHIVED
+  status      String   @default("IDEATION") // IDEATION, FILMING, BRIEFING, EDITING, REVIEW, AI_BOOST, LAUNCHED, ARCHIVED
   batchType   String   // COPYCAT, NET_NEW, ITERATION
   priority    String?  // HIGH, MEDIUM, LOW
 

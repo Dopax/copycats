@@ -3,8 +3,20 @@
 import { useState, useEffect } from "react";
 import { useBrand } from "@/context/BrandContext";
 
-interface Angle { id: string; name: string; }
-interface Theme { id: string; name: string; }
+interface Angle {
+    id: string;
+    name: string;
+    category?: string;
+    description?: string;
+    brainClicks?: string;
+}
+
+interface Theme {
+    id: string;
+    name: string;
+    description?: string;
+}
+
 interface Demographic { id: string; name: string; }
 
 interface CreativeConcept {
@@ -35,6 +47,14 @@ export default function ConceptsPage() {
     const [selectedTheme, setSelectedTheme] = useState<string>("");
     const [selectedDemographic, setSelectedDemographic] = useState<string>("");
     const [selectedAwarenessLevel, setSelectedAwarenessLevel] = useState<string>("");
+
+    // Modal States
+    const [showThemeModal, setShowThemeModal] = useState(false);
+    const [showAngleModal, setShowAngleModal] = useState(false);
+
+    // New Item Form Data
+    const [newThemeData, setNewThemeData] = useState({ name: "", description: "" });
+    const [newAngleData, setNewAngleData] = useState({ name: "", category: "", description: "", brainClicks: "" });
 
     useEffect(() => {
         if (!isBrandLoading) {
@@ -106,23 +126,53 @@ export default function ConceptsPage() {
         }
     };
 
-    const handleCreateTheme = async () => {
-        const name = prompt("Enter new Theme name:");
-        if (!name) return;
-
+    const submitNewTheme = async (e: React.FormEvent) => {
+        e.preventDefault();
         try {
             const res = await fetch('/api/themes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({
+                    name: newThemeData.name,
+                    description: newThemeData.description,
+                    brandId: selectedBrand?.id
+                })
             });
             if (res.ok) {
                 const newTheme = await res.json();
                 setThemes([...themes, newTheme]);
                 setSelectedTheme(newTheme.id);
+                setShowThemeModal(false);
+                setNewThemeData({ name: "", description: "" });
             }
         } catch (error) {
             console.error("Failed to create theme", error);
+        }
+    };
+
+    const submitNewAngle = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const res = await fetch('/api/angles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newAngleData.name,
+                    category: newAngleData.category,
+                    description: newAngleData.description,
+                    brainClicks: newAngleData.brainClicks,
+                    brandId: selectedBrand?.id
+                })
+            });
+            if (res.ok) {
+                const newAngle = await res.json();
+                setAngles([...angles, newAngle]);
+                setSelectedAngle(newAngle.id);
+                setShowAngleModal(false);
+                setNewAngleData({ name: "", category: "", description: "", brainClicks: "" });
+            }
+        } catch (error) {
+            console.error("Failed to create angle", error);
         }
     };
 
@@ -179,7 +229,7 @@ export default function ConceptsPage() {
     };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="max-w-6xl mx-auto space-y-8 relative">
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Creative Concepts</h1>
                 <p className="text-zinc-500 dark:text-zinc-400">
@@ -194,7 +244,16 @@ export default function ConceptsPage() {
 
                     {/* Angle */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Angle</label>
+                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
+                            Angle
+                            <button
+                                type="button"
+                                onClick={() => setShowAngleModal(true)}
+                                className="text-indigo-600 hover:text-indigo-500 text-[10px]"
+                            >
+                                + New
+                            </button>
+                        </label>
                         <select
                             value={selectedAngle}
                             onChange={(e) => setSelectedAngle(e.target.value)}
@@ -211,7 +270,7 @@ export default function ConceptsPage() {
                             Theme
                             <button
                                 type="button"
-                                onClick={handleCreateTheme}
+                                onClick={() => setShowThemeModal(true)}
                                 className="text-indigo-600 hover:text-indigo-500 text-[10px]"
                             >
                                 + New
@@ -309,12 +368,19 @@ export default function ConceptsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">
                                             <div className="flex flex-wrap gap-2">
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800" title="Angle">
-                                                    {concept.angle.name}
-                                                </span>
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 border border-pink-100 dark:border-pink-800" title="Theme">
-                                                    {concept.theme.name}
-                                                </span>
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800" title="Angle">
+                                                        Angle: {concept.angle.name}
+                                                    </span>
+                                                    {concept.angle.brainClicks && <span className="text-[10px] text-zinc-400">🧠 {concept.angle.brainClicks}</span>}
+                                                </div>
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 border border-pink-100 dark:border-pink-800" title="Theme">
+                                                        Theme: {concept.theme.name}
+                                                    </span>
+                                                    {concept.theme.description && <span className="text-[10px] text-zinc-400 italic max-w-[150px] truncate">{concept.theme.description}</span>}
+                                                </div>
+
                                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800" title="Demographic">
                                                     {concept.demographic.name}
                                                 </span>
@@ -361,6 +427,118 @@ export default function ConceptsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Theme Modal */}
+            {showThemeModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-xl w-full max-w-md border border-zinc-200 dark:border-zinc-800">
+                        <h2 className="text-xl font-bold mb-4 dark:text-white">Create New Theme</h2>
+                        <form onSubmit={submitNewTheme} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Theme Name</label>
+                                <input
+                                    type="text"
+                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
+                                    value={newThemeData.name}
+                                    onChange={e => setNewThemeData({ ...newThemeData, name: e.target.value })}
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
+                                <textarea
+                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
+                                    rows={3}
+                                    value={newThemeData.description}
+                                    onChange={e => setNewThemeData({ ...newThemeData, description: e.target.value })}
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowThemeModal(false)}
+                                    className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+                                >
+                                    Create Theme
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Angle Modal */}
+            {showAngleModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-xl w-full max-w-md border border-zinc-200 dark:border-zinc-800">
+                        <h2 className="text-xl font-bold mb-4 dark:text-white">Create New Angle</h2>
+                        <form onSubmit={submitNewAngle} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Angle Name</label>
+                                <input
+                                    type="text"
+                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
+                                    value={newAngleData.name}
+                                    onChange={e => setNewAngleData({ ...newAngleData, name: e.target.value })}
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Category</label>
+                                <input
+                                    type="text"
+                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
+                                    placeholder="e.g. Benefit, Fear, Logic..."
+                                    value={newAngleData.category}
+                                    onChange={e => setNewAngleData({ ...newAngleData, category: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
+                                <textarea
+                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
+                                    rows={3}
+                                    value={newAngleData.description}
+                                    onChange={e => setNewAngleData({ ...newAngleData, description: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Brain Clicks</label>
+                                <input
+                                    type="text"
+                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
+                                    placeholder="What psychological trigger does this hit?"
+                                    value={newAngleData.brainClicks}
+                                    onChange={e => setNewAngleData({ ...newAngleData, brainClicks: e.target.value })}
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAngleModal(false)}
+                                    className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+                                >
+                                    Create Angle
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

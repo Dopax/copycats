@@ -37,7 +37,15 @@ interface Hook extends Tag {
     thumbnailUrl?: string;
 }
 
-// ... (Rest of Hooks code) ...
+interface ThemeTag extends Tag {
+    description?: string;
+}
+
+interface AngleTag extends Tag {
+    category?: string;
+    description?: string;
+    brainClicks?: string;
+}
 
 function FormatCard({ format, onEdit, onDelete }: { format: FormatTag, onEdit: (f: FormatTag) => void, onDelete: (id: string) => void }) {
     return (
@@ -197,9 +205,79 @@ function HookCard({ hook, onEdit, onDelete }: { hook: Hook, onEdit: (h: Hook) =>
     );
 }
 
+function ThemeCard({ theme, onEdit, onDelete }: { theme: ThemeTag, onEdit: (t: ThemeTag) => void, onDelete: (id: string) => void }) {
+    return (
+        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col gap-2 relative group hover:shadow-md transition-shadow">
+            <h3 className="font-bold text-zinc-900 dark:text-white">{theme.name}</h3>
+            {theme.description ? (
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3">{theme.description}</p>
+            ) : (
+                <p className="text-sm text-zinc-400 italic">No description</p>
+            )}
+
+            <div className="flex justify-end gap-2 mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800 opacity-60 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={() => onEdit(theme)}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 px-2 py-1"
+                >
+                    Edit
+                </button>
+                <button
+                    onClick={() => onDelete(theme.id)}
+                    className="text-xs font-medium text-red-600 hover:text-red-700 px-2 py-1"
+                >
+                    Delete
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function AngleCard({ angle, onEdit, onDelete }: { angle: AngleTag, onEdit: (a: AngleTag) => void, onDelete: (id: string) => void }) {
+    return (
+        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col gap-2 relative group hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start">
+                <h3 className="font-bold text-zinc-900 dark:text-white">{angle.name}</h3>
+                {angle.category && (
+                    <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                        {angle.category}
+                    </span>
+                )}
+            </div>
+
+            {angle.brainClicks && (
+                <div className="text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 p-2 rounded border border-indigo-100 dark:border-indigo-800">
+                    <span className="mr-1">🧠</span> {angle.brainClicks}
+                </div>
+            )}
+
+            {angle.description ? (
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3">{angle.description}</p>
+            ) : (
+                <p className="text-sm text-zinc-400 italic">No description</p>
+            )}
+
+            <div className="flex justify-end gap-2 mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800 opacity-60 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={() => onEdit(angle)}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 px-2 py-1"
+                >
+                    Edit
+                </button>
+                <button
+                    onClick={() => onDelete(angle.id)}
+                    className="text-xs font-medium text-red-600 hover:text-red-700 px-2 py-1"
+                >
+                    Delete
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function TagsPage() {
     const [activeTab, setActiveTab] = useState<"formats" | "hooks" | "themes" | "angles" | "demographics" | "awareness-levels">("formats");
-    const [tags, setTags] = useState<Tag[] | Hook[]>([]);
+    const [tags, setTags] = useState<Tag[] | Hook[] | ThemeTag[] | AngleTag[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     // Simple Tag Edit State
@@ -215,6 +293,17 @@ export default function TagsPage() {
     const [isHookModalOpen, setIsHookModalOpen] = useState(false);
     const [editingHook, setEditingHook] = useState<Hook | null>(null);
     const [hookForm, setHookForm] = useState<Partial<Hook>>({ name: '', type: 'TEXT', content: '' });
+
+    // Theme Modal State
+    const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+    const [editingTheme, setEditingTheme] = useState<ThemeTag | null>(null);
+    const [themeForm, setThemeForm] = useState<Partial<ThemeTag>>({ name: '', description: '' });
+
+    // Angle Modal State
+    const [isAngleModalOpen, setIsAngleModalOpen] = useState(false);
+    const [editingAngle, setEditingAngle] = useState<AngleTag | null>(null);
+    const [angleForm, setAngleForm] = useState<Partial<AngleTag>>({ name: '', category: '', description: '', brainClicks: '' });
+
 
     const { selectedBrand, isLoading: isBrandLoading } = useBrand();
 
@@ -278,6 +367,8 @@ export default function TagsPage() {
             console.error("Failed to update tag", error);
         }
     };
+
+    // --- Modal Handlers ---
 
     const openFormatModal = (format?: FormatTag) => {
         if (format) {
@@ -353,6 +444,79 @@ export default function TagsPage() {
         }
     };
 
+    const openThemeModal = (theme?: ThemeTag) => {
+        if (theme) {
+            setEditingTheme(theme);
+            setThemeForm({ ...theme });
+        } else {
+            setEditingTheme(null);
+            setThemeForm({ name: '', description: '' });
+        }
+        setIsThemeModalOpen(true);
+    };
+
+    const saveTheme = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const method = editingTheme ? 'PUT' : 'POST';
+        const url = editingTheme ? `/api/themes/${editingTheme.id}` : '/api/themes';
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...themeForm, brandId: selectedBrand?.id }),
+            });
+
+            if (res.ok) {
+                const saved = await res.json();
+                if (editingTheme) {
+                    setTags((prev: any[]) => prev.map(t => t.id === saved.id ? saved : t));
+                } else {
+                    setTags((prev: any[]) => [saved, ...prev]); // Might need sort order update
+                }
+                setIsThemeModalOpen(false);
+            }
+        } catch (error) {
+            console.error("Failed to save theme", error);
+        }
+    };
+
+    const openAngleModal = (angle?: AngleTag) => {
+        if (angle) {
+            setEditingAngle(angle);
+            setAngleForm({ ...angle });
+        } else {
+            setEditingAngle(null);
+            setAngleForm({ name: '', category: '', description: '', brainClicks: '' });
+        }
+        setIsAngleModalOpen(true);
+    };
+
+    const saveAngle = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const method = editingAngle ? 'PUT' : 'POST';
+        const url = editingAngle ? `/api/angles/${editingAngle.id}` : '/api/angles';
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...angleForm, brandId: selectedBrand?.id }),
+            });
+
+            if (res.ok) {
+                const saved = await res.json();
+                if (editingAngle) {
+                    setTags((prev: any[]) => prev.map(t => t.id === saved.id ? saved : t));
+                } else {
+                    setTags((prev: any[]) => [saved, ...prev]);
+                }
+                setIsAngleModalOpen(false);
+            }
+        } catch (error) {
+            console.error("Failed to save angle", error);
+        }
+    };
 
 
     return (
@@ -438,8 +602,147 @@ export default function TagsPage() {
                         </div>
                     )}
                 </div>
+            ) : activeTab === 'themes' ? (
+                // -- Rich Themes UI (Table View) --
+                <div>
+                    <div className="flex justify-end mb-4">
+                        <button
+                            onClick={() => openThemeModal()}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
+                        >
+                            + New Theme
+                        </button>
+                    </div>
+
+                    {isLoading ? <div className="p-8 text-center">Loading Themes...</div> : (
+                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider w-1/4">Name</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Description</th>
+                                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider w-32">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                    {(tags as ThemeTag[]).map((theme) => (
+                                        <tr key={theme.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-white align-top">
+                                                {theme.name}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400 align-top">
+                                                {theme.description || <span className="italic text-zinc-400">No description</span>}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium align-top">
+                                                <div className="flex justify-end gap-3">
+                                                    <button
+                                                        onClick={() => openThemeModal(theme)}
+                                                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(theme.id)}
+                                                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {tags.length === 0 && (
+                                        <tr>
+                                            <td colSpan={3} className="px-6 py-8 text-center text-zinc-500 text-sm">
+                                                No themes found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            ) : activeTab === 'angles' ? (
+                // -- Rich Angles UI (Table View) --
+                <div>
+                    <div className="flex justify-end mb-4">
+                        <button
+                            onClick={() => openAngleModal()}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
+                        >
+                            + New Angle
+                        </button>
+                    </div>
+
+                    {isLoading ? <div className="p-8 text-center">Loading Angles...</div> : (
+                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider w-1/5">Name</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider w-1/6">Category</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider w-1/6">Brain Clicks</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Description</th>
+                                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider w-32">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                    {(tags as AngleTag[]).map((angle) => (
+                                        <tr key={angle.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-white align-top">
+                                                {angle.name}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500 dark:text-zinc-400 align-top">
+                                                {angle.category ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
+                                                        {angle.category}
+                                                    </span>
+                                                ) : <span className="text-zinc-300">-</span>}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400 align-top">
+                                                {angle.brainClicks ? (
+                                                    <div className="flex items-start gap-1">
+                                                        <span className="text-indigo-500 mt-0.5">🧠</span>
+                                                        <span>{angle.brainClicks}</span>
+                                                    </div>
+                                                ) : <span className="text-zinc-300">-</span>}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400 align-top">
+                                                {angle.description || <span className="italic text-zinc-400">No description</span>}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium align-top">
+                                                <div className="flex justify-end gap-3">
+                                                    <button
+                                                        onClick={() => openAngleModal(angle)}
+                                                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(angle.id)}
+                                                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {tags.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 text-sm">
+                                                No angles found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
             ) : (
-                // -- Simple Table UI for others --
+                // -- Simple Table UI for others (Demographics, Awareness Levels) --
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                     {isLoading ? (
                         <div className="p-8 text-center text-zinc-500">Loading...</div>
@@ -667,6 +970,126 @@ export default function TagsPage() {
                     </div>
                 )
             }
-        </div >
+
+            {/* Theme Modal */}
+            {
+                isThemeModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setIsThemeModalOpen(false); }}>
+                        <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-lg w-full p-6 border border-zinc-200 dark:border-zinc-700">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">
+                                {editingTheme ? "Edit Theme" : "Create New Theme"}
+                            </h3>
+                            <form onSubmit={saveTheme} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={themeForm.name}
+                                        onChange={(e) => setThemeForm({ ...themeForm, name: e.target.value })}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                        placeholder="e.g. Seasonal Sale"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
+                                    <textarea
+                                        value={themeForm.description || ''}
+                                        onChange={(e) => setThemeForm({ ...themeForm, description: e.target.value })}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 min-h-[100px]"
+                                        placeholder="Describe the theme..."
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-700">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsThemeModalOpen(false)}
+                                        className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+                                    >
+                                        Save Theme
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Angle Modal */}
+            {
+                isAngleModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setIsAngleModalOpen(false); }}>
+                        <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-lg w-full p-6 border border-zinc-200 dark:border-zinc-700">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">
+                                {editingAngle ? "Edit Angle" : "Create New Angle"}
+                            </h3>
+                            <form onSubmit={saveAngle} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={angleForm.name}
+                                        onChange={(e) => setAngleForm({ ...angleForm, name: e.target.value })}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                        placeholder="e.g. Fear of Missing Out"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Category</label>
+                                    <input
+                                        type="text"
+                                        value={angleForm.category || ''}
+                                        onChange={(e) => setAngleForm({ ...angleForm, category: e.target.value })}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                        placeholder="e.g. Emotional"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Brain Clicks</label>
+                                    <input
+                                        type="text"
+                                        value={angleForm.brainClicks || ''}
+                                        onChange={(e) => setAngleForm({ ...angleForm, brainClicks: e.target.value })}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                        placeholder="e.g. Scarcity, Urgency"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
+                                    <textarea
+                                        value={angleForm.description || ''}
+                                        onChange={(e) => setAngleForm({ ...angleForm, description: e.target.value })}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 min-h-[100px]"
+                                        placeholder="Describe the angle..."
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-700">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAngleModalOpen(false)}
+                                        className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+                                    >
+                                        Save Angle
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+        </div>
     );
 }

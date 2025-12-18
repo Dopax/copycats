@@ -24,6 +24,7 @@ interface Format { id: string; name: string; }
 
 const STATUS_COLUMNS = [
     { key: "IDEATION", label: "Ideation", color: "bg-gray-100 dark:bg-zinc-800" },
+    { key: "FILMING", label: "Filming", color: "bg-teal-50 dark:bg-teal-900/10" },
     { key: "BRIEFING", label: "Briefing", color: "bg-blue-50 dark:bg-blue-900/10" },
     { key: "EDITING", label: "Editing", color: "bg-amber-50 dark:bg-amber-900/10" },
     { key: "REVIEW", label: "Review", color: "bg-purple-50 dark:bg-purple-900/10" },
@@ -142,7 +143,6 @@ function BatchesContent() {
                     batchType: newBatchType,
                     priority: newBatchPriority,
                     conceptId: newBatchConcept,
-                    formatId: newBatchFormat || null,
                     formatId: newBatchFormat || null,
                     referenceAdId: (newBatchType === 'COPYCAT' || newBatchType === 'ITERATION') ? referenceAdId : null,
                     brandId: selectedBrand?.id

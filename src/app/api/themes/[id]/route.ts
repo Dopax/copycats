@@ -3,12 +3,12 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
-        const { name } = await request.json();
+        const { name, description } = await request.json();
         const { id } = params;
 
         const updated = await prisma.adTheme.update({
             where: { id },
-            data: { name },
+            data: { name, description },
         });
 
         return NextResponse.json(updated);

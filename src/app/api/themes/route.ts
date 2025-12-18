@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const { name, brandId } = await request.json();
+        const { name, brandId, description } = await request.json();
 
         if (!name) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -32,6 +32,7 @@ export async function POST(request: Request) {
         const theme = await prisma.adTheme.create({
             data: {
                 name,
+                description,
                 brandId: brandId || null
             }
         });

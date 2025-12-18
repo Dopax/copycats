@@ -63,12 +63,8 @@ export default function AdsPage() {
 
         if (getVal("sortBy")) setSortBy(getVal("sortBy"));
 
-        // If global brand context is active, force it. Otherwise use stored/param.
-        if (selectedBrand) {
-            setFilterBrand(selectedBrand.name);
-        } else {
-            if (getVal("filterBrand")) setFilterBrand(getVal("filterBrand"));
-        }
+        // Use stored or URL filter, defaulting to empty (All Brands)
+        if (getVal("filterBrand")) setFilterBrand(getVal("filterBrand"));
 
         if (getVal("filterPriority")) setFilterPriority(getVal("filterPriority"));
         if (getVal("filterBatch")) setFilterBatch(getVal("filterBatch"));
@@ -78,7 +74,7 @@ export default function AdsPage() {
         if (getVal("customEndDate")) setCustomEndDate(getVal("customEndDate"));
 
         setIsInitialized(true);
-    }, [selectedBrand]); // Add selectedBrand dependency
+    }, []); // Removed selectedBrand dependency
 
     // Sync State to URL/LocalStorage
     useEffect(() => {
