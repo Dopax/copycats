@@ -557,7 +557,9 @@ export default function BatchDetailPage() {
                                     <div key={item.id} className={`bg-white dark:bg-zinc-900 rounded-xl border ${item.status === 'DONE' ? 'border-green-200 dark:border-green-900/50 bg-green-50/20' : 'border-zinc-200 dark:border-zinc-800'} p-5 shadow-sm transition-all`}>
                                         <div className="flex items-start gap-4">
                                             <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                                <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-600 dark:text-zinc-300 text-lg border border-zinc-200 dark:border-zinc-700">{getVariationLabel(index)}</div>
+                                                <div className="w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-800 dark:text-zinc-200 text-2xl border-2 border-zinc-200 dark:border-zinc-700 shadow-sm">
+                                                    {getVariationLabel(index)}
+                                                </div>
                                             </div>
                                             <div className="flex-1 space-y-4">
                                                 <div>
