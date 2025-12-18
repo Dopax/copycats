@@ -7,7 +7,7 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: "AdSpy Tracker",
+    title: "Brand OS",
     description: "Track and analyze ad virality",
 };
 

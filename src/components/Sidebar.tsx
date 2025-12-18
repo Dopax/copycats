@@ -98,7 +98,7 @@ export default function Sidebar() {
                     <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">A</span>
                 ) : (
                     <h1 className="text-xl font-bold text-zinc-900 dark:text-white truncate">
-                        AdSpy Tracker
+                        Brand OS
                     </h1>
                 )}
             </div>
