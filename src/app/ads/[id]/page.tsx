@@ -29,11 +29,13 @@ interface Ad {
     headline: string;
     description: string;
     adLink: string | null;
+    facebookLink?: string;
     videoUrl: string | null;
     thumbnailUrl: string | null;
     publishDate: string;
     firstSeen: string;
     lastSeen: string;
+    transcript?: string;
     snapshots: AdSnapshot[];
 }
 
@@ -41,6 +43,7 @@ export default function AdDetailPage() {
     const params = useParams();
     const [ad, setAd] = useState<Ad | null>(null);
     const [loading, setLoading] = useState(true);
+    const [transcribing, setTranscribing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -63,6 +66,22 @@ export default function AdDetailPage() {
             fetchAd();
         }
     }, [params.id]);
+
+    const handleTranscribe = async () => {
+        if (!ad) return;
+        setTranscribing(true);
+        try {
+            const res = await fetch(`/api/ads/${ad.id}/transcribe`, { method: 'POST' });
+            if (!res.ok) throw new Error("Transcription failed");
+            const data = await res.json();
+            setAd(prev => prev ? ({ ...prev, transcript: data.transcript }) : null);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to transcribe video. Please try again.");
+        } finally {
+            setTranscribing(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -168,61 +187,97 @@ export default function AdDetailPage() {
                     </div>
                 </div>
 
-                {/* Right Column: Metrics Chart */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-fit">
-                    <h3 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">
-                        Virality History
-                    </h3>
-                    <div className="h-[400px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                                <XAxis
-                                    dataKey="date"
-                                    stroke="#6B7280"
-                                    fontSize={12}
-                                    tickMargin={10}
-                                />
-                                <YAxis
-                                    stroke="#6B7280"
-                                    fontSize={12}
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "#1F2937",
-                                        border: "none",
-                                        borderRadius: "8px",
-                                        color: "#F3F4F6",
-                                    }}
-                                />
-                                <Legend />
-                                <Line
-                                    type="monotone"
-                                    dataKey="likes"
-                                    stroke="#6366F1" // Indigo
-                                    strokeWidth={2}
-                                    dot={false}
-                                    name="Likes"
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="comments"
-                                    stroke="#EC4899" // Pink
-                                    strokeWidth={2}
-                                    dot={false}
-                                    name="Comments"
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="shares"
-                                    stroke="#10B981" // Emerald
-                                    strokeWidth={2}
-                                    dot={false}
-                                    name="Shares"
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
+                {/* Transcript Section */}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                            Video Script
+                        </h3>
+                        {!ad.transcript && (
+                            <button
+                                onClick={handleTranscribe}
+                                disabled={transcribing || !ad.videoUrl}
+                                className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {transcribing ? (
+                                    <>
+                                        <div className="w-3 h-3 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
+                                        Transcribing...
+                                    </>
+                                ) : (
+                                    "Generate Script (AI)"
+                                )}
+                            </button>
+                        )}
                     </div>
+
+                    {ad.transcript ? (
+                        <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                            {ad.transcript}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+                            {ad.videoUrl ? "No script generated yet." : "No video available to transcribe."}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Right Column: Metrics Chart */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-fit">
+                <h3 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">
+                    Virality History
+                </h3>
+                <div className="h-[400px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                            <XAxis
+                                dataKey="date"
+                                stroke="#6B7280"
+                                fontSize={12}
+                                tickMargin={10}
+                            />
+                            <YAxis
+                                stroke="#6B7280"
+                                fontSize={12}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: "#1F2937",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    color: "#F3F4F6",
+                                }}
+                            />
+                            <Legend />
+                            <Line
+                                type="monotone"
+                                dataKey="likes"
+                                stroke="#6366F1" // Indigo
+                                strokeWidth={2}
+                                dot={false}
+                                name="Likes"
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="comments"
+                                stroke="#EC4899" // Pink
+                                strokeWidth={2}
+                                dot={false}
+                                name="Comments"
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="shares"
+                                stroke="#10B981" // Emerald
+                                strokeWidth={2}
+                                dot={false}
+                                name="Shares"
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
         </div>

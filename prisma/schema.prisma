@@ -25,6 +25,7 @@ model Ad {
   priority        Int?         // 1=High, 2=Medium, 3=Low, null=No priority
   notes           String?
   whyItWorks      String?
+  transcript      String?
   
   snapshots       AdSnapshot[]
   tags            Tag[]
