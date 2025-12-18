@@ -4,35 +4,21 @@ import { prisma } from '@/lib/prisma';
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-        const body = await request.json();
-        const { hookId, notes, script, status, name } = body;
+        const { hookId, notes, script, status } = await request.json();
 
-        // WORKAROUND: Use raw SQL because Prisma Client is stale (Windows file lock issue on generate)
-        // We use $executeRaw for the update to support the new 'name' field.
-        await prisma.$executeRaw`
-            UPDATE BatchItem 
-            SET name = ${name}, 
-                hookId = ${hookId}, 
-                notes = ${notes}, 
-                script = ${script}, 
-                status = ${status}
-            WHERE id = ${id}
-        `;
-
-        // Fetch the updated item to return it (with relations)
-        const updated = await prisma.batchItem.findUnique({
+        const updated = await prisma.batchItem.update({
             where: { id },
+            data: {
+                hookId: hookId,
+                notes: notes,
+                script: script,
+                status: status
+            },
             include: { hook: true }
         });
 
-        if (updated) {
-            // Manually attach name since stale client might not return it
-            (updated as any).name = name;
-        }
-
         return NextResponse.json(updated);
     } catch (error) {
-        console.error("Update item error:", error);
         return NextResponse.json({ error: "Failed to update item" }, { status: 500 });
     }
 }

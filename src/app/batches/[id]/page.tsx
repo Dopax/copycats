@@ -560,40 +560,29 @@ export default function BatchDetailPage() {
                                                 <div className="w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-800 dark:text-zinc-200 text-2xl border-2 border-zinc-200 dark:border-zinc-700 shadow-sm">
                                                     {getVariationLabel(index)}
                                                 </div>
+                                                <span className="text-[10px] font-mono text-zinc-400 select-all" title={item.id}>
+                                                    {item.id.split('-')[0]}
+                                                </span>
                                             </div>
                                             <div className="flex-1 space-y-4">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Variation Name</label>
-                                                        <input
-                                                            type="text"
-                                                            value={item.name || ""}
-                                                            onChange={(e) => updateItem(item.id, { name: e.target.value }, false)}
-                                                            onBlur={(e) => updateItem(item.id, { name: e.target.value }, true)}
-                                                            disabled={getSectionState("PRODUCTION", batch.status) === "future"}
-                                                            className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500"
-                                                            placeholder={`Variation ${getVariationLabel(index)} (Optional)`}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Hook</label>
-                                                        <div className="flex gap-2">
-                                                            <select value={item.hook?.id || ""} onChange={(e) => updateItem(item.id, { hookId: e.target.value })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500">
-                                                                <option value="">Select Hook...</option>
-                                                                {hooks.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-                                                            </select>
-                                                            <button onClick={async (e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) { const id = await createHook(name); if (id) updateItem(item.id, { hookId: id }); } }} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="px-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors">+</button>
-                                                        </div>
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Hook</label>
+                                                    <div className="flex gap-2">
+                                                        <select value={item.hook?.id || ""} onChange={(e) => updateItem(item.id, { hookId: e.target.value })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                                                            <option value="">Select Hook...</option>
+                                                            {hooks.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                                                        </select>
+                                                        <button onClick={async (e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) { const id = await createHook(name); if (id) updateItem(item.id, { hookId: id }); } }} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="px-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors">+</button>
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Visual Script</label>
-                                                        <textarea value={item.script || ""} onChange={(e) => updateItem(item.id, { script: e.target.value }, false)} onBlur={(e) => updateItem(item.id, { script: e.target.value }, true)} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500 font-mono text-xs leading-relaxed" placeholder="Enter visual script..." />
+                                                        <textarea value={item.script || ""} onChange={(e) => updateItem(item.id, { script: e.target.value })} onBlur={(e) => updateItem(item.id, { script: e.target.value })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500 font-mono text-xs leading-relaxed" placeholder="Enter visual script..." />
                                                     </div>
                                                     <div>
                                                         <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Visual Notes</label>
-                                                        <textarea value={item.notes || ""} onChange={(e) => updateItem(item.id, { notes: e.target.value }, false)} onBlur={(e) => updateItem(item.id, { notes: e.target.value }, true)} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500" placeholder="Notes for editor..." />
+                                                        <textarea value={item.notes || ""} onChange={(e) => updateItem(item.id, { notes: e.target.value })} onBlur={(e) => updateItem(item.id, { notes: e.target.value })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500" placeholder="Notes for editor..." />
                                                     </div>
                                                 </div>
                                             </div>
