@@ -27,6 +27,16 @@ export async function GET(request: Request, { params }: { params: { id: string }
             return NextResponse.json({ error: "Batch not found" }, { status: 404 });
         }
 
+        // WORKAROUND: Manually fetch conceptDoc for the related concept
+        try {
+            const raw = await prisma.$queryRaw`SELECT conceptDoc FROM CreativeConcept WHERE id = ${batch.conceptId}`;
+            if (Array.isArray(raw) && raw.length > 0) {
+                (batch.concept as any).conceptDoc = (raw[0] as any).conceptDoc;
+            }
+        } catch (e) {
+            console.warn("Failed to patch conceptDoc", e);
+        }
+
         return NextResponse.json(batch);
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch batch" }, { status: 500 });

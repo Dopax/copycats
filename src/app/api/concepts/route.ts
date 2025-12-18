@@ -23,6 +23,19 @@ export async function GET(request: Request) {
             },
             orderBy: { createdAt: 'desc' },
         });
+
+        // WORKAROUND: Fetch conceptDoc using raw SQL because Prisma Client is stale
+        // and doesn't know about this new field yet (requires server restart).
+        try {
+            const rawDocs = await prisma.$queryRaw`SELECT id, conceptDoc FROM CreativeConcept`;
+            const docMap = new Map((rawDocs as any[]).map((r: any) => [r.id, r.conceptDoc]));
+
+            concepts.forEach((c: any) => {
+                c.conceptDoc = docMap.get(c.id);
+            });
+        } catch (e) {
+            console.warn("Failed to fetch raw concept docs, ignoring...", e);
+        }
         return NextResponse.json(concepts);
     } catch (error) {
         return NextResponse.json({ error: "Failed to fetch concepts" }, { status: 500 });

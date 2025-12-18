@@ -303,6 +303,7 @@ export default function ConceptsPage() {
                 <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">New Concept Matrix</h2>
                 <form onSubmit={handleCreateConcept} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
 
+
                     {/* Angle */}
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
@@ -322,28 +323,6 @@ export default function ConceptsPage() {
                         >
                             <option value="">Select Angle...</option>
                             {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Theme */}
-                    <div className="space-y-1">
-                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
-                            Theme
-                            <button
-                                type="button"
-                                onClick={() => setShowThemeModal(true)}
-                                className="text-indigo-600 hover:text-indigo-500 text-[10px]"
-                            >
-                                + New
-                            </button>
-                        </label>
-                        <select
-                            value={selectedTheme}
-                            onChange={(e) => setSelectedTheme(e.target.value)}
-                            className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="">Select Theme...</option>
-                            {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </div>
 
@@ -369,17 +348,32 @@ export default function ConceptsPage() {
                         </select>
                     </div>
 
-                    {/* Awareness Level */}
+                    {/* Theme */}
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
-                            Awareness
+                            Theme
                             <button
                                 type="button"
-                                onClick={handleCreateAwarenessLevel}
+                                onClick={() => setShowThemeModal(true)}
                                 className="text-indigo-600 hover:text-indigo-500 text-[10px]"
                             >
                                 + New
                             </button>
+                        </label>
+                        <select
+                            value={selectedTheme}
+                            onChange={(e) => setSelectedTheme(e.target.value)}
+                            className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                        >
+                            <option value="">Select Theme...</option>
+                            {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Awareness Level */}
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
+                            Awareness
                         </label>
                         <select
                             value={selectedAwarenessLevel}
