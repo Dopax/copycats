@@ -3,11 +3,24 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdCard from "@/components/AdCard";
+import AdQuickView from "@/components/AdQuickView";
 import { Ad, AdSnapshot } from "@prisma/client";
 import { useBrand } from "@/context/BrandContext";
 
+// Update interface to match API response and AdQuickView expectations
+interface AdFormat { id: string; name: string; }
+interface AdHook { id: string; name: string; }
+interface AdTheme { id: string; name: string; }
+interface AdAngle { id: string; name: string; }
+interface AdAwarenessLevel { id: string; name: string; }
+
 interface AdWithSnapshots extends Ad {
     snapshots: AdSnapshot[];
+    format?: AdFormat | null;
+    hook?: AdHook | null;
+    theme?: AdTheme | null;
+    angle?: AdAngle | null;
+    awarenessLevel?: AdAwarenessLevel | null;
 }
 
 export default function AdsPage() {
@@ -15,6 +28,10 @@ export default function AdsPage() {
     const [batches, setBatches] = useState<{ id: string, name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
+
+    // Quick View State
+    const [quickViewAd, setQuickViewAd] = useState<AdWithSnapshots | null>(null);
+
     const router = useRouter();
     const searchParams = useSearchParams();
     const { selectedBrand } = useBrand();
@@ -338,7 +355,11 @@ export default function AdsPage() {
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {filteredAds.map((ad) => (
-                        <AdCard key={ad.id} ad={ad} />
+                        <AdCard
+                            key={ad.id}
+                            ad={ad}
+                            onQuickView={(ad) => setQuickViewAd(ad)}
+                        />
                     ))}
                 </div>
 
@@ -346,6 +367,19 @@ export default function AdsPage() {
                     <div className="text-center py-12 text-zinc-500">
                         No ads found matching your filters.
                     </div>
+                )}
+
+                {/* Quick View Sidebar */}
+                {quickViewAd && (
+                    <AdQuickView
+                        ad={quickViewAd}
+                        isOpen={!!quickViewAd}
+                        onClose={() => setQuickViewAd(null)}
+                        onUpdate={(updated) => {
+                            // Simple update of the list item
+                            setAds(current => current.map(a => a.id === updated.id ? { ...a, ...updated } : a));
+                        }}
+                    />
                 )}
             </div>
         </Suspense>

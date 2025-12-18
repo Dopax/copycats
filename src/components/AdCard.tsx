@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Ad, AdSnapshot } from "@prisma/client";
+
 interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
 interface AdTheme { id: string; name: string; }
@@ -16,8 +17,12 @@ interface AdWithSnapshots extends Ad {
     awarenessLevel?: AdAwarenessLevel | null;
 }
 
-export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
-    // ... existing state ...
+interface AdCardProps {
+    ad: AdWithSnapshots;
+    onQuickView?: (ad: AdWithSnapshots) => void;
+}
+
+export default function AdCard({ ad, onQuickView }: AdCardProps) {
     const [latestSnapshot] = useState(ad.snapshots[0] || { likes: 0, shares: 0, comments: 0 });
     const [isPlaying, setIsPlaying] = useState(false);
     const [isArchived, setIsArchived] = useState(ad.archived);
@@ -37,9 +42,7 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
     const [selectedAngle, setSelectedAngle] = useState<string | null>(ad.angle?.id || null);
     const [selectedAwareness, setSelectedAwareness] = useState<string | null>(ad.awarenessLevel?.id || null);
 
-
     const toggleArchive = async (e: React.MouseEvent) => {
-        // ... existing toggleArchive logic ...
         e.preventDefault();
         e.stopPropagation();
         try {
@@ -60,7 +63,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
     };
 
     const updatePriority = async (e: React.MouseEvent, newPriority: number | null) => {
-        // ... existing updatePriority logic ...
         e.preventDefault();
         e.stopPropagation();
         try {
@@ -93,11 +95,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
     const formatDate = (date: Date | string) => {
         return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
-
-    const firstSeen = new Date(ad.firstSeen);
-
-    // Domain
-    const domain = ad.adLink ? new URL(ad.adLink).hostname.replace('www.', '') : '';
 
     const getPriorityColor = (p: number | null) => {
         switch (p) {
@@ -253,7 +250,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
         }
     };
 
-
     const saveAll = async () => {
         setIsSavingNotes(true);
         try {
@@ -285,7 +281,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
         }
     };
 
-    // Load tags when showing
     useEffect(() => {
         if (showNotes && formats.length === 0) {
             loadTags();
@@ -321,19 +316,25 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                     </div>
                 </div>
 
-                {/* Menu Dots */}
+                {/* Quick View / Edit Action */}
                 <button
-                    onClick={(e) => { e.preventDefault(); setShowNotes(!showNotes); }}
-                    className={`hover:text-zinc-600 dark:hover:text-zinc-200 ${notes ? "text-indigo-500" : "text-zinc-400"}`}
-                    title="Add Notes"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if (onQuickView) {
+                            onQuickView(ad);
+                        } else {
+                            setShowNotes(!showNotes);
+                        }
+                    }}
+                    className={`hover:text-zinc-600 dark:hover:text-zinc-200 ${showNotes ? "text-indigo-500" : "text-zinc-400"}`}
+                    title="Quick View / Edit"
                 >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                 </button>
             </div>
-
-            {/* Overlay moved below media */}
 
             {/* Media (Full Width) */}
             <div className="w-full aspect-square sm:aspect-[4/5] bg-zinc-100 dark:bg-zinc-800 relative overflow-hidden">
@@ -346,7 +347,7 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                             src={ad.videoUrl}
                             controls
                             autoPlay
-                            muted // Browsers often block unmuted autoplay
+                            muted
                             playsInline
                             className="w-full h-full object-contain bg-black"
                             onClick={(e) => e.stopPropagation()}
@@ -379,7 +380,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                             <div className="flex items-center justify-center h-full text-zinc-400">No Image</div>
                         )}
 
-                        {/* Play Button Overlay */}
                         {ad.videoUrl && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors">
                                 <div className="w-14 h-14 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-lg">
@@ -407,7 +407,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                         </button>
                     </div>
 
-                    {/* Format Selector */}
                     <div className="mb-4">
                         <label className="block text-xs font-medium text-zinc-500 mb-1">Format</label>
                         <div className="flex gap-2">
@@ -432,7 +431,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                         </div>
                     </div>
 
-                    {/* Hook Selector */}
                     <div className="mb-4">
                         <label className="block text-xs font-medium text-zinc-500 mb-1">Hook</label>
                         <div className="flex gap-2">
@@ -447,7 +445,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                                     <option key={h.id} value={h.id}>{h.name}</option>
                                 ))}
                             </select>
-                            {/* Extract Video Button */}
                             {ad.videoUrl && (
                                 <button
                                     onClick={(e) => { e.preventDefault(); extractHook(); }}
@@ -472,7 +469,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                         </div>
                     </div>
 
-                    {/* Theme Selector */}
                     <div className="mb-4">
                         <label className="block text-xs font-medium text-zinc-500 mb-1">Theme</label>
                         <div className="flex gap-2">
@@ -497,7 +493,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                         </div>
                     </div>
 
-                    {/* Angle Selector */}
                     <div className="mb-4">
                         <label className="block text-xs font-medium text-zinc-500 mb-1">Angle</label>
                         <div className="flex gap-2">
@@ -591,17 +586,14 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                 <>
                     {/* Content Body */}
                     <div className="p-4 space-y-3">
-                        {/* Headline */}
                         <h4 className="font-bold text-zinc-900 dark:text-white text-lg leading-tight">
                             {ad.headline || "Ad Headline Goes Here"}
                         </h4>
 
-                        {/* Description */}
                         <p className="text-zinc-600 dark:text-zinc-300 text-sm line-clamp-3 leading-relaxed">
                             {ad.description || "No description available for this ad."}
                         </p>
 
-                        {/* Link Row */}
                         <div className="flex items-center justify-between pt-1">
                             {ad.adLink ? (
                                 <a
@@ -618,10 +610,8 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                             ) : (
                                 <span className="text-zinc-400 text-xs italic">No Link</span>
                             )}
-
                         </div>
 
-                        {/* Social Metrics */}
                         <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 pt-2 border-t border-zinc-100 dark:border-zinc-800">
                             <div className="flex items-center gap-1">
                                 <svg className="w-4 h-4 text-blue-500 fill-current" viewBox="0 0 24 24">
@@ -636,7 +626,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                         </div>
                     </div>
 
-                    {/* Tags & Notes Display */}
                     <div className="px-4 pb-3 pt-2 flex flex-col gap-2">
                         {(ad.format || ad.hook || ad.theme || ad.angle) && (
                             <div className="flex flex-wrap gap-1.5">
@@ -674,7 +663,6 @@ export default function AdCard({ ad }: { ad: AdWithSnapshots }) {
                         )}
                     </div>
 
-                    {/* Footer Actions */}
                     <div className="border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 mt-auto">
                         <div className="flex items-center p-2 gap-2 flex-wrap">
 

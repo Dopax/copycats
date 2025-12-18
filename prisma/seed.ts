@@ -1,3 +1,4 @@
+
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -101,18 +102,40 @@ async function main() {
         demos.push(d)
     }
 
-    // 6. Sample Concept
+    // 6. Awareness Levels (New)
+    const awarenessData = [
+        'Most Aware',
+        'Product Aware',
+        'Solution Aware',
+        'Problem Aware',
+        'Problem Unaware'
+    ]
+    const awarenessLevels = []
+    for (const name of awarenessData) {
+        const al = await prisma.adAwarenessLevel.upsert({
+            where: { name },
+            update: {},
+            create: { name }
+        })
+        awarenessLevels.push(al)
+    }
+
+    // 7. Sample Concept
+    // Check if concept exists to avoid dupes if running multiple times (upsert logic works for refs but simple create might fail if run again without cleanup? No unique constraint on concept name?)
+    // Basic create is fine for seed usually.
+    // But since we made awareness mandatory, old seed would fail.
     const concept = await prisma.creativeConcept.create({
         data: {
             name: "Eco-Friendly Budget Hack",
             angleId: angles[0].id, // Save Money
             themeId: themes[0].id, // Sustainability
             demographicId: demos[1].id, // Millennials
+            awarenessLevelId: awarenessLevels[1].id // Problem Aware
         }
     })
 
-    // 7. Sample Batch
-    const batch = await prisma.adBatch.create({
+    // 8. Sample Batch
+    await prisma.adBatch.create({
         data: {
             name: "Sustainability UGC Batch",
             batchType: "NET_NEW",

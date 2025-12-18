@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-        const { hookId, notes, script, status } = await request.json();
+        const { hookId, notes, script, status, videoUrl } = await request.json();
 
         const updated = await prisma.batchItem.update({
             where: { id },
@@ -12,7 +12,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 hookId: hookId,
                 notes: notes,
                 script: script,
-                status: status
+                status: status,
+                videoUrl: videoUrl
             },
             include: { hook: true }
         });

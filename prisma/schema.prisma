@@ -134,8 +134,8 @@ model CreativeConcept {
   demographicId String
   demographic   AdDemographic @relation(fields: [demographicId], references: [id])
   
-  awarenessLevelId String?
-  awarenessLevel   AdAwarenessLevel? @relation(fields: [awarenessLevelId], references: [id])
+  awarenessLevelId String
+  awarenessLevel   AdAwarenessLevel @relation(fields: [awarenessLevelId], references: [id])
   
   brandId       String?
   brand         Brand?   @relation(fields: [brandId], references: [id])
@@ -173,6 +173,11 @@ model Brand {
   angles    AdAngle[]
   demographics AdDemographic[]
   awarenessLevels AdAwarenessLevel[]
+
+  // Google Drive Integration
+  googleRefreshToken String?
+  googleDriveFolderId String?
+  googleEmail        String?
 }
 
 model BrandAsset {
@@ -236,6 +241,9 @@ model AdBatch {
   referenceAdId String?
   referenceAd   Ad?     @relation(fields: [referenceAdId], references: [id])
 
+  projectFilesUrl String? // Link to Google Drive Zip
+
+
   items       BatchItem[]
 
   createdAt   DateTime @default(now())
@@ -252,6 +260,7 @@ model BatchItem {
 
   notes     String?
   script    String?
+  videoUrl  String?  // Link to Google Drive Video
   status    String   @default("PENDING") // PENDING, DONE
 }
 

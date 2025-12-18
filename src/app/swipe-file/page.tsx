@@ -3,16 +3,33 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdCard from "@/components/AdCard";
+import AdQuickView from "@/components/AdQuickView";
 import { Ad, AdSnapshot } from "@prisma/client";
 
+interface AdFormat { id: string; name: string; }
+interface AdHook { id: string; name: string; }
+interface AdTheme { id: string; name: string; }
+interface AdAngle { id: string; name: string; }
+interface AdAwarenessLevel { id: string; name: string; }
+
+// Extend the Prisma Ad type with relations
 interface AdWithSnapshots extends Ad {
     snapshots: AdSnapshot[];
+    format?: AdFormat | null;
+    hook?: AdHook | null;
+    theme?: AdTheme | null;
+    angle?: AdAngle | null;
+    awarenessLevel?: AdAwarenessLevel | null;
 }
 
 export default function SwipeFilePage() {
     const [ads, setAds] = useState<AdWithSnapshots[]>([]);
     const [loading, setLoading] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
+
+    // Quick View State
+    const [quickViewAd, setQuickViewAd] = useState<AdWithSnapshots | null>(null);
+
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -196,7 +213,11 @@ export default function SwipeFilePage() {
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {filteredAds.map((ad) => (
-                        <AdCard key={ad.id} ad={ad} />
+                        <AdCard
+                            key={ad.id}
+                            ad={ad}
+                            onQuickView={(ad) => setQuickViewAd(ad)}
+                        />
                     ))}
                 </div>
 
@@ -210,6 +231,19 @@ export default function SwipeFilePage() {
                             Click the "Save" button on ads to add them to your swipe file.
                         </p>
                     </div>
+                )}
+
+                {/* Quick View Sidebar */}
+                {quickViewAd && (
+                    <AdQuickView
+                        ad={quickViewAd}
+                        isOpen={!!quickViewAd}
+                        onClose={() => setQuickViewAd(null)}
+                        onUpdate={(updated) => {
+                            // Simple update of the list item
+                            setAds(current => current.map(a => a.id === updated.id ? { ...a, ...updated } : a));
+                        }}
+                    />
                 )}
             </div>
         </Suspense>
