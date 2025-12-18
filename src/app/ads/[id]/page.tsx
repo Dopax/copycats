@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { format } from "date-fns";
@@ -282,6 +283,13 @@ export default function AdDetailPage() {
                     </div>
                 </div>
                 <div className="flex gap-3">
+                    <Link
+                        href={`/batches?create=true&refAdId=${ad.id}&refAdPostId=${ad.postId}`}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                        Create Copycat Batch
+                    </Link>
                     {ad.facebookLink && (
                         <a
                             href={ad.facebookLink}
@@ -594,6 +602,6 @@ export default function AdDetailPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
