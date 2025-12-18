@@ -11,6 +11,7 @@ interface AwarenessLevel { id: string; name: string; }
 interface BatchItem {
     id: string;
     hook?: Hook;
+    hookId?: string;
     notes?: string;
     script?: string;
     status: string;
@@ -606,7 +607,12 @@ export default function BatchDetailPage() {
                                                 <div>
                                                     <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Hook</label>
                                                     <div className="flex gap-2">
-                                                        <select value={item.hook?.id || ""} onChange={(e) => updateItem(item.id, { hookId: e.target.value })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                                                        <select
+                                                            value={item.hookId || ""}
+                                                            onChange={(e) => updateItem(item.id, { hookId: e.target.value })}
+                                                            disabled={getSectionState("PRODUCTION", batch.status) === "future"}
+                                                            className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                                                        >
                                                             <option value="">Editor's Choice</option>
                                                             {hooks.filter(h => h.name !== 'Editor Choice').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                                                         </select>
@@ -615,8 +621,33 @@ export default function BatchDetailPage() {
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Visual Script</label>
-                                                        <textarea value={item.script || ""} onChange={(e) => updateItem(item.id, { script: e.target.value })} onBlur={(e) => updateItem(item.id, { script: e.target.value })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500 font-mono text-xs leading-relaxed" placeholder="Enter visual script..." />
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Visual Script</label>
+                                                            <label className="flex items-center gap-1.5 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="w-3 h-3 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                                                                    checked={item.script === 'N/A'}
+                                                                    onChange={(e) => updateItem(item.id, { script: e.target.checked ? 'N/A' : '' })}
+                                                                    disabled={getSectionState("PRODUCTION", batch.status) === "future"}
+                                                                />
+                                                                <span className="text-[10px] text-zinc-400 font-medium">No Script</span>
+                                                            </label>
+                                                        </div>
+                                                        {item.script === 'N/A' ? (
+                                                            <div className="w-full h-[120px] bg-zinc-50 dark:bg-zinc-800/50 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg flex items-center justify-center text-xs text-zinc-400 italic">
+                                                                No script required
+                                                            </div>
+                                                        ) : (
+                                                            <textarea
+                                                                value={item.script || ""}
+                                                                onChange={(e) => updateItem(item.id, { script: e.target.value })}
+                                                                onBlur={(e) => updateItem(item.id, { script: e.target.value })}
+                                                                disabled={getSectionState("PRODUCTION", batch.status) === "future"}
+                                                                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500 font-mono text-xs leading-relaxed"
+                                                                placeholder="Enter visual script..."
+                                                            />
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Visual Notes</label>
