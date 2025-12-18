@@ -97,7 +97,7 @@ function BatchesContent() {
             if (data && data.length > 0) {
                 const existing = data[0];
                 setDuplicateWarning(
-                    `You already have a batch for Ad ${refPostId || 'selected'}: "${existing.name}"`
+                    `You already have a batch for this Ad (${refPostId || 'ID: ' + refId}): "${existing.name}"`
                 );
                 setDuplicateBatchId(existing.id);
             } else {
