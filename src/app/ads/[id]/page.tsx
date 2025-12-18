@@ -75,9 +75,9 @@ export default function AdDetailPage() {
             if (!res.ok) throw new Error("Transcription failed");
             const data = await res.json();
             setAd(prev => prev ? ({ ...prev, transcript: data.transcript }) : null);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Failed to transcribe video. Please try again.");
+            alert(`Failed to transcribe video: ${error.message}`);
         } finally {
             setTranscribing(false);
         }
