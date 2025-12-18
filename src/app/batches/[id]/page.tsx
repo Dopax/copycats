@@ -146,6 +146,63 @@ const BatchSection = ({
     );
 };
 
+function HookLibraryModal({ hooks, onClose, onSelect }: { hooks: Hook[], onClose: () => void, onSelect: (hook: Hook) => void }) {
+    const [search, setSearch] = useState("");
+    const filteredHooks = hooks.filter(h => h.name.toLowerCase().includes(search.toLowerCase()) && h.name !== "Editor Choice");
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
+                    <h3 className="font-bold text-lg dark:text-white">Hook Library</h3>
+                    <button onClick={onClose} className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
+                    <input
+                        type="text"
+                        placeholder="Search hooks..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full bg-zinc-100 dark:bg-zinc-800 border-none rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                        autoFocus
+                    />
+                </div>
+                <div className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-1">
+                        <button
+                            onClick={() => onSelect({ id: "", name: "Editor Choice" })}
+                            className="w-full text-left px-4 py-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-between group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                </div>
+                                <div>
+                                    <div className="font-medium text-zinc-900 dark:text-white">Editor's Choice</div>
+                                    <div className="text-xs text-zinc-500">Let the editor decide</div>
+                                </div>
+                            </div>
+                        </button>
+                        {filteredHooks.map(hook => (
+                            <button
+                                key={hook.id}
+                                onClick={() => onSelect(hook)}
+                                className="w-full text-left px-4 py-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-between border-t border-zinc-50 dark:border-zinc-800/50"
+                            >
+                                <span className="font-medium text-zinc-700 dark:text-zinc-300">{hook.name}</span>
+                            </button>
+                        ))}
+                        {filteredHooks.length === 0 && (
+                            <div className="p-8 text-center text-zinc-500 text-sm">No hooks found matching "{search}"</div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function ViewDocModal({ content, onClose }: { content: string, onClose: () => void }) {
     return (
@@ -188,6 +245,7 @@ export default function BatchDetailPage() {
 
     // Modal State
     const [viewingDoc, setViewingDoc] = useState<string | null>(null);
+    const [selectingHookForItem, setSelectingHookForItem] = useState<string | null>(null);
 
     // Accordion State
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -607,16 +665,41 @@ export default function BatchDetailPage() {
                                                 <div>
                                                     <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Hook</label>
                                                     <div className="flex gap-2">
-                                                        <select
-                                                            value={item.hookId || ""}
-                                                            onChange={(e) => updateItem(item.id, { hookId: e.target.value })}
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setSelectingHookForItem(item.id); }}
                                                             disabled={getSectionState("PRODUCTION", batch.status) === "future"}
-                                                            className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                                                            className={`flex-1 text-left px-3 py-2 rounded-lg border text-sm flex items-center justify-between group transition-colors ${item.hookId
+                                                                    ? "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white"
+                                                                    : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500 italic"
+                                                                }`}
                                                         >
-                                                            <option value="">Editor's Choice</option>
-                                                            {hooks.filter(h => h.name !== 'Editor Choice').map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-                                                        </select>
-                                                        <button onClick={async (e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) { const id = await createHook(name); if (id) updateItem(item.id, { hookId: id }); } }} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="px-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors">+</button>
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                {item.hookId ? (
+                                                                    <span className="truncate font-medium">{hooks.find(h => h.id === item.hookId)?.name || "Unknown Hook"}</span>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                                                        </span>
+                                                                        <span>Choose from Library...</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                {item.hookId ? (
+                                                                    <div
+                                                                        onClick={(e) => { e.stopPropagation(); updateItem(item.id, { hookId: null }); }}
+                                                                        className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-full text-zinc-400 hover:text-red-500 transition-colors"
+                                                                        title="Clear Selection"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-zinc-400 text-xs">Default: Editor's Choice</span>
+                                                                )}
+                                                            </div>
+                                                        </button>
+                                                        <button onClick={async (e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) { const id = await createHook(name); if (id) updateItem(item.id, { hookId: id }); } }} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="px-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors" title="Quick Create">+</button>
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -746,8 +829,20 @@ export default function BatchDetailPage() {
                 </BatchSection>
 
                 {/* Doc View Modal */}
-                {viewingDoc && <ViewDocModal content={viewingDoc} onClose={() => setViewingDoc(null)} />}
+                {/* Modals */}
+                {viewingDoc && (
+                    <ViewDocModal content={viewingDoc} onClose={() => setViewingDoc(null)} />
+                )}
+                {selectingHookForItem && (
+                    <HookLibraryModal
+                        hooks={hooks}
+                        onClose={() => setSelectingHookForItem(null)}
+                        onSelect={(hook) => {
+                            updateItem(selectingHookForItem, { hookId: hook.id || null });
+                            setSelectingHookForItem(null);
+                        }}
+                    />
+                )}
             </div>
-        </div>
-    );
+            );
 }
