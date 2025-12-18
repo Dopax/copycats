@@ -88,10 +88,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
         console.log("Transcription received");
         const transcriptText = transcription.text;
 
-        // 4. Update DB (Using raw query to bypass potential Prisma Client sync issues due to file locks)
+        // 4. Update DB
         console.log("Saving transcript to DB...");
-        const updateResult = await prisma.$executeRaw`UPDATE "Ad" SET "transcript" = ${transcriptText} WHERE "id" = ${ad.id}`;
-        console.log("DB Update Result:", updateResult);
+        const updatedAd = await prisma.ad.update({
+            where: { id: ad.id },
+            data: { transcript: transcriptText }
+        });
+        console.log("DB Update Result:", updatedAd);
 
         // Cleanup
         try {
