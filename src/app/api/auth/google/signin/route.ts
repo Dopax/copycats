@@ -14,6 +14,7 @@ export async function GET(request: Request) {
 
     // Generate auth URL
     const scopes = [
+        'https://www.googleapis.com/auth/drive.readonly', // Read existing files
         'https://www.googleapis.com/auth/drive.file', // Create/Edit files created by this app
         'https://www.googleapis.com/auth/userinfo.email' // Get user email
     ];

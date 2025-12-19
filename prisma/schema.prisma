@@ -185,6 +185,7 @@ model Brand {
   googleEmail        String?
 
   creators           Creator[]
+  creatives          Creative[]
 }
 
 model Creator {
@@ -209,6 +210,8 @@ model Creator {
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  creatives     Creative[]
 }
 
 model BrandAsset {
@@ -242,6 +245,7 @@ model Tag {
   id    String @id @default(uuid())
   name  String @unique
   ads   Ad[]
+  creatives Creative[]
 }
 
 model AdBatch {
@@ -300,4 +304,97 @@ model ImportBatch {
   name      String
   createdAt DateTime @default(now())
   snapshots AdSnapshot[]
+}
+
+model Creative {
+  id              String   @id @default(uuid())
+  brandId         String
+  brand           Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  
+  // Google Drive & Storage
+  driveFileId     String?  @unique
+  driveRevisionId String?
+  driveViewLink   String?
+  thumbnailUrl    String?
+  folderPath      String? // e.g. "/Project A/Raw Files"
+  proxyUrl        String?  // Low-res version for preview
+  
+  name            String
+  type            String   @default("VIDEO") // VIDEO, IMAGE
+  
+  // Technical Metadata
+  duration        Float?
+  width           Int?
+  height          Int?
+  fps             Float?
+  
+  // Processing Status (for the AI Pipeline)
+  processingStatus String @default("unprocessed") // unprocessed, processing, completed, failed, stale
+  
+  // Rich Metadata & Embeddings (Stored High Level)
+  overallSummary  String?
+  mainTopic       String?
+  
+  // Categorization
+  product     String?
+  sceneType   String?
+  
+  // Rich Attributes
+  creatorId   String?
+  creator     Creator? @relation(fields: [creatorId], references: [id])
+  
+  audioType   String?  // "Background Sound", "Voice Over"
+  actorType   String?  // "UGC", "Hand Model"
+  
+  tags            Tag[]
+  
+  // Relations for Granular Analysis
+  segments        VideoSegment[]
+  transcripts     TranscriptLine[]
+  detections      VisualDetection[]
+  
+  isFavorite      Boolean  @default(false)
+  isArchived      Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model VideoSegment {
+  id          String   @id @default(uuid())
+  creativeId  String
+  creative    Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  
+  startTime   Float
+  endTime     Float
+  segmentType String   // SHOT, SCENE
+  
+  description String?  // AI Summary of this segment
+  embedding   String?  // Vector embedding (serialized)
+  
+  clipperUrl  String?  // Link to generated clip if any
+}
+
+model TranscriptLine {
+  id          String   @id @default(uuid())
+  creativeId  String
+  creative    Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  
+  startTime   Float
+  endTime     Float
+  text        String
+  speaker     String?
+}
+
+model VisualDetection {
+  id          String   @id @default(uuid())
+  creativeId  String
+  creative    Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  
+  startTime   Float
+  endTime     Float
+  label       String   // e.g. "Cat", "Logo", "Text"
+  confidence  Float
+  type        String   // OBJECT, OCR, BRAND
+  box         String?  // JSON string for bounding box {x,y,w,h}
 }
