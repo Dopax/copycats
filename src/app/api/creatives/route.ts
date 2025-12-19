@@ -26,12 +26,14 @@ export async function GET(request: Request) {
             ...(creatorId && { creatorId }),
             ...(type && { type }),
 
-            // Search (Name or Tags)
+            // Search (Name, Tags, Summary, Creator, Folder)
             ...(q && {
                 OR: [
-                    { name: { contains: q } },
-                    { overallSummary: { contains: q } },
-                    { tags: { some: { name: { contains: q } } } }
+                    { name: { contains: q, mode: 'insensitive' } },
+                    { overallSummary: { contains: q, mode: 'insensitive' } },
+                    { folderPath: { contains: q, mode: 'insensitive' } },
+                    { tags: { some: { name: { contains: q, mode: 'insensitive' } } } },
+                    { creator: { name: { contains: q, mode: 'insensitive' } } }
                 ]
             }),
 

@@ -1,6 +1,15 @@
 
 import React from 'react';
-import { Creative, Tag, Creator } from '@prisma/client';
+// Define local interfaces to decouple from Prisma Client issues
+interface Tag { id: string; name: string; }
+interface Creator { id: string; name: string; }
+interface Creative {
+    id: string;
+    name: string;
+    thumbnailUrl: string | null;
+    duration: number | null;
+    type: string;
+}
 
 interface CreativeCardProps {
     creative: Creative & { tags: Tag[], creator: Creator | null };
@@ -14,6 +23,27 @@ export default function CreativeCard({ creative }: CreativeCardProps) {
         const s = Math.floor(seconds % 60);
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
+
+    // Process Tags: Filter L1, Sort (Bunch -> AI -> Creative)
+    const displayTags = (creative.tags || [])
+        .filter(t => !t.name.startsWith('L1:'))
+        .map(t => {
+            let type = 'CREATIVE';
+            let label = t.name;
+            if (t.name.startsWith('BUNCH:')) {
+                type = 'BUNCH';
+                label = t.name.replace('BUNCH:', '');
+            } else if (t.name.startsWith('AI:')) {
+                type = 'AI';
+                label = t.name.replace('AI:', '');
+            }
+            return { ...t, type, label };
+        })
+        .sort((a, b) => {
+            // Priority: Bunch > AI > Creative
+            const score = (type: string) => type === 'BUNCH' ? 3 : type === 'AI' ? 2 : 1;
+            return score(b.type) - score(a.type);
+        });
 
     return (
         <div className="group relative bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 hover:border-zinc-600 transition-all cursor-pointer">
@@ -47,7 +77,7 @@ export default function CreativeCard({ creative }: CreativeCardProps) {
                     {creative.name}
                 </h3>
 
-                <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center justify-between mt-1 mb-2">
                     <p className="text-xs text-zinc-400 truncate">
                         {creative.creator?.name || 'Unknown Creator'}
                     </p>
@@ -57,17 +87,25 @@ export default function CreativeCard({ creative }: CreativeCardProps) {
                     </span>
                 </div>
 
-                {/* Tags (optional, mainly for detail view but good for debug) */}
-                {creative.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                        {creative.tags.slice(0, 2).map(tag => (
-                            <span key={tag.id} className="text-[10px] text-zinc-500 bg-zinc-800/50 px-1 rounded">
-                                #{tag.name}
+                {/* 3-Tier Tag System Display */}
+                {displayTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                        {displayTags.slice(0, 3).map(tag => (
+                            <span
+                                key={tag.id}
+                                className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1
+                                    ${tag.type === 'BUNCH' ? 'bg-blue-900/40 text-blue-200 border border-blue-800/50' :
+                                        tag.type === 'AI' ? 'bg-purple-900/40 text-purple-200 border border-purple-800/50 italic' :
+                                            'bg-zinc-800 text-zinc-400'}
+                                `}
+                            >
+                                {tag.type === 'BUNCH' && <span className="w-1 h-1 rounded-full bg-blue-400"></span>}
+                                {tag.label}
                             </span>
                         ))}
-                        {creative.tags.length > 2 && (
-                            <span className="text-[10px] text-zinc-500 bg-zinc-800/50 px-1 rounded">
-                                +{creative.tags.length - 2}
+                        {displayTags.length > 3 && (
+                            <span className="text-[10px] text-zinc-500 px-1">
+                                +{displayTags.length - 3}
                             </span>
                         )}
                     </div>

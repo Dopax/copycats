@@ -1,7 +1,11 @@
 
 import React from 'react';
-import { Creative, Tag, Creator } from '@prisma/client';
-import CreativeCard from './CreativeCard';
+interface Tag { id: string; name: string; }
+interface Creator { id: string; name: string; }
+interface Creative {
+    id: string;
+    thumbnailUrl: string | null;
+}
 
 interface CreativeDeckProps {
     title: string;
@@ -11,18 +15,16 @@ interface CreativeDeckProps {
 }
 
 export default function CreativeDeck({ title, count, creatives, onClick }: CreativeDeckProps) {
-    // Take top 3 for the preview stack
-    const stack = creatives.slice(0, 3).reverse(); // Render reverse so first is on top? No, HTML order acts as Z order usually, last is top.
-    // Actually, standard stacking: absolute positioning.
-    // render bottom first.
-
-    // Stacking visual logic:
-    // Item 0 (Bottom): TranslateY(-10px), Scale(0.9)
-    // Item 1 (Middle): TranslateY(-5px), Scale(0.95)
-    // Item 2 (Top): TranslateY(0), Scale(1)
-
-    // Reversed for rendering order
+    // Reverse for rendering order (bottom first)
     const previewItems = creatives.slice(0, 3).reverse();
+
+    // Extract Bunch Tags from the representative item (usually the first valid one)
+    // We assume if one item has the bunch tag, the group is tagged.
+    // In our API, we tag ALL items.
+    const representative = creatives[0];
+    const bunchTags = representative?.tags
+        .filter(t => t.name.startsWith('BUNCH:'))
+        .map(t => t.name.replace('BUNCH:', '')) || [];
 
     return (
         <div
@@ -38,17 +40,10 @@ export default function CreativeDeck({ title, count, creatives, onClick }: Creat
                 )}
 
                 {previewItems.map((creative, index) => {
-                    // Calculate offset based on reverse index
-                    // previewItems has max 3 items.
-                    // If length is 3:
-                    // index 0 (was 3rd item): Bottom cup
-                    // index 1 (was 2nd item): Middle cup
-                    // index 2 (was 1st item): Top cup
-
                     const isTop = index === previewItems.length - 1;
-                    const offset = (previewItems.length - 1 - index) * 6; // 6px difference
-                    const scale = 1 - (previewItems.length - 1 - index) * 0.05; // 0.05 scale diff
-                    const opacity = 1 - (previewItems.length - 1 - index) * 0.2; // fade items below
+                    const offset = (previewItems.length - 1 - index) * 6;
+                    const scale = 1 - (previewItems.length - 1 - index) * 0.05;
+                    const opacity = 1 - (previewItems.length - 1 - index) * 0.2;
 
                     return (
                         <div
@@ -61,7 +56,6 @@ export default function CreativeDeck({ title, count, creatives, onClick }: Creat
                                 opacity: opacity
                             }}
                         >
-                            {/* Reuse Creative Card but strip some details if it's the top one? Or just render simplified card */}
                             <div className="bg-zinc-900 rounded-lg overflow-hidden border border-zinc-700 shadow-xl aspect-[9/16] relative">
                                 {creative.thumbnailUrl ? (
                                     <img src={creative.thumbnailUrl} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
@@ -69,7 +63,6 @@ export default function CreativeDeck({ title, count, creatives, onClick }: Creat
                                     <div className="w-full h-full bg-zinc-800" />
                                 )}
 
-                                {/* Overlay on top card only */}
                                 {isTop && (
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                                 )}
@@ -78,8 +71,19 @@ export default function CreativeDeck({ title, count, creatives, onClick }: Creat
                     );
                 })}
 
-                {/* Count Badge */}
-                <div className="absolute top-2 right-2 z-50 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                {/* Bunch Tags (Top Left) */}
+                {bunchTags.length > 0 && (
+                    <div className="absolute top-0 left-0 z-50 flex flex-col items-start gap-1 p-2">
+                        {bunchTags.map(tag => (
+                            <span key={tag} className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm border border-blue-400">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {/* Count Badge (Top Right) */}
+                <div className="absolute top-2 right-2 z-50 bg-zinc-800 text-zinc-300 border border-zinc-600 text-xs font-bold px-2 py-1 rounded-full shadow-lg">
                     {count}
                 </div>
             </div>
