@@ -16,6 +16,7 @@ export async function GET() {
                 theme: true,
                 angle: true,
                 awarenessLevel: true,
+                demographic: true,
             },
             orderBy: { lastSeen: "desc" },
         });

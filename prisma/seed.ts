@@ -28,7 +28,28 @@ async function main() {
 
     // 4. Angles (Empty)
 
-    // 5. Demographics (Empty)
+    // 5. Demographics
+    const genders = ['Male', 'Female', 'All']; // Added 'All' just in case? User said Male/Female. I will stick to Male/Female and maybe All.
+    // User explicitly said: "to be male/female and this age groups".
+    // I will generate permutations for Male and Female.
+    const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+    const demographics: string[] = [];
+
+    // Add distinct permutations
+    ['Male', 'Female'].forEach(g => {
+        ageGroups.forEach(a => {
+            demographics.push(`${g} ${a}`);
+        });
+    });
+    // Add Age Only (Any Gender)? User didn't ask, but good practice. I'll stick to strict requests first.
+
+    for (const name of demographics) {
+        await prisma.adDemographic.upsert({
+            where: { name },
+            update: {},
+            create: { name }
+        })
+    }
 
     // 6. Awareness Levels (Likely needed for logic, so keeping them is safe, or User might want to define them per brand? 
     // User specifically asked for these standard Marketing Levels in previous prompt.

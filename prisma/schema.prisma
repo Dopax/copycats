@@ -48,6 +48,9 @@ model Ad {
   awarenessLevelId String?
   awarenessLevel   AdAwarenessLevel? @relation(fields: [awarenessLevelId], references: [id])
 
+  demographicId    String?
+  demographic      AdDemographic?    @relation(fields: [demographicId], references: [id])
+
   referencedInBatches AdBatch[]
 }
 
@@ -106,6 +109,7 @@ model AdAngle {
 model AdDemographic {
   id       String @id @default(uuid())
   name     String @unique
+  ads      Ad[]
   concepts CreativeConcept[]
   brandId  String?
   brand    Brand?   @relation(fields: [brandId], references: [id])

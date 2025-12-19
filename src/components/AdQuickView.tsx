@@ -7,6 +7,7 @@ interface AdHook { id: string; name: string; }
 interface AdTheme { id: string; name: string; }
 interface AdAngle { id: string; name: string; }
 interface AdAwarenessLevel { id: string; name: string; }
+interface AdDemographic { id: string; name: string; }
 
 export interface AdWithSnapshots extends Ad {
     snapshots: AdSnapshot[];
@@ -15,6 +16,7 @@ export interface AdWithSnapshots extends Ad {
     theme?: AdTheme | null;
     angle?: AdAngle | null;
     awarenessLevel?: AdAwarenessLevel | null;
+    demographic?: AdDemographic | null;
     transcript?: string | null;
 }
 
@@ -37,12 +39,17 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
     const [themes, setThemes] = useState<AdTheme[]>([]);
     const [angles, setAngles] = useState<AdAngle[]>([]);
     const [awarenessLevels, setAwarenessLevels] = useState<AdAwarenessLevel[]>([]);
+    const [demographics, setDemographics] = useState<AdDemographic[]>([]);
 
     const [selectedFormat, setSelectedFormat] = useState<string | null>(ad.format?.id || null);
     const [selectedHook, setSelectedHook] = useState<string | null>(ad.hook?.id || null);
     const [selectedTheme, setSelectedTheme] = useState<string | null>(ad.theme?.id || null);
     const [selectedAngle, setSelectedAngle] = useState<string | null>(ad.angle?.id || null);
     const [selectedAwareness, setSelectedAwareness] = useState<string | null>(ad.awarenessLevel?.id || null);
+
+    // Demographic State (Split for UI)
+    const [selectedGender, setSelectedGender] = useState<string>("");
+    const [selectedAge, setSelectedAge] = useState<string>("");
 
     // Transcript State
     const [transcript, setTranscript] = useState<string>((ad as any).transcript || "");
@@ -58,6 +65,18 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
         setSelectedTheme(ad.theme?.id || null);
         setSelectedAngle(ad.angle?.id || null);
         setSelectedAwareness(ad.awarenessLevel?.id || null);
+
+        // Parse Demographic
+        if (ad.demographic?.name) {
+            const parts = ad.demographic.name.split(' ');
+            if (parts.length >= 2) {
+                setSelectedGender(parts[0]);
+                setSelectedAge(parts[1]);
+            }
+        } else {
+            setSelectedGender("");
+            setSelectedAge("");
+        }
     }, [ad]);
 
     useEffect(() => {
@@ -76,18 +95,20 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
 
     const loadTags = async () => {
         try {
-            const [formatsRes, hooksRes, themesRes, anglesRes, awarenessRes] = await Promise.all([
+            const [formatsRes, hooksRes, themesRes, anglesRes, awarenessRes, demosRes] = await Promise.all([
                 fetch('/api/formats'),
                 fetch('/api/hooks'),
                 fetch('/api/themes'),
                 fetch('/api/angles'),
-                fetch('/api/awareness-levels')
+                fetch('/api/awareness-levels'),
+                fetch('/api/demographics')
             ]);
             setFormats(await formatsRes.json());
             setHooks(await hooksRes.json());
             setThemes(await themesRes.json());
             setAngles(await anglesRes.json());
             setAwarenessLevels(await awarenessRes.json());
+            setDemographics(await demosRes.json());
         } catch (e) {
             console.error("Failed to load tags", e);
         }
@@ -128,6 +149,10 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
             });
 
             // Save Tags
+            // Calculate Demographic ID
+            const demoName = (selectedGender && selectedAge) ? `${selectedGender} ${selectedAge}` : null;
+            const demographicId = demoName ? demographics.find(d => d.name === demoName)?.id : null;
+
             await fetch(`/api/ads/${ad.id}/tags`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -136,7 +161,8 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                     hookId: selectedHook,
                     themeId: selectedTheme,
                     angleId: selectedAngle,
-                    awarenessLevelId: selectedAwareness
+                    awarenessLevelId: selectedAwareness,
+                    demographicId
                 }),
             });
 
@@ -152,6 +178,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                     theme: themes.find(t => t.id === selectedTheme) || null,
                     angle: angles.find(a => a.id === selectedAngle) || null,
                     awarenessLevel: awarenessLevels.find(a => a.id === selectedAwareness) || null,
+                    demographic: (selectedGender && selectedAge) ? { id: 'temp', name: `${selectedGender} ${selectedAge}` } : null, // Optimistic update
                 } as any);
             }
         } catch (error) {
@@ -330,7 +357,24 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                                 <option value="">Select Awareness...</option>
                                                 {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                             </select>
-                                            <button onClick={() => { const n = prompt("New Awareness Level:"); if (n) createTag('/api/awareness-levels', n, setAwarenessLevels, awarenessLevels, setSelectedAwareness); }} className="px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                        </div>
+                                    </div>
+
+                                    {/* Demographic (Gender & Age) */}
+                                    <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800">
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Gender</label>
+                                            <select value={selectedGender} onChange={e => setSelectedGender(e.target.value)} className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                                <option value="">Select...</option>
+                                                {["Male", "Female"].map(g => <option key={g} value={g}>{g}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Age Group</label>
+                                            <select value={selectedAge} onChange={e => setSelectedAge(e.target.value)} className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                                <option value="">Select...</option>
+                                                {['18-24', '25-34', '35-44', '45-54', '55-64', '65+'].map(a => <option key={a} value={a}>{a}</option>)}
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
