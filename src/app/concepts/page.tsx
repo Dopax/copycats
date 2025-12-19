@@ -82,7 +82,9 @@ export default function ConceptsPage() {
     // Form State
     const [selectedAngle, setSelectedAngle] = useState<string>("");
     const [selectedTheme, setSelectedTheme] = useState<string>("");
-    const [selectedDemographic, setSelectedDemographic] = useState<string>("");
+    // const [selectedDemographic, setSelectedDemographic] = useState<string>(""); // Removed direct ID selection
+    const [selectedGender, setSelectedGender] = useState<string>("");
+    const [selectedAge, setSelectedAge] = useState<string>("");
     const [selectedAwarenessLevel, setSelectedAwarenessLevel] = useState<string>("");
 
     // Modal States
@@ -147,25 +149,7 @@ export default function ConceptsPage() {
         }
     };
 
-    const handleCreateDemographic = async () => {
-        const name = prompt("Enter new Demographic name:");
-        if (!name) return;
-
-        try {
-            const res = await fetch('/api/demographics', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
-            });
-            if (res.ok) {
-                const newDemographic = await res.json();
-                setDemographics([...demographics, newDemographic]);
-                setSelectedDemographic(newDemographic.id);
-            }
-        } catch (error) {
-            console.error("Failed to create demographic", error);
-        }
-    };
+    // Removed handleCreateDemographic as per user request (Not editable)
 
     const handleCreateAwarenessLevel = async () => {
         const name = prompt("Enter new Awareness Level name:");
@@ -239,6 +223,11 @@ export default function ConceptsPage() {
 
     const handleCreateConcept = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Resolve Demographic ID
+        const demoName = (selectedGender && selectedAge) ? `${selectedGender} ${selectedAge}` : null;
+        const selectedDemographic = demoName ? demographics.find(d => d.name === demoName)?.id : null;
+
         if (!selectedAngle || !selectedTheme || !selectedDemographic) {
             alert("Please select all three components (Angle, Theme, Demographic).");
             return;
@@ -262,9 +251,11 @@ export default function ConceptsPage() {
                 const newConcept = await res.json();
                 setConcepts([newConcept, ...concepts]);
                 // Reset form
+                // Reset form
                 setSelectedAngle("");
                 setSelectedTheme("");
-                setSelectedDemographic("");
+                setSelectedGender("");
+                setSelectedAge("");
                 setSelectedAwarenessLevel("");
             } else {
                 alert("Failed to create concept.");
@@ -327,25 +318,29 @@ export default function ConceptsPage() {
                     </div>
 
                     {/* Demographic */}
-                    <div className="space-y-1">
-                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
-                            Demographic
-                            <button
-                                type="button"
-                                onClick={handleCreateDemographic}
-                                className="text-indigo-600 hover:text-indigo-500 text-[10px]"
+                    <div className="space-y-1 col-span-1 md:col-span-2 grid grid-cols-2 gap-2">
+                        <div>
+                            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1 block">Gender</label>
+                            <select
+                                value={selectedGender}
+                                onChange={(e) => setSelectedGender(e.target.value)}
+                                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
                             >
-                                + New
-                            </button>
-                        </label>
-                        <select
-                            value={selectedDemographic}
-                            onChange={(e) => setSelectedDemographic(e.target.value)}
-                            className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="">Select Demographic...</option>
-                            {demographics.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
+                                <option value="">Select...</option>
+                                {["Male", "Female"].map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1 block">Age Group</label>
+                            <select
+                                value={selectedAge}
+                                onChange={(e) => setSelectedAge(e.target.value)}
+                                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="">Select...</option>
+                                {['18-24', '25-34', '35-44', '45-54', '55-64', '65+'].map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                        </div>
                     </div>
 
                     {/* Theme */}

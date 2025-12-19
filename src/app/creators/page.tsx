@@ -5,20 +5,22 @@ import { useState, useEffect } from "react";
 import { useBrand } from "@/context/BrandContext";
 import { COUNTRIES, LANGUAGES } from "@/lib/constants";
 
+interface Demographic { id: string; name: string; }
+
 interface Creator {
     id: string;
     name: string;
     country?: string;
     language?: string;
     pricePerVideo?: number;
-    demographic?: string;
+    demographic?: Demographic | null;
     collabCount: number;
     email?: string;
     phone?: string;
     source?: string;
     messagingPlatform?: string;
     paymentMethod?: string;
-    type: string; // TEMPORARY, REPEAT, PERMANENT
+    type: string;
     joinedAt: string;
 }
 
@@ -33,6 +35,11 @@ export default function CreatorsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCreator, setEditingCreator] = useState<Creator | null>(null);
 
+    // Demographic Data & Selection
+    const [demographics, setDemographics] = useState<Demographic[]>([]);
+    const [selectedGender, setSelectedGender] = useState("");
+    const [selectedAge, setSelectedAge] = useState("");
+
     // Form State
     const [formData, setFormData] = useState<Partial<Creator>>({
         type: 'TEMPORARY',
@@ -43,10 +50,18 @@ export default function CreatorsPage() {
     useEffect(() => {
         if (selectedBrand) {
             fetchCreators();
+            fetchDemographics();
         } else {
             setIsLoading(false);
         }
     }, [selectedBrand]);
+
+    const fetchDemographics = async () => {
+        try {
+            const res = await fetch('/api/demographics');
+            if (res.ok) setDemographics(await res.json());
+        } catch (e) { console.error(e); }
+    };
 
     const fetchCreators = async () => {
         setIsLoading(true);
@@ -71,7 +86,11 @@ export default function CreatorsPage() {
             const url = editingCreator ? `/api/creators/${editingCreator.id}` : '/api/creators';
             const method = editingCreator ? 'PUT' : 'POST';
 
-            const payload = { ...formData, brandId: selectedBrand.id };
+            // Resolve Demographic ID
+            const demoName = (selectedGender && selectedAge) ? `${selectedGender} ${selectedAge}` : null;
+            const demographicId = demoName ? demographics.find(d => d.name === demoName)?.id : null;
+
+            const payload = { ...formData, brandId: selectedBrand.id, demographicId };
 
             const res = await fetch(url, {
                 method,
@@ -100,9 +119,22 @@ export default function CreatorsPage() {
         if (creator) {
             setEditingCreator(creator);
             setFormData(creator);
+            // Parse Demographic
+            if (creator.demographic?.name) {
+                const parts = creator.demographic.name.split(' ');
+                if (parts.length >= 2) {
+                    setSelectedGender(parts[0]);
+                    setSelectedAge(parts[1]);
+                }
+            } else {
+                setSelectedGender("");
+                setSelectedAge("");
+            }
         } else {
             setEditingCreator(null);
             setFormData({ type: 'TEMPORARY', collabCount: 0, pricePerVideo: 0, joinedAt: new Date().toISOString().split('T')[0] });
+            setSelectedGender("");
+            setSelectedAge("");
         }
         setIsModalOpen(true);
     };
@@ -169,8 +201,8 @@ export default function CreatorsPage() {
                                         <div className="text-xs text-zinc-500">{c.collabCount} collabs</div>
                                         {c.paymentMethod && <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{c.paymentMethod}</div>}
                                     </td>
-                                    <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 max-w-[150px] truncate" title={c.demographic}>
-                                        {c.demographic || '-'}
+                                    <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 max-w-[150px] truncate" title={c.demographic?.name}>
+                                        {c.demographic?.name || '-'}
                                     </td>
                                     <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
                                         <div>{c.email || '-'}</div>
@@ -254,9 +286,21 @@ export default function CreatorsPage() {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm text-zinc-500 mb-1">Demographic Details</label>
-                                <input className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" placeholder="e.g. Gen Z / Female / Tech Savvy" value={formData.demographic || ''} onChange={e => setFormData({ ...formData, demographic: e.target.value })} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-zinc-500 mb-1">Gender (Demographic)</label>
+                                    <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={selectedGender} onChange={e => setSelectedGender(e.target.value)}>
+                                        <option value="">Select Gender</option>
+                                        {["Male", "Female"].map(g => <option key={g} value={g}>{g}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-zinc-500 mb-1">Age Group (Demographic)</label>
+                                    <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={selectedAge} onChange={e => setSelectedAge(e.target.value)}>
+                                        <option value="">Select Age Group</option>
+                                        {['18-24', '25-34', '35-44', '45-54', '55-64', '65+'].map(a => <option key={a} value={a}>{a}</option>)}
+                                    </select>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

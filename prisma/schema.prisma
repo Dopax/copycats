@@ -110,6 +110,7 @@ model AdDemographic {
   id       String @id @default(uuid())
   name     String @unique
   ads      Ad[]
+  creators Creator[]
   concepts CreativeConcept[]
   brandId  String?
   brand    Brand?   @relation(fields: [brandId], references: [id])
@@ -192,7 +193,8 @@ model Creator {
   country       String?
   language      String?
   pricePerVideo Float?
-  demographic   String?
+  demographicId String?
+  demographic   AdDemographic? @relation(fields: [demographicId], references: [id])
   collabCount   Int      @default(0)
   email         String?
   phone         String?

@@ -23,7 +23,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 country: data.country,
                 language: data.language,
                 pricePerVideo: data.pricePerVideo ? parseFloat(data.pricePerVideo) : undefined,
-                demographic: data.demographic,
+                demographicId: data.demographicId,
                 collabCount: data.collabCount ? parseInt(data.collabCount) : undefined,
                 email: data.email,
                 phone: data.phone,

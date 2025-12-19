@@ -13,6 +13,7 @@ export async function GET(request: Request) {
 
         const creators = await prisma.creator.findMany({
             where: { brandId },
+            include: { demographic: true },
             orderBy: { createdAt: 'desc' }
         });
         return NextResponse.json(creators);
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
                 country: data.country,
                 language: data.language,
                 pricePerVideo: data.pricePerVideo ? parseFloat(data.pricePerVideo) : 0,
-                demographic: data.demographic,
+                demographicId: data.demographicId,
                 collabCount: data.collabCount ? parseInt(data.collabCount) : 0,
                 email: data.email,
                 phone: data.phone,
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
                 type: data.type || "TEMPORARY",
                 joinedAt: data.joinedAt ? new Date(data.joinedAt) : new Date(),
                 brandId: data.brandId
-            }
+            },
+            include: { demographic: true }
         });
         return NextResponse.json(creator);
     } catch (error) {

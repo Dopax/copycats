@@ -705,7 +705,38 @@ export default function BatchDetailPage() {
                     {/* Awareness Level */}
                     <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
                         <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Awareness</span>
-                        <span className="font-medium text-cyan-600 dark:text-cyan-400">{batch.concept.awarenessLevel?.name || "Not set"}</span>
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-cyan-600 dark:text-cyan-400 text-sm whitespace-nowrap">
+                                {batch.concept.awarenessLevel?.name?.replace('Problem Unaware', 'Unaware') || "Not set"}
+                            </span>
+                            {/* Battery Indicator */}
+                            <div className="flex gap-0.5 h-3 items-end">
+                                {[
+                                    'Problem Unaware',
+                                    'Problem Aware',
+                                    'Solution Aware',
+                                    'Product Aware',
+                                    'Most Aware'
+                                ].map((level, i) => {
+                                    const currentLevel = batch.concept.awarenessLevel?.name || '';
+                                    const levels = ['Problem Unaware', 'Problem Aware', 'Solution Aware', 'Product Aware', 'Most Aware'];
+                                    const currentIndex = levels.indexOf(currentLevel);
+                                    // Active if index >= i
+                                    const isActive = currentIndex >= 0 && currentIndex >= i;
+
+                                    // Height steps: 40%, 55%, 70%, 85%, 100%
+                                    const heightClass = ['h-[40%]', 'h-[55%]', 'h-[70%]', 'h-[85%]', 'h-[100%]'][i];
+
+                                    return (
+                                        <div
+                                            key={level}
+                                            className={`w-1.5 rounded-sm transition-all ${isActive ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'bg-zinc-200 dark:bg-zinc-700'} ${heightClass}`}
+                                            title={level}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Persona Button (New Dedicated Card) */}
