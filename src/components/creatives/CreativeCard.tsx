@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 // Define local interfaces to decouple from Prisma Client issues
 interface Tag { id: string; name: string; }
 interface Creator { id: string; name: string; }
@@ -14,6 +14,7 @@ interface Creative {
     width?: number | null;
     height?: number | null;
     createdAt?: string | Date;
+    isFavorite?: boolean; // Add isFavorite
 }
 
 interface CreativeCardProps {
@@ -22,6 +23,25 @@ interface CreativeCardProps {
 
 export default function CreativeCard({ creative }: CreativeCardProps) {
     const [isPlaying, setIsPlaying] = useState(false);
+    const [isFavorite, setIsFavorite] = useState(creative.isFavorite || false);
+
+    // Sync state if prop changes (e.g. on filter reload)
+    useEffect(() => {
+        setIsFavorite(creative.isFavorite || false);
+    }, [creative.isFavorite]);
+
+    const toggleFavorite = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent card click
+        const newState = !isFavorite;
+        setIsFavorite(newState); // Optimistic UI update
+
+        try {
+            await fetch(`/api/creatives/${creative.id}/favorite`, { method: 'POST' });
+        } catch (error) {
+            console.error('Failed to toggle favorite', error);
+            setIsFavorite(!newState); // Revert on error
+        }
+    };
 
     // Calculate Aspect Ratio
     // We strictly match the video files dimensions.
@@ -85,6 +105,16 @@ export default function CreativeCard({ creative }: CreativeCardProps) {
     const embedUrl = getEmbedUrl();
     const canPlay = creative.type === 'VIDEO' && embedUrl;
 
+    // Helper to get robust thumbnail URL from Public Google Drive ID
+    const getThumbnailUrl = () => {
+        if (creative.driveFileId) {
+            return `https://lh3.googleusercontent.com/d/${creative.driveFileId}=s400`;
+        }
+        return creative.thumbnailUrl;
+    };
+
+    const thumbnailUrl = getThumbnailUrl();
+
     return (
         <>
             <div className="group relative bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 hover:border-zinc-600 transition-all cursor-pointer flex flex-col h-full">
@@ -93,12 +123,31 @@ export default function CreativeCard({ creative }: CreativeCardProps) {
                     className="relative bg-black w-full overflow-hidden"
                     style={getAspectRatioStyle()}
                 >
-                    {creative.thumbnailUrl ? (
+                    {/* Favorite Button */}
+                    <button
+                        onClick={toggleFavorite}
+                        className={`absolute top-2 right-2 z-20 p-2 rounded-full backdrop-blur-md transition-all ${isFavorite ? 'bg-red-500/20 text-red-500' : 'bg-black/30 text-white hover:bg-black/50'} ${!isFavorite && 'opacity-0 group-hover:opacity-100'}`}
+                        title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                    >
+                        <svg className={`w-4 h-4 ${isFavorite ? 'fill-current' : 'none'}`} fill={isFavorite ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                    </button>
+
+                    {thumbnailUrl ? (
                         <img
-                            src={creative.thumbnailUrl}
+                            src={thumbnailUrl}
                             alt={creative.name}
                             referrerPolicy="no-referrer"
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                                // If robust one fails, try fallback (though robust is usually safer)
+                                if (creative.thumbnailUrl && e.currentTarget.src !== creative.thumbnailUrl) {
+                                    e.currentTarget.src = creative.thumbnailUrl;
+                                } else {
+                                    e.currentTarget.style.display = 'none';
+                                }
+                            }}
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-zinc-700">
@@ -125,7 +174,7 @@ export default function CreativeCard({ creative }: CreativeCardProps) {
                     )}
 
                     {/* Duration Badge */}
-                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-1.5 py-0.5 rounded">
+                    <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-1.5 py-0.5 rounded">
                         {formatDuration(creative.duration)}
                     </div>
                 </div>

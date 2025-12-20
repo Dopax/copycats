@@ -124,6 +124,7 @@ export async function POST(request: Request) {
                                         name: file.name!,
                                         thumbnailUrl: file.thumbnailLink,
                                         driveViewLink: file.webViewLink,
+                                        createdAt: file.createdTime, // Update date from Drive
                                         // Ensure tags are updated (e.g. L1 tags)
                                         tags: {
                                             connect: createdTags.map(t => ({ id: t.id }))
@@ -139,6 +140,7 @@ export async function POST(request: Request) {
                                         width: file.videoMediaMetadata?.width || undefined,
                                         height: file.videoMediaMetadata?.height || undefined,
                                         duration: file.videoMediaMetadata?.durationMillis ? file.videoMediaMetadata.durationMillis / 1000 : undefined,
+                                        createdAt: file.createdTime, // Use date from Drive
 
                                         // folderPath: fullFolderPath (Removed)
 

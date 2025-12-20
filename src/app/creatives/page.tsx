@@ -84,7 +84,7 @@ export default function CreativesPage() {
 
             // Add Filters based on currentView
             if (currentView === 'videos') baseUrl += '&type=VIDEO';
-            if (currentView === 'favorites') { /* TODO */ }
+            if (currentView === 'favorites') baseUrl += '&isFavorite=true';
             if (currentView.startsWith('tag-')) {
                 const tag = currentView.replace('tag-', '');
                 baseUrl += `&tags=${encodeURIComponent(tag)}`;
@@ -176,13 +176,17 @@ export default function CreativesPage() {
 
     // Grouping Logic
     const groupedCreatives = useMemo(() => {
-        if (!groupingMode) return { straight: creatives, groups: {} };
+        // If searching, filtering by tag (inside folder), or explicitly set to flat mode -> Flat List
+        // This ensures when you click a folder (which sets currentView='tag-...'), it renders flat.
+        if (!groupingMode || currentView.startsWith('tag-') || searchQuery) {
+            return { straight: creatives, groups: {} };
+        }
 
         const groups: Record<string, CreativeWithDetails[]> = {};
         const straight: CreativeWithDetails[] = [];
 
         creatives.forEach(c => {
-            // Priority 1: "CID-" tags (The most accurate bunch identifier)
+            // Priority 1: "CID-" tags
             let groupName = null;
 
             if (c.tags) {
@@ -190,16 +194,13 @@ export default function CreativesPage() {
                 if (cidTag) {
                     groupName = cidTag.name;
                 } else {
-                    // Priority 2: "L1:" tags (Folder based)
+                    // Priority 2: "L1:" tags
                     const l1Tag = c.tags.find(t => t.name.startsWith('L1:'));
                     if (l1Tag) {
                         groupName = l1Tag.name.replace('L1:', '');
                     }
                 }
             }
-
-            // Fallback: If no CID or L1 tag, treat as 'straight' (ungrouped) to avoid random grouping
-            // We REMOVED the logic that grouped by random first tag.
 
             if (groupName) {
                 if (!groups[groupName]) groups[groupName] = [];
@@ -210,7 +211,7 @@ export default function CreativesPage() {
         });
 
         return { straight, groups };
-    }, [creatives, groupingMode]);
+    }, [creatives, groupingMode, currentView, searchQuery]);
 
     return (
         <div className="h-[calc(100vh-4rem)] -m-8 flex bg-black text-white overflow-hidden relative">
@@ -272,20 +273,26 @@ export default function CreativesPage() {
                             </button>
                         </div>
 
-                        {/* Grouping Toggle - Only visible in GRID mode */}
-                        {viewMode === 'grid' && (currentView === 'all' || currentView.startsWith('tag-')) && (
+                        {/* Grouping Toggle - Visible in GRID mode */}
+                        {viewMode === 'grid' && (
                             <div className="flex bg-zinc-900 rounded p-1 border border-zinc-800">
                                 <button
-                                    onClick={() => setGroupingMode(true)}
-                                    className={`text-xs px-3 py-1 rounded transition-colors ${groupingMode ? "bg-zinc-700 text-white shadow-sm" : "text-zinc-400 hover:text-zinc-200"}`}
+                                    onClick={() => {
+                                        setGroupingMode(true);
+                                        // If we are deep in a folder, clicking "Creative Folders" should probably take us back to root
+                                        if (currentView.startsWith('tag-')) {
+                                            setCurrentView('all');
+                                        }
+                                    }}
+                                    className={`text-xs px-3 py-1 rounded transition-colors ${groupingMode && !currentView.startsWith('tag-') ? "bg-zinc-700 text-white shadow-sm" : "text-zinc-400 hover:text-zinc-200"}`}
                                 >
-                                    Grouped
+                                    Creative Folders
                                 </button>
                                 <button
                                     onClick={() => setGroupingMode(false)}
-                                    className={`text-xs px-3 py-1 rounded transition-colors ${!groupingMode ? "bg-zinc-700 text-white shadow-sm" : "text-zinc-400 hover:text-zinc-200"}`}
+                                    className={`text-xs px-3 py-1 rounded transition-colors ${!groupingMode || currentView.startsWith('tag-') ? "bg-zinc-700 text-white shadow-sm" : "text-zinc-400 hover:text-zinc-200"}`}
                                 >
-                                    Flat
+                                    All Clips
                                 </button>
                             </div>
                         )}
@@ -299,6 +306,81 @@ export default function CreativesPage() {
                         Import
                     </button>
                 </div>
+
+                {/* DETAILED FOLDER HEADER */}
+                {currentView.startsWith('tag-') && creatives.length > 0 && (
+                    <div className="px-6 pb-6 animate-in slide-in-from-top-2">
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-wrap gap-8 items-center">
+                            {/* Creator Info */}
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold text-lg">
+                                    {creatives[0]?.creator?.name.charAt(0).toUpperCase() || '?'}
+                                </div>
+                                <div>
+                                    <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Creator</div>
+                                    <div className="text-white font-medium">{creatives[0]?.creator?.name || 'Unknown'}</div>
+                                </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="w-px h-8 bg-zinc-800" />
+
+                            {/* Date Range */}
+                            <div>
+                                <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Date Range</div>
+                                <div className="text-white font-medium">
+                                    {(() => {
+                                        const dates = creatives.map(c => c.createdAt ? new Date(c.createdAt).getTime() : 0).filter(d => d > 0);
+                                        if (dates.length === 0) return '-';
+                                        const min = new Date(Math.min(...dates));
+                                        const max = new Date(Math.max(...dates));
+                                        if (min.getTime() === max.getTime()) return min.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                                        return `${min.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${max.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                                    })()}
+                                </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="w-px h-8 bg-zinc-800" />
+
+                            {/* CID Info (if consistent) */}
+                            {(() => {
+                                const cids = Array.from(new Set(creatives.map(c => c.tags?.find(t => t.name.startsWith('CID-'))?.name.replace('CID-', '')).filter(Boolean)));
+                                if (cids.length > 0) {
+                                    return (
+                                        <>
+                                            <div>
+                                                <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">CID</div>
+                                                <div className="text-white font-medium flex gap-2">
+                                                    {cids.slice(0, 2).map(cid => (
+                                                        <span key={cid} className="bg-zinc-800 px-2 py-0.5 rounded text-sm text-zinc-300 font-mono">{cid}</span>
+                                                    ))}
+                                                    {cids.length > 2 && <span className="text-xs text-zinc-500 self-center">+{cids.length - 2}</span>}
+                                                </div>
+                                            </div>
+                                            <div className="w-px h-8 bg-zinc-800" />
+                                        </>
+                                    );
+                                }
+                                return null;
+                            })()}
+
+                            {/* Other Tags */}
+                            <div className="flex-1">
+                                <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">Tags</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {Array.from(new Set(creatives.flatMap(c => c.tags).filter(t => !t.name.startsWith('CID-') && !t.name.startsWith('L1:') && !t.name.startsWith('BUNCH:')).map(t => t.name)))
+                                        .slice(0, 6)
+                                        .map(tag => (
+                                            <span key={tag} className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                                {tag.replace(/^AI:/, '')}
+                                            </span>
+                                        ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <main className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900">
                     {creatives.length === 0 && loading ? (

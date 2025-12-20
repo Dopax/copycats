@@ -25,16 +25,19 @@ export async function GET(request: Request) {
             ...(brandId && { brandId }),
             ...(creatorId && { creatorId }),
             ...(type && { type }),
+            ...(searchParams.get('isFavorite') === 'true' && { isFavorite: true }),
 
-            // Search (Name, Tags, Summary, Creator, Folder)
+            // Search (Name, Tags, Summary, Creator, Folder) - Robust Split Terms
             ...(q && {
-                OR: [
-                    { name: { contains: q, mode: 'insensitive' } },
-                    { overallSummary: { contains: q, mode: 'insensitive' } },
-                    { folderPath: { contains: q, mode: 'insensitive' } },
-                    { tags: { some: { name: { contains: q, mode: 'insensitive' } } } },
-                    { creator: { name: { contains: q, mode: 'insensitive' } } }
-                ]
+                AND: q.trim().split(/\s+/).map(term => ({
+                    OR: [
+                        { name: { contains: term, mode: 'insensitive' } },
+                        { overallSummary: { contains: term, mode: 'insensitive' } },
+                        { folderPath: { contains: term, mode: 'insensitive' } },
+                        { tags: { some: { name: { contains: term, mode: 'insensitive' } } } },
+                        { creator: { name: { contains: term, mode: 'insensitive' } } }
+                    ]
+                }))
             }),
 
             // Tag filtering (ALL tags must be present if multiple selected - strict filtering)
