@@ -13,6 +13,7 @@ interface Creative {
     driveViewLink?: string | null;
     width?: number | null;
     height?: number | null;
+    createdAt?: string | Date;
 }
 
 interface CreativeCardProps {
@@ -140,9 +141,16 @@ export default function CreativeCard({ creative }: CreativeCardProps) {
                             {creative.creator?.name || 'Unknown Creator'}
                         </p>
                         {/* Small badge for Type */}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 capitalize">
-                            {creative.type.toLowerCase()}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            {creative.createdAt && (
+                                <span className="text-[10px] text-zinc-500">
+                                    {new Date(creative.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                            )}
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 capitalize">
+                                {creative.type.toLowerCase()}
+                            </span>
+                        </div>
                     </div>
 
                     {/* 3-Tier Tag System Display */}

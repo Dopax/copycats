@@ -22,6 +22,8 @@ interface Creator {
     paymentMethod?: string;
     type: string;
     joinedAt: string;
+    profileImageUrl?: string;
+    creatives?: { id: string; thumbnailUrl: string | null; driveFileId: string | null }[];
 }
 
 const MESSAGING_PLATFORMS = ["Upwork", "Slack", "Zoho", "Whatsapp", "Instagram", "Gorgias"];
@@ -34,6 +36,7 @@ export default function CreatorsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCreator, setEditingCreator] = useState<Creator | null>(null);
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
 
     // Demographic Data & Selection
     const [demographics, setDemographics] = useState<Demographic[]>([]);
@@ -132,7 +135,7 @@ export default function CreatorsPage() {
             }
         } else {
             setEditingCreator(null);
-            setFormData({ type: 'TEMPORARY', collabCount: 0, pricePerVideo: 0, joinedAt: new Date().toISOString().split('T')[0] });
+            setFormData({ type: 'TEMPORARY', collabCount: 0, pricePerVideo: 0, joinedAt: new Date().toISOString().split('T')[0], profileImageUrl: '' });
             setSelectedGender("");
             setSelectedAge("");
         }
@@ -145,6 +148,20 @@ export default function CreatorsPage() {
         setFormData({});
     };
 
+    // Helper to select image from creatives
+    const handleSelectImage = (url: string) => {
+        setFormData(prev => ({ ...prev, profileImageUrl: url }));
+    };
+
+    // Helper to resolve the best thumbnail URL
+    const getThumbnail = (creative: { thumbnailUrl: string | null; driveFileId: string | null }) => {
+        // Prefer constructing a fresh public URL if driveFileId is available
+        if (creative.driveFileId) {
+            return `https://lh3.googleusercontent.com/d/${creative.driveFileId}=s400`;
+        }
+        return creative.thumbnailUrl;
+    };
+
     return (
         <div className="p-8 max-w-7xl mx-auto min-h-screen">
             <div className="flex items-center justify-between mb-8">
@@ -152,12 +169,30 @@ export default function CreatorsPage() {
                     <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Content Creators</h1>
                     <p className="text-zinc-500 mt-1">Manage your influencer relationships</p>
                 </div>
-                <button
-                    onClick={() => openModal()}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition-all"
-                >
-                    + Add Creator
-                </button>
+                <div className="flex items-center gap-3">
+                    <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 border border-zinc-200 dark:border-zinc-700">
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'}`}
+                            title="List View"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'}`}
+                            title="Grid View"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => openModal()}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition-all"
+                    >
+                        + Add Creator
+                    </button>
+                </div>
             </div>
 
             {isLoading ? (
@@ -166,6 +201,76 @@ export default function CreatorsPage() {
                 <div className="text-center py-20 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 border-dashed">
                     <p className="text-zinc-500 mb-4">No creators found for this brand.</p>
                     <button onClick={() => openModal()} className="text-indigo-600 hover:underline">Add your first creator</button>
+                </div>
+            ) : viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    {creators.map((c) => {
+                        const thumbnail = c.profileImageUrl || (c.creatives && c.creatives.length > 0 ? getThumbnail(c.creatives[0]) : null);
+                        return (
+                            <div key={c.id} className="group bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all overflow-hidden cursor-pointer" onClick={() => openModal(c)}>
+                                {/* Image / Cover Area */}
+                                <div className="aspect-[4/5] bg-zinc-100 dark:bg-zinc-800 relative overflow-hidden">
+                                    {thumbnail ? (
+                                        <img src={thumbnail} alt={c.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400">
+                                            <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold mb-2">
+                                                {c.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="text-sm">No Content</span>
+                                        </div>
+                                    )}
+
+                                    {/* Overlay Gradient */}
+                                    <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
+
+                                    {/* Absolute Positioned Info */}
+                                    <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                                        <h3 className="text-lg font-bold leading-tight mb-1 truncate">{c.name}</h3>
+                                        <div className="flex items-center justify-between text-xs text-zinc-300">
+                                            <span className="flex items-center gap-1">
+                                                {c.country && COUNTRIES.find(x => x.code === c.country)?.flag} {c.country || 'Unknown'}
+                                            </span>
+                                            <span>
+                                                ${c.pricePerVideo || 0}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Top Right Badges */}
+                                    <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm
+                                            ${c.type === 'PERMANENT' ? 'bg-green-500 text-white' :
+                                                c.type === 'REPEAT' ? 'bg-blue-500 text-white' :
+                                                    'bg-zinc-500 text-white'}`}>
+                                            {c.type}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Footer Stats */}
+                                <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+                                    <div className="flex items-center gap-2">
+                                        <span>{c.collabCount} collabs</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); openModal(c); }}
+                                            className="hover:text-indigo-600 transition-colors"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
+                                            className="hover:text-red-600 transition-colors"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="overflow-x-auto bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
@@ -247,6 +352,66 @@ export default function CreatorsPage() {
                                         <option value="REPEAT">Repeat</option>
                                         <option value="PERMANENT">Permanent</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            {/* Profile Image Section */}
+                            <div>
+                                <label className="block text-sm text-zinc-500 mb-2">Profile Image</label>
+                                <div className="flex gap-4 items-start">
+                                    <div className="flex-1">
+                                        <input
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all mb-2"
+                                            value={formData.profileImageUrl || ''}
+                                            onChange={e => setFormData({ ...formData, profileImageUrl: e.target.value })}
+                                            placeholder="Paste image URL here..."
+                                        />
+
+                                        {/* Creative Thumbnails Selection */}
+                                        {editingCreator && editingCreator.creatives && editingCreator.creatives.length > 0 && (
+                                            <div className="mt-3 w-full max-w-[400px]">
+                                                <p className="text-xs text-zinc-500 mb-2">Select from recent creatives:</p>
+                                                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                                                    {editingCreator.creatives.map((creative) => {
+                                                        const thumb = getThumbnail(creative);
+                                                        if (!thumb) return null;
+                                                        return (
+                                                            <button
+                                                                key={creative.id}
+                                                                type="button"
+                                                                onClick={() => handleSelectImage(thumb!)}
+                                                                className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${formData.profileImageUrl === thumb ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-zinc-200 dark:border-zinc-700 hover:border-indigo-400'}`}
+                                                            >
+                                                                <img
+                                                                    src={thumb!}
+                                                                    className="w-full h-full object-cover"
+                                                                    referrerPolicy="no-referrer"
+                                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                                />
+                                                                {/* Selected Indicator Overlay */}
+                                                                {formData.profileImageUrl === thumb && (
+                                                                    <div className="absolute inset-0 bg-indigo-500/20 flex items-center justify-center">
+                                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full shadow-sm" />
+                                                                    </div>
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Preview */}
+                                    <div className="w-24 h-24 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 flex-shrink-0 overflow-hidden relative self-start mt-8">
+                                        {formData.profileImageUrl ? (
+                                            <img src={formData.profileImageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

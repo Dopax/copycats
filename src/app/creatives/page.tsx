@@ -40,6 +40,7 @@ export default function CreativesPage() {
     const [creatives, setCreatives] = useState<CreativeWithDetails[]>([]);
     const [loading, setLoading] = useState(true);
     const [groupingMode, setGroupingMode] = useState(true); // Default to "Bundled View"
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     // Import Modal State
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -244,7 +245,6 @@ export default function CreativesPage() {
                                 {currentView.startsWith('tag-') && (
                                     <>
                                         {currentView.replace('tag-', '')}
-                                        {/* Tag Bunch button removed/simplified for now */}
                                     </>
                                 )}
                                 {currentView.startsWith('scene-') && currentView.replace('scene-', '')}
@@ -254,8 +254,26 @@ export default function CreativesPage() {
 
                         <div className="h-6 w-px bg-zinc-800 mx-2" />
 
-                        {/* Grouping Toggle - Visible for 'all' OR 'tag-' views now */}
-                        {(currentView === 'all' || currentView.startsWith('tag-')) && (
+                        {/* View Mode Toggle */}
+                        <div className="flex bg-zinc-900 rounded p-1 border border-zinc-800">
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+                                title="Grid View"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                            </button>
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+                                title="List View"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                            </button>
+                        </div>
+
+                        {/* Grouping Toggle - Only visible in GRID mode */}
+                        {viewMode === 'grid' && (currentView === 'all' || currentView.startsWith('tag-')) && (
                             <div className="flex bg-zinc-900 rounded p-1 border border-zinc-800">
                                 <button
                                     onClick={() => setGroupingMode(true)}
@@ -282,7 +300,7 @@ export default function CreativesPage() {
                     </button>
                 </div>
 
-                <main className="flex-1 overflow-y-auto p-6">
+                <main className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900">
                     {creatives.length === 0 && loading ? (
                         <div className="flex items-center justify-center h-40">
                             <span className="text-zinc-500">Loading assets...</span>
@@ -291,6 +309,66 @@ export default function CreativesPage() {
                         <div className="flex flex-col items-center justify-center h-64 text-zinc-500 border border-dashed border-zinc-800 rounded-lg">
                             <p>No creatives found.</p>
                             <p className="text-sm mt-2">Try importing from Drive or checking your filters.</p>
+                        </div>
+                    ) : viewMode === 'list' ? (
+                        // LIST VIEW TABLE
+                        <div className="w-full bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-zinc-950/50 text-zinc-500 uppercase tracking-wider text-xs font-medium border-b border-zinc-800">
+                                    <tr>
+                                        <th className="px-4 py-3 w-16">Preview</th>
+                                        <th className="px-4 py-3">Name / CID</th>
+                                        <th className="px-4 py-3">Creator</th>
+                                        <th className="px-4 py-3">Date</th>
+                                        <th className="px-4 py-3">Tags</th>
+                                        <th className="px-4 py-3 text-right">Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-800">
+                                    {creatives.map((creative) => {
+                                        const cidTag = creative.tags?.find(t => t.name.startsWith('CID-'))?.name.replace('CID-', '') || '-';
+                                        return (
+                                            <tr key={creative.id} className="hover:bg-zinc-800/50 transition-colors group">
+                                                <td className="px-4 py-3">
+                                                    <div className="w-12 h-12 bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800 relative">
+                                                        {creative.thumbnailUrl && (
+                                                            <img src={creative.thumbnailUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                        )}
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="font-medium text-white truncate max-w-[300px]" title={creative.name}>{creative.name}</div>
+                                                    <div className="text-xs text-zinc-500 font-mono mt-0.5">{cidTag !== '-' ? `CID: ${cidTag}` : <span className="opacity-30">No CID</span>}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-zinc-300">
+                                                    {creative.creator?.name || <span className="text-zinc-600 italic">Unknown</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-zinc-400 tabular-nums">
+                                                    {creative.createdAt ? new Date(creative.createdAt).toLocaleDateString() : '-'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex flex-wrap gap-1 max-w-[300px]">
+                                                        {creative.tags && creative.tags.slice(0, 4).map(tag => (
+                                                            !tag.name.startsWith('CID-') && !tag.name.startsWith('L1:') && (
+                                                                <span key={tag.id} className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                                                    {tag.name.replace(/^(BUNCH|AI):/, '')}
+                                                                </span>
+                                                            )
+                                                        ))}
+                                                        {creative.tags && creative.tags.length > 5 && (
+                                                            <span className="text-[10px] px-1.5 py-0.5 rounded text-zinc-500">+{creative.tags.length - 5}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-zinc-500 tabular-nums">
+                                                    {creative.duration ? `${Math.floor(creative.duration / 60)}:${Math.floor(creative.duration % 60).toString().padStart(2, '0')}` : '-'}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     ) : (
                         <>

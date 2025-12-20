@@ -32,6 +32,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 paymentMethod: data.paymentMethod,
                 type: data.type,
                 joinedAt: data.joinedAt ? new Date(data.joinedAt) : undefined,
+                profileImageUrl: data.profileImageUrl,
             }
         });
         return NextResponse.json(creator);

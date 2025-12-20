@@ -5,6 +5,7 @@ interface Creator { id: string; name: string; }
 interface Creative {
     id: string;
     thumbnailUrl: string | null;
+    createdAt?: string | Date;
 }
 
 interface CreativeDeckProps {
@@ -25,6 +26,17 @@ export default function CreativeDeck({ title, count, creatives, onClick }: Creat
     const bunchTags = representative?.tags
         .filter(t => t.name.startsWith('BUNCH:'))
         .map(t => t.name.replace('BUNCH:', '')) || [];
+
+    // Find dates
+    const dates = creatives.reduce((acc, c) => {
+        const date = c.createdAt ? new Date(c.createdAt) : null;
+        if (!date) return acc;
+        if (!acc.min || date < acc.min) acc.min = date;
+        if (!acc.max || date > acc.max) acc.max = date;
+        return acc;
+    }, { min: null, max: null } as { min: Date | null, max: Date | null });
+
+    const latestDate = dates.max;
 
     return (
         <div
@@ -90,7 +102,25 @@ export default function CreativeDeck({ title, count, creatives, onClick }: Creat
 
             <div className="text-center">
                 <h3 className="text-sm font-medium text-white truncate px-2">{title}</h3>
-                <p className="text-xs text-zinc-500">{count} clips</p>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                    <p className="text-xs text-zinc-500">{count} clips</p>
+                    {latestDate && (
+                        <>
+                            <span className="text-zinc-700">•</span>
+                            <p className="text-xs text-zinc-500">
+                                {dates.min && dates.max && dates.min.getTime() !== dates.max.getTime() ? (
+                                    <>
+                                        {dates.min.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        -
+                                        {dates.max.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    </>
+                                ) : (
+                                    latestDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                                )}
+                            </p>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

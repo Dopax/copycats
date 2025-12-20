@@ -205,6 +205,8 @@ model Creator {
   type          String   @default("TEMPORARY") // TEMPORARY, REPEAT, PERMANENT
   joinedAt      DateTime @default(now())
   
+  profileImageUrl String?
+
   brandId       String
   brand         Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
   
