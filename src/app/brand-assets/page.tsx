@@ -46,6 +46,7 @@ export default function BrandAssetsPage() {
     // Asset Upload State (Mock)
     const [newAssetUrl, setNewAssetUrl] = useState("");
     const [newAssetName, setNewAssetName] = useState("");
+    const [newAssetType, setNewAssetType] = useState("IMAGE");
 
     useEffect(() => {
         if (selectedBrand) {
@@ -101,7 +102,7 @@ export default function BrandAssetsPage() {
                 body: JSON.stringify({
                     url: newAssetUrl,
                     name: newAssetName || "Untitled Asset",
-                    type: "IMAGE"
+                    type: newAssetType
                 })
             });
             if (res.ok) {
@@ -109,6 +110,7 @@ export default function BrandAssetsPage() {
                 setBrandData(prev => prev ? { ...prev, assets: [asset, ...prev.assets] } : null);
                 setNewAssetUrl("");
                 setNewAssetName("");
+                setNewAssetType("IMAGE");
             }
         } catch (error) {
             console.error("Failed to add asset", error);
@@ -331,11 +333,27 @@ export default function BrandAssetsPage() {
                 <div className="mb-8 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border-2 border-dashed border-zinc-200 dark:border-zinc-700">
                     <div className="flex gap-4 items-end">
                         <div className="flex-1">
-                            <label className="block text-xs font-medium text-zinc-500 mb-1">Asset URL</label>
+                            <div className="flex justify-between mb-1">
+                                <label className="block text-xs font-medium text-zinc-500">Asset URL</label>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => setNewAssetType('IMAGE')}
+                                        className={`text-[10px] px-2 rounded ${newAssetType === 'IMAGE' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-zinc-400 hover:text-zinc-600'}`}
+                                    >
+                                        Image
+                                    </button>
+                                    <button 
+                                        onClick={() => setNewAssetType('DOCUMENT')}
+                                        className={`text-[10px] px-2 rounded ${newAssetType === 'DOCUMENT' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-zinc-400 hover:text-zinc-600'}`}
+                                    >
+                                        Link / Doc
+                                    </button>
+                                </div>
+                            </div>
                             <input
                                 type="text"
                                 className="w-full rounded bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm p-2"
-                                placeholder="Paste image URL..."
+                                placeholder={newAssetType === 'IMAGE' ? "Paste image URL..." : "Paste document link..."}
                                 value={newAssetUrl}
                                 onChange={e => setNewAssetUrl(e.target.value)}
                             />
@@ -364,8 +382,15 @@ export default function BrandAssetsPage() {
                 {brandData?.assets && brandData.assets.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         {brandData.assets.map(asset => (
-                            <div key={asset.id} className="group relative aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700">
-                                <img src={asset.url} alt={asset.name || "Asset"} className="w-full h-full object-cover" />
+                            <div key={asset.id} className="group relative aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 flex flex-col">
+                                {asset.type === 'IMAGE' ? (
+                                    <img src={asset.url} alt={asset.name || "Asset"} className="w-full h-full object-cover" />
+                                ) : (
+                                    <a href={asset.url} target="_blank" className="flex-1 flex flex-col items-center justify-center p-4 text-center hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                        <svg className="w-10 h-10 text-zinc-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                        <span className="text-xs text-indigo-500 font-medium truncate w-full px-2">{asset.name || "Link"}</span>
+                                    </a>
+                                )}
                                 <div className="absolute inset-x-0 bottom-0 bg-black/70 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <p className="text-[10px] text-white truncate mb-1">{asset.name || "Untitled"}</p>
                                     <button

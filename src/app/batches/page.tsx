@@ -24,8 +24,9 @@ interface Format { id: string; name: string; }
 
 const STATUS_COLUMNS = [
     { key: "IDEATION", label: "Ideation", color: "bg-gray-100 dark:bg-zinc-800" },
+    { key: "CREATOR_BRIEFING", label: "Creator Briefing", color: "bg-orange-50 dark:bg-orange-900/10" },
     { key: "FILMING", label: "Filming", color: "bg-teal-50 dark:bg-teal-900/10" },
-    { key: "BRIEFING", label: "Briefing", color: "bg-blue-50 dark:bg-blue-900/10" },
+    { key: "EDITOR_BRIEFING", label: "Editor Briefing", color: "bg-blue-50 dark:bg-blue-900/10" },
     { key: "EDITING", label: "Editing", color: "bg-amber-50 dark:bg-amber-900/10" },
     { key: "REVIEW", label: "Review", color: "bg-purple-50 dark:bg-purple-900/10" },
     { key: "AI_BOOST", label: "AI Boost", color: "bg-indigo-50 dark:bg-indigo-900/10" },

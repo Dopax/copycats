@@ -186,6 +186,26 @@ model Brand {
 
   creators           Creator[]
   creatives          Creative[]
+  users              User[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Hashed
+  name      String?
+  role      String @default("OWNER") // OWNER, VIDEO_EDITOR, CREATIVE_STRATEGIST, CREATOR
+  
+  // Relations
+  brandId   String?
+  brand     Brand?   @relation(fields: [brandId], references: [id])
+  
+  // If role is CREATOR
+  creatorId String?  @unique
+  creator   Creator? @relation(fields: [creatorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Creator {
@@ -199,16 +219,44 @@ model Creator {
   collabCount   Int      @default(0)
   email         String?
   phone         String?
+  socialHandle  String?
+  gender        String?
+  ageGroup      String?
+
   source        String?
   messagingPlatform String? // Upwork, Slack, Zoho, Whatsapp, Instagram, Gorgias
   paymentMethod     String? // Upwork, Paypal, Bank, Free Kit
   type          String   @default("TEMPORARY") // TEMPORARY, REPEAT, PERMANENT
+  status        String   @default("APPLIED")   // APPLIED, APPROVED, REJECTED, ARCHIVED
   joinedAt      DateTime @default(now())
   
   profileImageUrl String?
 
   brandId       String
   brand         Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  
+  // Active Batch (The job they are currently working on)
+  activeBatchId Int?
+  activeBatch   AdBatch? @relation("ActiveBatch", fields: [activeBatchId], references: [id])
+  
+  // Onboarding State
+  onboardingStep   String @default("OFFER") // OFFER, ORDER, UPLOAD, COMPLETED
+  magicLinkToken   String? @unique
+  
+  // Offer / Deal (Set by Admin)
+  offerType        String?  // "FREE_KIT", "PAID"
+  offerAmount      Float?   // e.g. 50.0
+  productLink      String?  // Specific link for them
+  couponCode       String?
+  
+  // Mid-Upload Tracker (CID of the current delivery session)
+  activeDeliveryCid String?
+  
+  // Order Step (Filled by Creator)
+  orderNumber      String?
+  
+  // System Link
+  user             User?
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -253,7 +301,7 @@ model Tag {
 model AdBatch {
   id          Int      @id @default(autoincrement())
   name        String
-  status      String   @default("IDEATION") // IDEATION, FILMING, BRIEFING, EDITING, REVIEW, AI_BOOST, LAUNCHED, ARCHIVED
+  status      String   @default("IDEATION") // IDEATION, CREATOR_BRIEFING, FILMING, EDITOR_BRIEFING, EDITING, REVIEW, AI_BOOST, LAUNCHED, ARCHIVED
   batchType   String   // COPYCAT, NET_NEW, ITERATION
   priority    String?  // HIGH, MEDIUM, LOW
 
@@ -267,7 +315,15 @@ model AdBatch {
   format      AdFormat? @relation(fields: [formatId], references: [id])
 
   assignee    String?   // Editor Name
-  brief       String?   // Markdown or text
+  brief       String?   // Markdown or text (Now explicitly "Editor Brief")
+  
+  // Ideation
+  idea        String?   // Initial Idea / Notes
+  
+  // Creator Briefing
+  creatorBrief     String? // Instructions for Creator
+  shotlist         String? // Structured shotlist
+  creatorBriefType String? // GENERAL, SPECIFIC, COPYCAT
 
   // AI Boost Fields
   aiAdCopy      String?
@@ -282,6 +338,7 @@ model AdBatch {
 
 
   items       BatchItem[]
+  assignedCreators Creator[] @relation("ActiveBatch")
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -332,6 +389,12 @@ model Creative {
   
   // Processing Status (for the AI Pipeline)
   processingStatus String @default("unprocessed") // unprocessed, processing, completed, failed, stale
+  
+  // Custom ID for Folder Structure
+  cid             String?   // e.g. "C-1001", Shared by files in the same batch/delivery
+
+  // midUploadCreators Creator[] @relation("MidUpload") -> Removed
+  
   
   // Rich Metadata & Embeddings (Stored High Level)
   overallSummary  String?

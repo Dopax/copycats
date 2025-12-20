@@ -47,7 +47,13 @@ interface Batch {
     aiAdCopy?: string;
     aiImagePrompt?: string;
     aiVideoPrompt?: string;
-    projectFilesUrl?: string; // Edit: Added projectFilesUrl
+    projectFilesUrl?: string;
+    
+    // New Fields
+    idea?: string;
+    creatorBrief?: string;
+    shotlist?: string;
+    creatorBriefType?: string;
 }
 
 function FileUpload({ batchName, type, brandId, batchId, variationLabel, onUploadComplete }:
@@ -118,17 +124,17 @@ function FileUpload({ batchName, type, brandId, batchId, variationLabel, onUploa
     );
 }
 
-const STATUS_FLOW = ["IDEATION", "BRIEFING", "EDITING", "REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"];
+const STATUS_FLOW = ["IDEATION", "CREATOR_BRIEFING", "FILMING", "EDITOR_BRIEFING", "EDITING", "REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"];
 
 // Helper to determine active sections based on status
 const getSectionState = (section: string, currentStatus: string) => {
     // Define the sequence of major stages
-    // PRODUCTION covers both Briefing and Editing
+    // PRODUCTION covers Creator Briefing, Filming, Editor Briefing and Editing
     const sequence = ["PRODUCTION", "REVIEW", "AI_BOOST", "LAUNCHED"];
 
     // Map status to stage index
     const statusMap: Record<string, number> = {
-        "IDEATION": 0, "BRIEFING": 0, "EDITING": 0, // All map to PRODUCTION stage
+        "IDEATION": 0, "CREATOR_BRIEFING": 0, "FILMING": 0, "EDITOR_BRIEFING": 0, "EDITING": 0, // All map to PRODUCTION stage
         "REVIEW": 1,
         "AI_BOOST": 2, // Adjusted indices
         "LAUNCHED": 3, "ARCHIVED": 3
@@ -385,8 +391,17 @@ export default function BatchDetailPage() {
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
     // Form States
-    const [brief, setBrief] = useState("");
+    const [brief, setBrief] = useState(""); // Editor Brief
     const [isSavingBrief, setIsSavingBrief] = useState(false);
+    
+    // New Form States
+    const [idea, setIdea] = useState("");
+    const [isSavingIdea, setIsSavingIdea] = useState(false);
+    
+    const [creatorBrief, setCreatorBrief] = useState("");
+    const [shotlist, setShotlist] = useState("");
+    const [creatorBriefType, setCreatorBriefType] = useState("GENERAL");
+    const [isSavingCreatorBrief, setIsSavingCreatorBrief] = useState(false);
 
     // AI Boost Form States
     const [aiForm, setAiForm] = useState({ adCopy: "", imagePrompt: "", videoPrompt: "" });
@@ -408,6 +423,13 @@ export default function BatchDetailPage() {
                 const data = await batchRes.json();
                 setBatch(data);
                 setBrief(data.brief || "");
+                
+                // Set New Fields
+                setIdea(data.idea || "");
+                setCreatorBrief(data.creatorBrief || "");
+                setShotlist(data.shotlist || "");
+                setCreatorBriefType(data.creatorBriefType || "GENERAL");
+
                 setAiForm({
                     adCopy: data.aiAdCopy || "",
                     imagePrompt: data.aiImagePrompt || "",
@@ -415,7 +437,9 @@ export default function BatchDetailPage() {
                 });
 
                 // Initialize Accordion State: Open active section
-                const stages = ["PRODUCTION", "REVIEW", "AI_BOOST", "LAUNCHED"];
+                const stages = ["PRODUCTION", "REVIEW", "AI_BOOST", "LAUNCHED"]; 
+                // We need to map our new granular statuses to these stages or expand logic
+                // For now, let's keep the high-level mapping but maybe open relevant ones.
                 const newExpanded: Record<string, boolean> = {};
 
                 // Open the Active one by default
@@ -424,6 +448,9 @@ export default function BatchDetailPage() {
                         newExpanded[s] = true;
                     }
                 });
+                // Also force open the specific active status section if we have sections for them
+                if (data.status) newExpanded[data.status] = true;
+                
                 setExpandedSections(newExpanded);
 
             } else {
@@ -468,7 +495,55 @@ export default function BatchDetailPage() {
         }
     };
 
+    const saveIdea = async () => {
+        if (!batch) return;
+        setIsSavingIdea(true);
+        try {
+            await fetch(`/api/batches/${batch.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idea })
+            });
+        } catch (error) {
+            console.error("Failed to save idea", error);
+        } finally {
+            setIsSavingIdea(false);
+        }
+    };
 
+    const saveCreatorBrief = async () => {
+        if (!batch) return;
+        setIsSavingCreatorBrief(true);
+        try {
+            await fetch(`/api/batches/${batch.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    creatorBrief, 
+                    shotlist, 
+                    creatorBriefType 
+                })
+            });
+        } catch (error) {
+            console.error("Failed to save creator brief", error);
+        } finally {
+            setIsSavingCreatorBrief(false);
+        }
+    };
+    
+    // Auto-fill templates
+    const applyBriefTemplate = (type: string) => {
+        setCreatorBriefType(type);
+        let template = "";
+        if (type === "GENERAL") {
+            template = "Hi! We'd like you to create a natural, engaging video talking about our product. Focus on the key benefits: [Benefit 1], [Benefit 2]. Make it feel authentic like you're recommending it to a friend.";
+        } else if (type === "SPECIFIC") {
+            template = "SCENE 1: Hook (3s) - [Action]\nSCENE 2: Problem (5s) - [Description]\nSCENE 3: Solution (10s) - [Product Demo]\nSCENE 4: CTA (3s) - Link in bio";
+        } else if (type === "COPYCAT") {
+            template = `Please recreate this video style but with our product: ${batch?.referenceAd?.facebookLink || '[Link]'}. Match the energy and pacing.`;
+        }
+        setCreatorBrief(template);
+    };
 
     const saveBrief = async () => {
         if (!batch) return;
@@ -754,26 +829,129 @@ export default function BatchDetailPage() {
 
             {/* --- ACCORDION SECTIONS --- */}
 
-            <div className="space-y-4">
+            {/* --- ACCORDION SECTIONS --- */}
 
-                {/* 1. PRODUCTION (Brief & Variations) */}
+            <div className="space-y-4">
+            
+                {/* 1. IDEATION */}
                 <BatchSection
-                    title="Brief & Variations"
-                    status={getSectionState("PRODUCTION", batch.status)}
-                    isOpen={expandedSections["PRODUCTION"] || false}
-                    onToggle={() => toggleSection("PRODUCTION")}
+                    title="1. Ideation"
+                    status={batch.status === "IDEATION" ? "active" : (["CREATOR_BRIEFING", "FILMING", "EDITOR_BRIEFING", "EDITING", "REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : "future")}
+                    isOpen={expandedSections["IDEATION"] || false}
+                    onToggle={() => toggleSection("IDEATION")}
+                    actions={
+                        <button
+                            onClick={(e) => { e.stopPropagation(); saveIdea(); }}
+                            disabled={isSavingIdea}
+                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                        >
+                            {isSavingIdea ? "Saving..." : "Save Idea"}
+                        </button>
+                    }
+                >
+                    <textarea
+                        className="w-full h-32 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-y"
+                        placeholder="Brainstorm your ad idea here..."
+                        value={idea}
+                        onChange={(e) => setIdea(e.target.value)}
+                    />
+                </BatchSection>
+
+                {/* 2. CREATOR BRIEFING */}
+                <BatchSection
+                    title="2. Creator Briefing"
+                    status={batch.status === "CREATOR_BRIEFING" ? "active" : (["FILMING", "EDITOR_BRIEFING", "EDITING", "REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : (batch.status === "IDEATION" ? "future" : "past"))}
+                    isOpen={expandedSections["CREATOR_BRIEFING"] || false}
+                    onToggle={() => toggleSection("CREATOR_BRIEFING")}
+                    actions={
+                         <button
+                            onClick={(e) => { e.stopPropagation(); saveCreatorBrief(); }}
+                            disabled={isSavingCreatorBrief}
+                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                        >
+                            {isSavingCreatorBrief ? "Save Creator Brief" : "Save Creator Brief"}
+                        </button>
+                    }
+                >
+                    <div className="space-y-6">
+                        {/* Templates */}
+                        <div className="flex gap-2 mb-4">
+                            {['GENERAL', 'SPECIFIC', 'COPYCAT'].map(t => (
+                                <button
+                                    key={t}
+                                    onClick={() => applyBriefTemplate(t)}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                                        creatorBriefType === t 
+                                        ? 'bg-indigo-100 border-indigo-200 text-indigo-700' 
+                                        : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                                    }`}
+                                >
+                                    {t.charAt(0) + t.slice(1).toLowerCase()} Template
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Instructions / Brief</label>
+                                <textarea
+                                    className="w-full h-64 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-y"
+                                    placeholder="Instructions for the creator..."
+                                    value={creatorBrief}
+                                    onChange={(e) => setCreatorBrief(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Shotlist (Optional)</label>
+                                <textarea
+                                    className="w-full h-64 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-y font-mono text-sm"
+                                    placeholder="- SCENE 1: ...\n- SCENE 2: ..."
+                                    value={shotlist}
+                                    onChange={(e) => setShotlist(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </BatchSection>
+
+                {/* 3. FILMING */}
+                <BatchSection
+                     title="3. Filming"
+                     status={batch.status === "FILMING" ? "active" : (["EDITOR_BRIEFING", "EDITING", "REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : "future")}
+                     isOpen={expandedSections["FILMING"] || false}
+                     onToggle={() => toggleSection("FILMING")}
+                >
+                     <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                        <h4 className="font-bold text-zinc-900 dark:text-white mb-4">Assigned Creators</h4>
+                        {/* Logic to show creators. Assuming assignedCreators is on batch but type definition might miss it. 
+                            Wait, type def for Batch didn't include assignedCreators explicitly in my update.
+                            I should check usage. `assignedCreators` is relation.
+                            I'll assume it's not loaded in current `fetchData` unless include is there.
+                            Default `/api/batches/[id]` includes `assignedCreators`.
+                            Let's check `Batch` type. I didn't add it.
+                            I'll create a simple list or just count.
+                         */}
+                         <p className="text-sm text-zinc-500">Manage assigned creators in the "Creators" tab.</p>
+                     </div>
+                </BatchSection>
+
+                {/* 4. EDITOR BRIEFING (Old Production) */}
+                <BatchSection
+                    title="4. Editor Briefing & Variations"
+                    status={["EDITOR_BRIEFING", "EDITING"].includes(batch.status) ? "active" : (["REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : "future")}
+                    isOpen={expandedSections["EDITOR_BRIEFING"] || expandedSections["EDITING"] || false}
+                    onToggle={() => toggleSection("EDITOR_BRIEFING")}
                     actions={
                         <div className="flex gap-2">
                             <button
                                 onClick={(e) => { e.stopPropagation(); saveBrief(); }}
-                                disabled={isSavingBrief || getSectionState("PRODUCTION", batch.status) === "future"}
+                                disabled={isSavingBrief}
                                 className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
                             >
-                                {isSavingBrief ? "Saving Brief..." : "Save Brief"}
+                                {isSavingBrief ? "Saving Brief..." : "Save Editor Brief"}
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); addBatchItem(); }}
-                                disabled={getSectionState("PRODUCTION", batch.status) === "future"}
                                 className="text-xs font-medium bg-white border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 px-3 py-1.5 rounded-lg shadow-sm transition-colors disabled:opacity-50"
                             >
                                 + Variation
@@ -783,7 +961,7 @@ export default function BatchDetailPage() {
                 >
                     <div className="bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 mb-6 shadow-sm">
                         <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed">
-                            This ad batch should talk to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.demographic.name}</span>, which are <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.awarenessLevel?.name || "Unaware"}</span> of their desire to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.angle.name}</span>. The overarching theme is <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.theme.name}</span>.
+                            This ad batch should talk to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.demographic.name}</span>, which are <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.awarenessLevel?.name?.replace('Problem Unaware', 'Unaware') || "Unaware"}</span> of their desire to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.angle.name}</span>. The overarching theme is <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.theme.name}</span>.
                         </p>
                     </div>
 

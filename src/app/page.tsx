@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBrand, Brand } from "@/context/BrandContext";
+import { signOut, useSession } from "next-auth/react";
 
 export default function Home() {
     const router = useRouter();
+    const { data: session, status } = useSession();
     const { setSelectedBrand } = useBrand();
     const [brands, setBrands] = useState<Brand[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -14,8 +16,9 @@ export default function Home() {
     const [newBrandName, setNewBrandName] = useState("");
 
     useEffect(() => {
+        console.log("Session Status:", status, session);
         fetchBrands();
-    }, []);
+    }, [session, status]);
 
     const fetchBrands = async () => {
         try {
@@ -112,6 +115,29 @@ export default function Home() {
                 <button className="px-6 py-2 border border-zinc-600 text-zinc-500 uppercase tracking-widest text-sm hover:border-white hover:text-white transition-colors">
                     Manage Profiles
                 </button>
+            </div>
+
+            <div className="absolute top-6 right-6 flex flex-col items-end gap-2 text-right">
+                 <button 
+                    onClick={async () => {
+                        // eslint-disable-next-line no-alert
+                        if(!confirm("Attempting to sign out. OK?")) return;
+                        try {
+                            // eslint-disable-next-line no-console
+                            console.log("Signing out...");
+                            await signOut({ callbackUrl: "/login", redirect: true });
+                        } catch(e) {
+                            alert("SignOut Error: " + e);
+                        }
+                    }}
+                    className="text-zinc-500 hover:text-white text-sm transition-colors uppercase tracking-wider border border-zinc-700 px-3 py-1 rounded"
+                >
+                    Sign Out
+                </button>
+                <div className="text-[10px] text-zinc-600 font-mono">
+                    Status: {status}<br/>
+                    User: {session?.user?.email || "None"}
+                </div>
             </div>
 
             {/* Create Modal */}

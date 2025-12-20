@@ -1,9 +1,10 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { useBrand } from "@/context/BrandContext";
-import { COUNTRIES, LANGUAGES } from "@/lib/constants";
+import { COUNTRIES, LANGUAGES, SOURCES } from "@/lib/constants";
 
 interface Demographic { id: string; name: string; }
 
@@ -24,24 +25,47 @@ interface Creator {
     joinedAt: string;
     profileImageUrl?: string;
     creatives?: { id: string; thumbnailUrl: string | null; driveFileId: string | null }[];
+    onboardingStep?: string; 
+    status?: string;        // Added
+    gender?: string;        // Added
+    ageGroup?: string;      // Added
+    activeBatchId?: number; // Added
+    offerType?: string;      
+    offerAmount?: number;    
+    productLink?: string;    
+    couponCode?: string;     
+    orderNumber?: string;    
 }
 
 const MESSAGING_PLATFORMS = ["Upwork", "Slack", "Zoho", "Whatsapp", "Instagram", "Gorgias"];
+
 const PAYMENT_METHODS = ["Upwork", "Paypal", "Bank", "Free Kit"];
-const SOURCES = ["InReach", "Instagram", "Free Kit", "Facebook", "Fiverr", "Upwork", "OutReach"];
 
 export default function CreatorsPage() {
     const { selectedBrand } = useBrand();
     const [creators, setCreators] = useState<Creator[]>([]);
+    const [batches, setBatches] = useState<any[]>([]); // Added
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isApproveModalOpen, setIsApproveModalOpen] = useState(false); // New Modal
     const [editingCreator, setEditingCreator] = useState<Creator | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+    const [activeTab, setActiveTab] = useState<'active' | 'requests' | 'rejected'>('active'); // New Tab State
 
     // Demographic Data & Selection
     const [demographics, setDemographics] = useState<Demographic[]>([]);
     const [selectedGender, setSelectedGender] = useState("");
     const [selectedAge, setSelectedAge] = useState("");
+
+    const genderOptions = useMemo(() => {
+        const genders = new Set(demographics.map(d => d.name.split(' ')[0]));
+        return Array.from(genders).sort();
+    }, [demographics]);
+
+    const ageOptions = useMemo(() => {
+        const ages = new Set(demographics.map(d => d.name.split(' ').slice(1).join(' ')));
+        return Array.from(ages).sort();
+    }, [demographics]);
 
     // Form State
     const [formData, setFormData] = useState<Partial<Creator>>({
@@ -54,6 +78,7 @@ export default function CreatorsPage() {
         if (selectedBrand) {
             fetchCreators();
             fetchDemographics();
+            fetchBatches(); // Added
         } else {
             setIsLoading(false);
         }
@@ -63,6 +88,13 @@ export default function CreatorsPage() {
         try {
             const res = await fetch('/api/demographics');
             if (res.ok) setDemographics(await res.json());
+        } catch (e) { console.error(e); }
+    };
+
+    const fetchBatches = async () => {
+        try {
+            const res = await fetch('/api/batches');
+            if (res.ok) setBatches(await res.json());
         } catch (e) { console.error(e); }
     };
 
@@ -93,7 +125,15 @@ export default function CreatorsPage() {
             const demoName = (selectedGender && selectedAge) ? `${selectedGender} ${selectedAge}` : null;
             const demographicId = demoName ? demographics.find(d => d.name === demoName)?.id : null;
 
-            const payload = { ...formData, brandId: selectedBrand.id, demographicId };
+
+
+            const payload = { 
+                ...formData, 
+                brandId: selectedBrand.id, 
+                demographicId,
+                gender: selectedGender,    // Added
+                ageGroup: selectedAge      // Added
+            };
 
             const res = await fetch(url, {
                 method,
@@ -118,21 +158,36 @@ export default function CreatorsPage() {
         } catch (e) { console.error(e); }
     };
 
+    const handleReject = async (id: string) => {
+        if (!confirm("Reject this creator?")) return;
+        try {
+            await fetch(`/api/creators/${id}`, { 
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'REJECTED' })
+            });
+            fetchCreators();
+        } catch (e) { console.error(e); }
+    };
+
     const openModal = (creator?: Creator) => {
         if (creator) {
             setEditingCreator(creator);
             setFormData(creator);
-            // Parse Demographic
-            if (creator.demographic?.name) {
+            
+            // Prioritize Explicit Fields, then fallback to Demographic Name
+            let gender = creator.gender || "";
+            let age = creator.ageGroup || "";
+
+            if (!gender && !age && creator.demographic?.name) {
                 const parts = creator.demographic.name.split(' ');
                 if (parts.length >= 2) {
-                    setSelectedGender(parts[0]);
-                    setSelectedAge(parts[1]);
+                    gender = parts[0];
+                    age = parts.slice(1).join(' ');
                 }
-            } else {
-                setSelectedGender("");
-                setSelectedAge("");
             }
+            setSelectedGender(gender);
+            setSelectedAge(age);
         } else {
             setEditingCreator(null);
             setFormData({ type: 'TEMPORARY', collabCount: 0, pricePerVideo: 0, joinedAt: new Date().toISOString().split('T')[0], profileImageUrl: '' });
@@ -153,14 +208,74 @@ export default function CreatorsPage() {
         setFormData(prev => ({ ...prev, profileImageUrl: url }));
     };
 
-    // Helper to resolve the best thumbnail URL
+    // Approval Logic
+    const [approvedLink, setApprovedLink] = useState<string | null>(null);
+
+    const openApproveModal = (creator: Creator) => {
+        setEditingCreator(creator);
+        setFormData({
+            offerType: 'FREE_KIT',
+            offerAmount: 0,
+            productLink: '',
+            couponCode: ''
+        });
+        setApprovedLink(null);
+        setIsApproveModalOpen(true);
+    };
+
+    const submitApproval = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingCreator) return;
+
+        try {
+            const url = `/api/creators/${editingCreator.id}`;
+            const payload = { 
+                ...formData, 
+                status: 'APPROVED',
+                onboardingStep: 'OFFER' 
+            };
+
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const updatedCreator = await res.json();
+                fetchCreators();
+                
+                // Show Link
+                if (updatedCreator.magicLinkToken) {
+                    const link = `${window.location.origin}/portal?token=${updatedCreator.magicLinkToken}`;
+                    setApprovedLink(link);
+                } else {
+                     setIsApproveModalOpen(false);
+                     setEditingCreator(null);
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+    
+    // ...
+
+
+
     const getThumbnail = (creative: { thumbnailUrl: string | null; driveFileId: string | null }) => {
-        // Prefer constructing a fresh public URL if driveFileId is available
+        // Use local proxy to avoid 403 on private files
         if (creative.driveFileId) {
-            return `https://lh3.googleusercontent.com/d/${creative.driveFileId}=s400`;
+            return `/api/proxy/image/${creative.driveFileId}`;
         }
         return creative.thumbnailUrl;
     };
+
+    const filteredCreators = creators.filter(c => {
+        if (activeTab === 'requests') return c.status === 'APPLIED';
+        if (activeTab === 'rejected') return c.status === 'REJECTED';
+        return c.status === 'APPROVED' || !c.status; // Default to active if approved or legacy (no status)
+    });
 
     return (
         <div className="p-8 max-w-7xl mx-auto min-h-screen">
@@ -195,16 +310,43 @@ export default function CreatorsPage() {
                 </div>
             </div>
 
+            {/* Tabs */}
+            <div className="flex border-b border-zinc-200 dark:border-zinc-800 mb-6">
+                <button 
+                    onClick={() => setActiveTab('active')}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'active' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                >
+                    Active Creators
+                </button>
+                <button 
+                    onClick={() => setActiveTab('requests')}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'requests' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                >
+                    New Requests
+                    {creators.filter(c => c.status === 'APPLIED').length > 0 && (
+                        <span className="bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full text-xs">
+                            {creators.filter(c => c.status === 'APPLIED').length}
+                        </span>
+                    )}
+                </button>
+                <button 
+                    onClick={() => setActiveTab('rejected')}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'rejected' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                >
+                    Rejected / Archive
+                </button>
+            </div>
+
             {isLoading ? (
                 <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>
-            ) : creators.length === 0 ? (
+            ) : filteredCreators.length === 0 ? (
                 <div className="text-center py-20 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 border-dashed">
-                    <p className="text-zinc-500 mb-4">No creators found for this brand.</p>
-                    <button onClick={() => openModal()} className="text-indigo-600 hover:underline">Add your first creator</button>
+                    <p className="text-zinc-500 mb-4">No {activeTab} creators found.</p>
+                    {activeTab === 'active' && <button onClick={() => openModal()} className="text-indigo-600 hover:underline">Add manually</button>}
                 </div>
             ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {creators.map((c) => {
+                    {filteredCreators.map((c) => {
                         const thumbnail = c.profileImageUrl || (c.creatives && c.creatives.length > 0 ? getThumbnail(c.creatives[0]) : null);
                         return (
                             <div key={c.id} className="group bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all overflow-hidden cursor-pointer" onClick={() => openModal(c)}>
@@ -245,6 +387,24 @@ export default function CreatorsPage() {
                                                     'bg-zinc-500 text-white'}`}>
                                             {c.type}
                                         </span>
+                                        {/* Status Badge */}
+                                        {c.activeBatchId ? (
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm bg-purple-500 text-white">
+                                                Filming Batch
+                                            </span>
+                                        ) : c.onboardingStep === 'OFFER' ? (
+                                             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm bg-yellow-500 text-white">
+                                                Offer Sent
+                                            </span>
+                                        ) : c.onboardingStep === 'ORDER' || c.onboardingStep === 'UPLOAD' ? (
+                                             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm bg-indigo-500 text-white">
+                                                General Filming
+                                            </span>
+                                        ) : (
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm bg-zinc-400 text-white">
+                                                Idle
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
@@ -254,18 +414,43 @@ export default function CreatorsPage() {
                                         <span>{c.collabCount} collabs</span>
                                     </div>
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); openModal(c); }}
-                                            className="hover:text-indigo-600 transition-colors"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
-                                            className="hover:text-red-600 transition-colors"
-                                        >
-                                            Delete
-                                        </button>
+                                        {activeTab === 'requests' ? (
+                                            <>
+                                                <button
+                                                onClick={(e) => { e.stopPropagation(); openApproveModal(c); }}
+                                                className="bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition-colors"
+                                                >
+                                                Approve
+                                                </button>
+                                                <button
+                                                onClick={(e) => { e.stopPropagation(); handleReject(c.id); }}
+                                                className="bg-red-900/50 text-red-400 px-2 py-1 rounded hover:bg-red-900 transition-colors ml-2"
+                                                >
+                                                Reject
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); openApproveModal(c); }}
+                                                    className="text-indigo-600 hover:text-indigo-800 transition-colors text-xs font-medium mr-2"
+                                                >
+                                                    Send Offer
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); openModal(c); }}
+                                                    className="hover:text-indigo-600 transition-colors"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
+                                                    className="hover:text-red-600 transition-colors"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -287,7 +472,7 @@ export default function CreatorsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                            {creators.map((c) => (
+                            {filteredCreators.map((c) => (
                                 <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                                     <td className="px-6 py-4 font-medium text-zinc-900 dark:text-white">
                                         <div className="flex items-center gap-3">
@@ -307,7 +492,7 @@ export default function CreatorsPage() {
                                         {c.paymentMethod && <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{c.paymentMethod}</div>}
                                     </td>
                                     <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 max-w-[150px] truncate" title={c.demographic?.name}>
-                                        {c.demographic?.name || '-'}
+                                        {c.gender && c.ageGroup ? `${c.gender}, ${c.ageGroup}` : (c.demographic?.name || '-')}
                                     </td>
                                     <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
                                         <div>{c.email || '-'}</div>
@@ -324,8 +509,14 @@ export default function CreatorsPage() {
                                         {c.source && <div className="text-xs text-zinc-500 mt-1">Via {c.source}</div>}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <button onClick={() => openModal(c)} className="text-indigo-600 hover:text-indigo-500 mr-3">Edit</button>
-                                        <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:text-red-500">Delete</button>
+                                        {activeTab === 'requests' ? (
+                                            <button onClick={() => openApproveModal(c)} className="text-indigo-600 hover:text-indigo-500 font-bold">Approve</button>
+                                        ) : (
+                                            <>
+                                                <button onClick={() => openModal(c)} className="text-indigo-600 hover:text-indigo-500 mr-3">Edit</button>
+                                                <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:text-red-500">Delete</button>
+                                            </>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -421,7 +612,7 @@ export default function CreatorsPage() {
                                     <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={formData.country || ''} onChange={e => setFormData({ ...formData, country: e.target.value })}>
                                         <option value="">Select Country</option>
                                         {COUNTRIES.map(c => (
-                                            <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
+                                            <option key={c.code} value={c.code}>{c.name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -430,7 +621,7 @@ export default function CreatorsPage() {
                                     <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={formData.language || ''} onChange={e => setFormData({ ...formData, language: e.target.value })}>
                                         <option value="">Select Language</option>
                                         {LANGUAGES.map(l => (
-                                            <option key={l.code} value={l.code}>{l.flag} {l.name}</option>
+                                            <option key={l.code} value={l.name}>{l.name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -456,14 +647,14 @@ export default function CreatorsPage() {
                                     <label className="block text-sm text-zinc-500 mb-1">Gender (Demographic)</label>
                                     <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={selectedGender} onChange={e => setSelectedGender(e.target.value)}>
                                         <option value="">Select Gender</option>
-                                        {["Male", "Female"].map(g => <option key={g} value={g}>{g}</option>)}
+                                        {genderOptions.map(g => <option key={g} value={g}>{g}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm text-zinc-500 mb-1">Age Group (Demographic)</label>
                                     <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={selectedAge} onChange={e => setSelectedAge(e.target.value)}>
                                         <option value="">Select Age Group</option>
-                                        {['18-24', '25-34', '35-44', '45-54', '55-64', '65+'].map(a => <option key={a} value={a}>{a}</option>)}
+                                        {ageOptions.map(a => <option key={a} value={a}>{a}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -513,6 +704,109 @@ export default function CreatorsPage() {
                 </div>
             )}
 
+            {/* Approve Modal */}
+            {isApproveModalOpen && (
+                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={(e) => { if(!approvedLink) { e.target === e.currentTarget && setIsApproveModalOpen(false) } }}>
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-lg w-full p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95">
+                        {approvedLink ? (
+                            <div className="text-center">
+                                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                                <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-white">Offer Sent!</h2>
+                                <p className="text-zinc-500 mb-6">The creator has been approved. Share this link with them to access the portal:</p>
+                                
+                                <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg flex items-center gap-2 mb-6 border border-zinc-200 dark:border-zinc-700">
+                                    <code className="flex-1 text-sm text-zinc-600 dark:text-zinc-300 truncate">{approvedLink}</code>
+                                    <button 
+                                        onClick={() => navigator.clipboard.writeText(approvedLink)}
+                                        className="text-indigo-600 hover:text-indigo-500 font-medium text-sm"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                                
+                                <button onClick={() => { setIsApproveModalOpen(false); setApprovedLink(null); setEditingCreator(null); }} className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                                    Done
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-white">Approve & Send Offer</h2>
+                                <p className="text-zinc-500 text-sm mb-6">Configure the offer for {editingCreator?.name}. This will notify them to proceed.</p>
+                                
+                                <form onSubmit={submitApproval} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm text-zinc-500 mb-1">Offer Type</label>
+                                        <select 
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
+                                            value={formData.offerType || 'FREE_KIT'} 
+                                            onChange={e => setFormData({ ...formData, offerType: e.target.value })}
+                                        >
+                                            <option value="FREE_KIT">Free Product Kit</option>
+                                            <option value="PAID">Paid Collaboration</option>
+                                        </select>
+                                    </div>
+
+                                    {formData.offerType === 'PAID' && (
+                                        <div>
+                                            <label className="block text-sm text-zinc-500 mb-1">Amount ($)</label>
+                                            <input 
+                                                type="number" 
+                                                className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
+                                                value={formData.offerAmount || 0} 
+                                                onChange={e => setFormData({ ...formData, offerAmount: parseFloat(e.target.value) })} 
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-sm text-zinc-500 mb-1">Product Link</label>
+                                        <input 
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
+                                            value={formData.productLink || ''} 
+                                            onChange={e => setFormData({ ...formData, productLink: e.target.value })} 
+                                            placeholder="https://brand.com/product" 
+                                        />
+                                    </div>
+
+                                     <div>
+                                        <label className="block text-sm text-zinc-500 mb-1">Coupon Code</label>
+                                        <input 
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
+                                            value={formData.couponCode || ''} 
+                                            onChange={e => setFormData({ ...formData, couponCode: e.target.value })} 
+                                            placeholder="CREATOR100" 
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm text-zinc-500 mb-1">Assign to Batch (Briefing)</label>
+                                        <select 
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
+                                            value={formData.activeBatchId || ''} 
+                                            onChange={e => setFormData({ ...formData, activeBatchId: parseInt(e.target.value) })}
+                                        >
+                                            <option value="">-- No Batch --</option>
+                                            {batches.map(b => (
+                                                <option key={b.id} value={b.id}>#{b.id} - {b.name} ({b.status})</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[10px] text-zinc-500 mt-1">Creator will see the brief from this batch.</p>
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 mt-6">
+                                        <button type="button" onClick={() => setIsApproveModalOpen(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white">Cancel</button>
+                                        <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Send Offer</button>
+                                    </div>
+                                </form>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
+

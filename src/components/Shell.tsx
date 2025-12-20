@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation";
 export default function Shell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isRoot = pathname === "/";
+    const isPublic = pathname.startsWith("/login") || pathname.startsWith("/portal");
 
-    if (isRoot) {
+    if (isRoot || isPublic) {
         return <div className="min-h-screen bg-zinc-950 text-white">{children}</div>;
     }
 

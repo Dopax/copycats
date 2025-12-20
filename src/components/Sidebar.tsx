@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
 import { useBrand } from "@/context/BrandContext";
+import { useSession } from "next-auth/react";
 
 const navigation = [
     {
@@ -108,6 +109,32 @@ export default function Sidebar() {
     const router = useRouter();
     const { selectedBrand } = useBrand();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const { data: session } = useSession();
+
+    // Filter Navigation based on Role - Robust Check
+    const filteredNavigation = navigation.filter(item => {
+        const role = (session?.user as any)?.role || "OWNER"; // Default to OWNER if no role/session (middleware protects anyway)
+        
+        if (role === 'OWNER') return true;
+        
+        if (role === 'VIDEO_EDITOR') {
+             // Whitelist: Batches, Creatives, Dashboard
+            return ["/batches", "/creatives", "/dashboard"].includes(item.href);
+        }
+
+        if (role === 'CREATIVE_STRATEGIST') {
+            // Block Tags, Settings (if any icon exists?), Brand Assets, Ads Import?
+            // "access anything accept tags, setting, brand assests"
+            if (["/brand-assets", "/tags", "/import"].includes(item.href)) return false;
+            return true;
+        }
+
+        if (role === 'CREATOR') {
+             return false;
+        }
+
+        return false;
+    });
 
     return (
         <div className={`flex h-full flex-col bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 transition-all duration-300 ${isCollapsed ? "w-20" : "w-64"}`}>
@@ -122,7 +149,7 @@ export default function Sidebar() {
             </div>
 
             <nav className="flex-1 space-y-1 px-2 py-4">
-                {navigation.map((item) => {
+                {filteredNavigation.map((item) => {
                     const isActive = pathname === item.href;
                     return (
                         <Link
@@ -189,6 +216,23 @@ export default function Sidebar() {
                         </div>
                     )}
                     <ThemeToggle />
+                    <button
+                        onClick={() => {
+                            // Since we use server actions or next-auth helpers, straightforward way in client component:
+                            // We can use the signOut from next-auth/react if available or server action.
+                            // Sidebar is "use client" so import { signOut } from "next-auth/react" is best.
+                            const { signOut } = require("next-auth/react"); 
+                            signOut({ callbackUrl: "/login" });
+                        }}
+                        className="text-zinc-500 hover:text-red-600 transition-colors"
+                        title="Logout"
+                    >
+                         {isCollapsed ? (
+                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                         ) : (
+                             <span className="text-xs font-medium">Logout</span>
+                         )}
+                    </button>
                 </div>
             </div>
         </div>

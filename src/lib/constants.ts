@@ -311,3 +311,5 @@ export const LANGUAGES = [
     { code: 'yo', name: 'Yoruba', flag: '🇳🇬' },
     { code: 'zu', name: 'Zulu', flag: '🇿🇦' }
 ].sort((a, b) => a.name.localeCompare(b.name));
+
+export const SOURCES = ["InReach", "Instagram", "Free Kit", "Facebook", "Fiverr", "Upwork", "OutReach", "Portal Signup"].sort();

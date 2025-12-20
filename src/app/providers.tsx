@@ -4,12 +4,16 @@ import { ThemeProvider } from "next-themes";
 
 import { BrandProvider } from "@/context/BrandContext";
 
+import { SessionProvider } from "next-auth/react";
+
 export function Providers({ children }: { children: React.ReactNode }) {
     return (
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <BrandProvider>
-                {children}
-            </BrandProvider>
-        </ThemeProvider>
+        <SessionProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                <BrandProvider>
+                    {children}
+                </BrandProvider>
+            </ThemeProvider>
+        </SessionProvider>
     );
 }
