@@ -185,6 +185,10 @@ model Brand {
   googleEmail        String?
 
   creators           Creator[]
+  // Facebook Ads Integration
+  facebookAccessToken String?
+  adAccountId        String?
+
   creatives          Creative[]
   users              User[]
 }
@@ -298,6 +302,26 @@ model Tag {
   creatives Creative[]
 }
 
+model FacebookAd {
+  id              String   @id // Facebook Ad ID
+  name            String
+  status          String
+  
+  // Metrics
+  spend           Float    @default(0)
+  roas            Float    @default(0)
+  cpm             Float    @default(0)
+  ctr             Float    @default(0)
+  clicks          Int      @default(0)
+  impressions     Int      @default(0)
+  
+  // Relations
+  batchId         Int?
+  batch           AdBatch? @relation(fields: [batchId], references: [id])
+  
+  updatedAt       DateTime @updatedAt
+}
+
 model AdBatch {
   id          Int      @id @default(autoincrement())
   name        String
@@ -336,6 +360,8 @@ model AdBatch {
 
   projectFilesUrl String? // Link to Google Drive Zip
 
+  // Linked Facebook Ads
+  facebookAds   FacebookAd[]
 
   items       BatchItem[]
   assignedCreators Creator[] @relation("ActiveBatch")

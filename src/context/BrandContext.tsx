@@ -30,7 +30,10 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
                     const parsed = JSON.parse(stored);
                     const res = await fetch(`/api/brands/${parsed.id}`);
                     if (res.ok) {
-                        setSelectedBrand(parsed);
+                        const freshBrand = await res.json();
+                        setSelectedBrand(freshBrand);
+                        // Update local storage with fresh data too
+                        localStorage.setItem("selectedBrand", JSON.stringify(freshBrand));
                     } else {
                         localStorage.removeItem("selectedBrand");
                     }
