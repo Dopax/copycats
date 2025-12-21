@@ -72,35 +72,47 @@ export async function GET(
       oauth2Client.setCredentials({ refresh_token: brand.googleRefreshToken });
       drive = google.drive({ version: "v3", auth: oauth2Client });
     } else {
-      // Fallback to Service Account (maybe it's a shared file?)
-      // We'll try importing the authorized JWT client from lib/drive
-      // But `authorize` in `drive.ts` isn't exported?
-      // It is exported.
       const { authorize } = await import("@/lib/drive");
       const authClient = await authorize();
       drive = google.drive({ version: 'v3', auth: authClient });
     }
 
+    // 1. Get File Metadata to check for thumbnailLink
+    const metadata = await drive.files.get({
+      fileId: fileId,
+      fields: 'id, mimeType, thumbnailLink'
+    });
+
+    const thumbnailLink = metadata.data.thumbnailLink;
+
+    // If we have a thumbnail link, let's proxy IT instead of the full file (especially if video)
+    if (thumbnailLink) {
+      // High-res thumbnail if possible? By default s220. We can try modifying to =s1000?
+      // But let's just use what we get for now.
+      const thumbRes = await fetch(thumbnailLink);
+      if (thumbRes.ok) {
+        const blob = await thumbRes.blob();
+        const headers = new Headers();
+        headers.set("Cache-Control", "public, max-age=3600");
+        headers.set("Content-Type", mimeTypeFromLink(thumbnailLink) || "image/jpeg");
+        return new NextResponse(blob, { headers });
+      }
+    }
+
+    // Fallback: Download full media (images only? or fail if video?)
+    // If it's a video and we failed to get a thumbnail, piping the video to an img tag won't work anyway.
+    // But let's keep existing behavior as fallback.
     const response = await drive.files.get({
       fileId: fileId,
       alt: 'media',
     }, { responseType: 'stream' });
-
-    // Create a response with the stream
-    // We need to set headers? Content-Type?
-    // We can get content-type from metadata first or just pipe.
-    // Let's just return the stream with appropriate headers if possible.
-    // NextResponse can take a ReadableStream.
-    // Converting Node stream to Web stream:
 
     // @ts-ignore
     const stream = response.data;
 
     const headers = new Headers();
     headers.set("Cache-Control", "public, max-age=3600");
-    // Guess mime? Or just let browser sniff.
-    // Better to fetch metadata first? 
-    // If we use `alt=media`, we don't get metadata in same call.
+    if (metadata.data.mimeType) headers.set("Content-Type", metadata.data.mimeType);
 
     return new NextResponse(stream as any, { headers });
 
@@ -108,4 +120,9 @@ export async function GET(
     console.error("Proxy Error", error);
     return new NextResponse("Error fetching image", { status: 500 });
   }
+}
+
+function mimeTypeFromLink(link: string) {
+  if (link.includes("=s")) return "image/jpeg"; // Usually JPG
+  return "image/jpeg";
 }

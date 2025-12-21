@@ -19,6 +19,8 @@ export async function GET(request: Request) {
                 format: true,
                 items: { include: { hook: true } },
                 referenceAd: true,
+                editor: true,
+                strategist: true
             },
             orderBy: { updatedAt: 'desc' },
         });
@@ -46,19 +48,23 @@ export async function POST(request: Request) {
                 priority: data.priority,
                 conceptId: data.conceptId,
                 formatId: data.formatId,
-                assignee: data.assignee,
+                assignee: data.assignee, // Legacy/Fallback
+                editorId: data.editorId || null,
+                strategistId: data.strategistId || null,
                 brief: data.brief,
                 referenceAdId: data.referenceAdId,
                 brandId: data.brandId,
             },
             include: {
-                concept: true
+                concept: true,
+                editor: true,
+                strategist: true
             }
         });
 
         return NextResponse.json(batch);
     } catch (error) {
         console.error("Failed to create batch:", error);
-        return NextResponse.json({ error: "Failed to create batch" }, { status: 500 });
+        return NextResponse.json({ error: `Failed to create batch: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
     }
 }

@@ -265,6 +265,8 @@ export default function CreatorsPage() {
 
     const getProxiedUrl = (url?: string | null) => {
         if (!url) return null;
+        if (url.includes("drive-storage")) return null; // specific fix for broken google internal links
+
 
         // Check if it's a Drive Link
         let id = "";

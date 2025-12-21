@@ -26,6 +26,7 @@ interface Angle { id: string; name: string; }
 interface Theme { id: string; name: string; }
 interface Demographic { id: string; name: string; }
 interface AwarenessLevel { id: string; name: string; }
+interface User { id: string; name: string; role: string; email: string; }
 
 const STATUS_COLUMNS = [
     { key: "IDEATION", label: "Ideation", color: "bg-gray-100 dark:bg-zinc-800" },
@@ -46,6 +47,7 @@ function BatchesContent() {
     const [themes, setThemes] = useState<Theme[]>([]);
     const [demographics, setDemographics] = useState<Demographic[]>([]);
     const [awarenessLevels, setAwarenessLevels] = useState<AwarenessLevel[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const searchParams = useSearchParams();
@@ -59,6 +61,8 @@ function BatchesContent() {
     const [newBatchPriority, setNewBatchPriority] = useState("MEDIUM");
     const [newBatchConcept, setNewBatchConcept] = useState("");
     const [newBatchFormat, setNewBatchFormat] = useState("");
+    const [newBatchEditor, setNewBatchEditor] = useState("");
+    const [newBatchStrategist, setNewBatchStrategist] = useState("");
     const [isCreating, setIsCreating] = useState(false);
 
     // Inline Creation State
@@ -136,14 +140,15 @@ function BatchesContent() {
         setIsLoading(true);
         try {
             const query = selectedBrand ? `?brandId=${selectedBrand.id}` : '';
-            const [batchesRes, conceptsRes, formatsRes, anglesRes, themesRes, demosRes, awareRes] = await Promise.all([
+            const [batchesRes, conceptsRes, formatsRes, anglesRes, themesRes, demosRes, awareRes, usersRes] = await Promise.all([
                 fetch(`/api/batches${query}`),
                 fetch(`/api/concepts${query}`),
                 fetch('/api/formats'),
                 fetch('/api/angles'),
                 fetch('/api/themes'),
                 fetch('/api/demographics'),
-                fetch('/api/awareness-levels')
+                fetch('/api/awareness-levels'),
+                fetch(`/api/users${query}`)
             ]);
 
             if (batchesRes.ok) setBatches(await batchesRes.json());
@@ -153,6 +158,7 @@ function BatchesContent() {
             if (themesRes.ok) setThemes(await themesRes.json());
             if (demosRes.ok) setDemographics(await demosRes.json());
             if (awareRes.ok) setAwarenessLevels(await awareRes.json());
+            if (usersRes.ok) setUsers(await usersRes.json());
 
         } catch (error) {
             console.error("Failed to load data", error);
@@ -163,6 +169,12 @@ function BatchesContent() {
 
     const handleCreateBatch = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!newBatchConcept) {
+            alert("Please select a Creative Concept.");
+            return;
+        }
+
         setIsCreating(true);
         try {
             const res = await fetch('/api/batches', {
@@ -175,7 +187,9 @@ function BatchesContent() {
                     conceptId: newBatchConcept,
                     formatId: newBatchFormat || null,
                     referenceAdId: (newBatchType === 'COPYCAT' || newBatchType === 'ITERATION') ? referenceAdId : null,
-                    brandId: selectedBrand?.id
+                    brandId: selectedBrand?.id,
+                    editorId: newBatchEditor || undefined,
+                    strategistId: newBatchStrategist || undefined
                 }),
             });
 
@@ -190,10 +204,12 @@ function BatchesContent() {
                     router.replace('/batches');
                 }
             } else {
-                alert("Failed to create batch");
+                const err = await res.json();
+                alert(`Failed to create batch: ${err.error || "Unknown error"}`);
             }
         } catch (error) {
             console.error("Error creating batch:", error);
+            alert("An unexpected error occurred.");
         } finally {
             setIsCreating(false);
         }
@@ -253,6 +269,8 @@ function BatchesContent() {
         setNewBatchFormat("");
         setReferenceAdId(null);
         setReferenceAdPostId(null);
+        setNewBatchEditor("");
+        setNewBatchStrategist("");
     };
 
     const getPriorityBadge = (p: string) => {
@@ -660,6 +678,36 @@ function BatchesContent() {
                                         <button type="button" onClick={() => setIsCreatingFormat(false)} className="px-2 text-zinc-500 hover:text-red-500">✕</button>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Team Assignment */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Editor</label>
+                                    <select
+                                        value={newBatchEditor}
+                                        onChange={(e) => setNewBatchEditor(e.target.value)}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                    >
+                                        <option value="">Unassigned</option>
+                                        {users.filter(u => u.role === 'VIDEO_EDITOR' || u.role === 'OWNER').map(u => (
+                                            <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Strategist</label>
+                                    <select
+                                        value={newBatchStrategist}
+                                        onChange={(e) => setNewBatchStrategist(e.target.value)}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                    >
+                                        <option value="">Unassigned</option>
+                                        {users.filter(u => u.role === 'CREATIVE_STRATEGIST' || u.role === 'OWNER').map(u => (
+                                            <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
                             {/* Actions */}

@@ -211,6 +211,13 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Team Management
+  ratePerBatch Float?  @default(0) // Rate in dollars per batch
+
+  // Inverse relation fields
+  batchesAsEditor     AdBatch[] @relation("EditorBatch")
+  batchesAsStrategist AdBatch[] @relation("StrategistBatch")
 }
 
 model Creator {
@@ -339,7 +346,15 @@ model AdBatch {
   formatId    String?
   format      AdFormat? @relation(fields: [formatId], references: [id])
 
-  assignee    String?   // Editor Name
+  assignee    String?   // Keep for backward compatibility or migration
+  
+  // Team Assignment
+  editorId    String?
+  editor      User?     @relation("EditorBatch", fields: [editorId], references: [id])
+  
+  strategistId String?
+  strategist  User?     @relation("StrategistBatch", fields: [strategistId], references: [id])
+
   brief       String?   // Markdown or text (Now explicitly "Editor Brief")
   
   // Ideation
