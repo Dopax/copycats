@@ -16,11 +16,16 @@ interface Batch {
     format?: { name: string };
     assignee?: string;
     updatedAt: string;
+    items: { status: string }[];
     _count?: { items: number };
 }
 
 interface Concept { id: string; name: string; }
 interface Format { id: string; name: string; }
+interface Angle { id: string; name: string; }
+interface Theme { id: string; name: string; }
+interface Demographic { id: string; name: string; }
+interface AwarenessLevel { id: string; name: string; }
 
 const STATUS_COLUMNS = [
     { key: "IDEATION", label: "Ideation", color: "bg-gray-100 dark:bg-zinc-800" },
@@ -37,6 +42,10 @@ function BatchesContent() {
     const [batches, setBatches] = useState<Batch[]>([]);
     const [concepts, setConcepts] = useState<Concept[]>([]);
     const [formats, setFormats] = useState<Format[]>([]);
+    const [angles, setAngles] = useState<Angle[]>([]);
+    const [themes, setThemes] = useState<Theme[]>([]);
+    const [demographics, setDemographics] = useState<Demographic[]>([]);
+    const [awarenessLevels, setAwarenessLevels] = useState<AwarenessLevel[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const searchParams = useSearchParams();
@@ -51,6 +60,18 @@ function BatchesContent() {
     const [newBatchConcept, setNewBatchConcept] = useState("");
     const [newBatchFormat, setNewBatchFormat] = useState("");
     const [isCreating, setIsCreating] = useState(false);
+
+    // Inline Creation State
+    const [isCreatingFormat, setIsCreatingFormat] = useState(false);
+    const [newFormatName, setNewFormatName] = useState("");
+
+    const [isCreatingConcept, setIsCreatingConcept] = useState(false);
+    const [newConceptForm, setNewConceptForm] = useState({
+        angleId: "",
+        themeId: "",
+        demographicId: "",
+        awarenessLevelId: ""
+    });
 
     // Reference Ad State
     const [referenceAdId, setReferenceAdId] = useState<string | null>(null);
@@ -115,15 +136,23 @@ function BatchesContent() {
         setIsLoading(true);
         try {
             const query = selectedBrand ? `?brandId=${selectedBrand.id}` : '';
-            const [batchesRes, conceptsRes, formatsRes] = await Promise.all([
+            const [batchesRes, conceptsRes, formatsRes, anglesRes, themesRes, demosRes, awareRes] = await Promise.all([
                 fetch(`/api/batches${query}`),
                 fetch(`/api/concepts${query}`),
-                fetch('/api/formats') // Formats are global for now? Or brand restricted? Should probably be brand restricted eventually. Leaving global for now.
+                fetch('/api/formats'),
+                fetch('/api/angles'),
+                fetch('/api/themes'),
+                fetch('/api/demographics'),
+                fetch('/api/awareness-levels')
             ]);
 
             if (batchesRes.ok) setBatches(await batchesRes.json());
             if (conceptsRes.ok) setConcepts(await conceptsRes.json());
             if (formatsRes.ok) setFormats(await formatsRes.json());
+            if (anglesRes.ok) setAngles(await anglesRes.json());
+            if (themesRes.ok) setThemes(await themesRes.json());
+            if (demosRes.ok) setDemographics(await demosRes.json());
+            if (awareRes.ok) setAwarenessLevels(await awareRes.json());
 
         } catch (error) {
             console.error("Failed to load data", error);
@@ -167,6 +196,52 @@ function BatchesContent() {
             console.error("Error creating batch:", error);
         } finally {
             setIsCreating(false);
+        }
+    };
+
+    const handleCreateFormat = async () => {
+        if (!newFormatName.trim()) return;
+        try {
+            const res = await fetch('/api/formats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newFormatName, brandId: selectedBrand?.id })
+            });
+            if (res.ok) {
+                const format = await res.json();
+                setFormats([...formats, format]);
+                setNewBatchFormat(format.id);
+                setIsCreatingFormat(false);
+                setNewFormatName("");
+            }
+        } catch (e) {
+            console.error("Failed to create format", e);
+        }
+    };
+
+    const handleCreateConcept = async () => {
+        if (!newConceptForm.angleId || !newConceptForm.themeId || !newConceptForm.demographicId) {
+            alert("Please select Angle, Theme, and Demographic.");
+            return;
+        }
+        try {
+            const res = await fetch('/api/concepts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    brandId: selectedBrand?.id,
+                    ...newConceptForm
+                })
+            });
+            if (res.ok) {
+                const concept = await res.json();
+                setConcepts([...concepts, concept]);
+                setNewBatchConcept(concept.id);
+                setIsCreatingConcept(false);
+                setNewConceptForm({ angleId: "", themeId: "", demographicId: "", awarenessLevelId: "" });
+            }
+        } catch (e) {
+            console.error("Failed to create concept", e);
         }
     };
 
@@ -305,6 +380,16 @@ function BatchesContent() {
                                                         </span>
                                                         {getPriorityBadge(batch.priority)}
                                                     </div>
+
+                                                    {/* Revision Badge */}
+                                                    {batch.items?.some(i => i.status === 'PENDING') && (
+                                                        <div className="mb-2">
+                                                            <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-200 dark:border-amber-800 flex items-center gap-1 w-fit">
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                                Revision Needed
+                                                            </span>
+                                                        </div>
+                                                    )}
 
                                                     {/* Batch Name */}
                                                     <h4 className="font-semibold text-zinc-900 dark:text-white text-sm leading-tight mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
@@ -457,37 +542,124 @@ function BatchesContent() {
                             </div>
 
                             {/* Concept (Required) */}
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Concept</label>
-                                <select
-                                    required
-                                    value={newBatchConcept}
-                                    onChange={(e) => setNewBatchConcept(e.target.value)}
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
-                                >
-                                    <option value="">Select a Creative Concept...</option>
-                                    {concepts.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                                {concepts.length === 0 && (
-                                    <p className="text-xs text-amber-600 mt-1">No concepts found. Create one in the Concepts tab first.</p>
+                            {/* Concept (Required) */}
+                            <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Concept</label>
+
+                                {!isCreatingConcept ? (
+                                    <div className="flex gap-2">
+                                        <select
+                                            required
+                                            value={newBatchConcept}
+                                            onChange={(e) => setNewBatchConcept(e.target.value)}
+                                            className="flex-1 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                        >
+                                            <option value="">Select a Creative Concept...</option>
+                                            {concepts.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsCreatingConcept(true)}
+                                            className="px-3 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 rounded-lg text-zinc-600 dark:text-zinc-300 font-bold"
+                                            title="Create New Concept"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 animate-in slide-in-from-top-2">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs font-bold text-indigo-600 uppercase">New Concept</span>
+                                            <button type="button" onClick={() => setIsCreatingConcept(false)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <select
+                                                className="w-full rounded text-xs p-2 border-zinc-200"
+                                                value={newConceptForm.angleId}
+                                                onChange={e => setNewConceptForm(prev => ({ ...prev, angleId: e.target.value }))}
+                                            >
+                                                <option value="">Angle...</option>
+                                                {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                            </select>
+                                            <select
+                                                className="w-full rounded text-xs p-2 border-zinc-200"
+                                                value={newConceptForm.themeId}
+                                                onChange={e => setNewConceptForm(prev => ({ ...prev, themeId: e.target.value }))}
+                                            >
+                                                <option value="">Theme...</option>
+                                                {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            </select>
+                                            <select
+                                                className="w-full rounded text-xs p-2 border-zinc-200"
+                                                value={newConceptForm.demographicId}
+                                                onChange={e => setNewConceptForm(prev => ({ ...prev, demographicId: e.target.value }))}
+                                            >
+                                                <option value="">Demographic...</option>
+                                                {demographics.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                            </select>
+                                            <select
+                                                className="w-full rounded text-xs p-2 border-zinc-200"
+                                                value={newConceptForm.awarenessLevelId}
+                                                onChange={e => setNewConceptForm(prev => ({ ...prev, awarenessLevelId: e.target.value }))}
+                                            >
+                                                <option value="">Awareness (Opt)...</option>
+                                                {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleCreateConcept}
+                                            className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded"
+                                        >
+                                            Create Concept
+                                        </button>
+                                    </div>
+                                )}
+                                {concepts.length === 0 && !isCreatingConcept && (
+                                    <p className="text-xs text-amber-600 mt-1">No concepts found. Click + to create one.</p>
                                 )}
                             </div>
 
                             {/* Format (Optional) */}
                             <div>
                                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Format</label>
-                                <select
-                                    value={newBatchFormat}
-                                    onChange={(e) => setNewBatchFormat(e.target.value)}
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
-                                >
-                                    <option value="">Select Format (Optional)...</option>
-                                    {formats.map(f => (
-                                        <option key={f.id} value={f.id}>{f.name}</option>
-                                    ))}
-                                </select>
+                                {!isCreatingFormat ? (
+                                    <div className="flex gap-2">
+                                        <select
+                                            value={newBatchFormat}
+                                            onChange={(e) => setNewBatchFormat(e.target.value)}
+                                            className="flex-1 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                        >
+                                            <option value="">Select Format (Optional)...</option>
+                                            {formats.map(f => (
+                                                <option key={f.id} value={f.id}>{f.name}</option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsCreatingFormat(true)}
+                                            className="px-3 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 rounded-lg text-zinc-600 dark:text-zinc-300 font-bold"
+                                            title="Create New Format"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2 animate-in slide-in-from-left-2">
+                                        <input
+                                            type="text"
+                                            className="flex-1 rounded text-sm p-2 border-zinc-300 dark:border-zinc-700"
+                                            placeholder="Format Name (e.g. 9:16 UGC)"
+                                            value={newFormatName}
+                                            onChange={e => setNewFormatName(e.target.value)}
+                                            autoFocus
+                                        />
+                                        <button type="button" onClick={handleCreateFormat} className="px-3 bg-indigo-600 text-white rounded text-xs font-bold">Save</button>
+                                        <button type="button" onClick={() => setIsCreatingFormat(false)} className="px-2 text-zinc-500 hover:text-red-500">✕</button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Actions */}

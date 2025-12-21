@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { uploadFile, ensureFolder } from '@/lib/drive';
+import { uploadFile, ensureFolder, shareFile } from '@/lib/drive';
 import { prisma } from '@/lib/prisma';
 import { getOAuthClient } from '@/lib/google-oauth';
 import { google } from 'googleapis';
@@ -72,6 +72,10 @@ export async function POST(request: Request) {
             folderId,
             authClient
         );
+
+        if (driveFile.id) {
+            await shareFile(driveFile.id, authClient);
+        }
 
         return NextResponse.json(driveFile);
 

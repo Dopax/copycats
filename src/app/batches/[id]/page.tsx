@@ -42,13 +42,14 @@ interface Batch {
         videoUrl: string | null;
         thumbnailUrl: string | null;
         transcript?: string;
+        facebookLink?: string;
     };
     // AI Boost Fields
     aiAdCopy?: string;
     aiImagePrompt?: string;
     aiVideoPrompt?: string;
     projectFilesUrl?: string;
-    
+
     // New Fields
     idea?: string;
     creatorBrief?: string;
@@ -57,7 +58,7 @@ interface Batch {
 }
 
 function FileUpload({ batchName, type, brandId, batchId, variationLabel, onUploadComplete }:
-    { batchName: string, type: 'video' | 'zip', brandId?: string, batchId?: string, variationLabel?: string, onUploadComplete: (url: string) => void }) {
+    { batchName: string, type: 'video' | 'zip', brandId?: string, batchId?: string, variationLabel?: string, onUploadComplete: (url: string, name: string) => void }) {
     const [uploading, setUploading] = useState(false);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,7 +81,7 @@ function FileUpload({ batchName, type, brandId, batchId, variationLabel, onUploa
             });
             const data = await res.json();
             if (res.ok) {
-                onUploadComplete(data.webViewLink);
+                onUploadComplete(data.webViewLink, file.name);
             } else {
                 alert(`Upload failed: ${data.error}`);
             }
@@ -306,6 +307,15 @@ function HookLibraryModal({ hooks, onClose, onSelect }: { hooks: Hook[], onClose
     );
 }
 
+const getPlayableUrl = (url: string) => {
+    if (!url) return "";
+    const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+        return `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
+    }
+    return url;
+};
+
 function ViewDocModal({ content, onClose }: { content: string, onClose: () => void }) {
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -338,6 +348,8 @@ function ViewDocModal({ content, onClose }: { content: string, onClose: () => vo
     );
 }
 
+import VideoReviewModal from "@/components/batches/VideoReviewModal";
+
 export default function BatchDetailPage() {
     const { id } = useParams();
     const router = useRouter();
@@ -348,6 +360,7 @@ export default function BatchDetailPage() {
     // Modal State
     const [viewingDoc, setViewingDoc] = useState<string | null>(null);
     const [selectingHookForItem, setSelectingHookForItem] = useState<string | null>(null);
+    const [reviewingItem, setReviewingItem] = useState<{ id: string; videoUrl: string; isReadOnly?: boolean } | null>(null);
 
     // Transcript State
     const [transcribingRef, setTranscribingRef] = useState(false);
@@ -393,11 +406,11 @@ export default function BatchDetailPage() {
     // Form States
     const [brief, setBrief] = useState(""); // Editor Brief
     const [isSavingBrief, setIsSavingBrief] = useState(false);
-    
+
     // New Form States
     const [idea, setIdea] = useState("");
     const [isSavingIdea, setIsSavingIdea] = useState(false);
-    
+
     const [creatorBrief, setCreatorBrief] = useState("");
     const [shotlist, setShotlist] = useState("");
     const [creatorBriefType, setCreatorBriefType] = useState("GENERAL");
@@ -423,7 +436,7 @@ export default function BatchDetailPage() {
                 const data = await batchRes.json();
                 setBatch(data);
                 setBrief(data.brief || "");
-                
+
                 // Set New Fields
                 setIdea(data.idea || "");
                 setCreatorBrief(data.creatorBrief || "");
@@ -437,7 +450,7 @@ export default function BatchDetailPage() {
                 });
 
                 // Initialize Accordion State: Open active section
-                const stages = ["PRODUCTION", "REVIEW", "AI_BOOST", "LAUNCHED"]; 
+                const stages = ["PRODUCTION", "REVIEW", "AI_BOOST", "LAUNCHED"];
                 // We need to map our new granular statuses to these stages or expand logic
                 // For now, let's keep the high-level mapping but maybe open relevant ones.
                 const newExpanded: Record<string, boolean> = {};
@@ -450,7 +463,7 @@ export default function BatchDetailPage() {
                 });
                 // Also force open the specific active status section if we have sections for them
                 if (data.status) newExpanded[data.status] = true;
-                
+
                 setExpandedSections(newExpanded);
 
             } else {
@@ -518,10 +531,10 @@ export default function BatchDetailPage() {
             await fetch(`/api/batches/${batch.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    creatorBrief, 
-                    shotlist, 
-                    creatorBriefType 
+                body: JSON.stringify({
+                    creatorBrief,
+                    shotlist,
+                    creatorBriefType
                 })
             });
         } catch (error) {
@@ -530,7 +543,7 @@ export default function BatchDetailPage() {
             setIsSavingCreatorBrief(false);
         }
     };
-    
+
     // Auto-fill templates
     const applyBriefTemplate = (type: string) => {
         setCreatorBriefType(type);
@@ -832,7 +845,7 @@ export default function BatchDetailPage() {
             {/* --- ACCORDION SECTIONS --- */}
 
             <div className="space-y-4">
-            
+
                 {/* 1. IDEATION */}
                 <BatchSection
                     title="1. Ideation"
@@ -864,7 +877,7 @@ export default function BatchDetailPage() {
                     isOpen={expandedSections["CREATOR_BRIEFING"] || false}
                     onToggle={() => toggleSection("CREATOR_BRIEFING")}
                     actions={
-                         <button
+                        <button
                             onClick={(e) => { e.stopPropagation(); saveCreatorBrief(); }}
                             disabled={isSavingCreatorBrief}
                             className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
@@ -880,17 +893,16 @@ export default function BatchDetailPage() {
                                 <button
                                     key={t}
                                     onClick={() => applyBriefTemplate(t)}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                                        creatorBriefType === t 
-                                        ? 'bg-indigo-100 border-indigo-200 text-indigo-700' 
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${creatorBriefType === t
+                                        ? 'bg-indigo-100 border-indigo-200 text-indigo-700'
                                         : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-                                    }`}
+                                        }`}
                                 >
                                     {t.charAt(0) + t.slice(1).toLowerCase()} Template
                                 </button>
                             ))}
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Instructions / Brief</label>
@@ -916,12 +928,12 @@ export default function BatchDetailPage() {
 
                 {/* 3. FILMING */}
                 <BatchSection
-                     title="3. Filming"
-                     status={batch.status === "FILMING" ? "active" : (["EDITOR_BRIEFING", "EDITING", "REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : "future")}
-                     isOpen={expandedSections["FILMING"] || false}
-                     onToggle={() => toggleSection("FILMING")}
+                    title="3. Filming"
+                    status={batch.status === "FILMING" ? "active" : (["EDITOR_BRIEFING", "EDITING", "REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : "future")}
+                    isOpen={expandedSections["FILMING"] || false}
+                    onToggle={() => toggleSection("FILMING")}
                 >
-                     <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
                         <h4 className="font-bold text-zinc-900 dark:text-white mb-4">Assigned Creators</h4>
                         {/* Logic to show creators. Assuming assignedCreators is on batch but type definition might miss it. 
                             Wait, type def for Batch didn't include assignedCreators explicitly in my update.
@@ -931,8 +943,8 @@ export default function BatchDetailPage() {
                             Let's check `Batch` type. I didn't add it.
                             I'll create a simple list or just count.
                          */}
-                         <p className="text-sm text-zinc-500">Manage assigned creators in the "Creators" tab.</p>
-                     </div>
+                        <p className="text-sm text-zinc-500">Manage assigned creators in the "Creators" tab.</p>
+                    </div>
                 </BatchSection>
 
                 {/* 4. EDITOR BRIEFING (Old Production) */}
@@ -986,28 +998,32 @@ export default function BatchDetailPage() {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <FileUpload
-                                                batchName={batch.name}
-                                                type="zip"
-                                                brandId={(batch as any).brandId || undefined}
-                                                batchId={String(batch.id)}
-                                                onUploadComplete={(url) => {
-                                                    // Use local endpoint to update batch
-                                                    // For now, simpler to just assume success and reload or update state if we had a dedicated endpoint for this field
-                                                    // Since we don't have a dedicated endpoint for `projectFilesUrl` in the generic Update Batch yet (only status/brief/ai), 
-                                                    // We probably need to update the PUT endpoint to accept projectFilesUrl
-                                                    // I will implement `FileUpload` component inline above or below
-                                                    // Updating local state:
-                                                    const updated = { ...batch, projectFilesUrl: url };
-                                                    setBatch(updated as any);
+                                            batch.items.length > 0 && batch.items.every(i => i.status === 'DONE') ? (
+                                                <FileUpload
+                                                    batchName={batch.name}
+                                                    type="zip"
+                                                    brandId={(batch as any).brandId || undefined}
+                                                    batchId={String(batch.id)}
+                                                    onUploadComplete={(url) => {
+                                                        // Use local endpoint to update batch
+                                                        const updated = { ...batch, projectFilesUrl: url };
+                                                        setBatch(updated as any);
 
-                                                    fetch(`/api/batches/${batch.id}`, {
-                                                        method: 'PUT',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ projectFilesUrl: url })
-                                                    });
-                                                }}
-                                            />
+                                                        fetch(`/api/batches/${batch.id}`, {
+                                                            method: 'PUT',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ projectFilesUrl: url })
+                                                        });
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="text-center p-4 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                                                    <p className="text-xs text-zinc-500 mb-1">Project files can be uploaded once all variations are approved.</p>
+                                                    <p className="text-[10px] text-zinc-400 font-mono">
+                                                        {batch.items.filter(i => i.status === 'DONE').length} of {batch.items.length} Approved
+                                                    </p>
+                                                </div>
+                                            )
                                         )}
                                     </div>
                                 </div>
@@ -1051,8 +1067,23 @@ export default function BatchDetailPage() {
                                                 <span className="text-[10px] font-mono text-zinc-400 select-all" title="Variation ID">
                                                     BATCH{batch.id}{getVariationLabel(index)}
                                                 </span>
+                                                {item.status === 'PENDING' && (
+                                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold mt-1 border border-amber-200">
+                                                        REVISION
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex-1 space-y-4">
+                                                {/* Revision Alert */}
+                                                {item.status === 'PENDING' && item.notes && (
+                                                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200">
+                                                        <p className="font-bold mb-1 flex items-center gap-2">
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                            Revision Requested
+                                                        </p>
+                                                        <p>{item.notes}</p>
+                                                    </div>
+                                                )}
                                                 {/* Hook Selection (Existing) */}
                                                 <div>
                                                     <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Hook</label>
@@ -1099,16 +1130,50 @@ export default function BatchDetailPage() {
                                                 <div>
                                                     <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Final Video</label>
                                                     {(item as any).videoUrl ? (
-                                                        <div className="group relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-zinc-800">
-                                                            <video src={(item as any).videoUrl} className="w-full h-full object-contain" controls />
+                                                        <div className={`w-full rounded-lg border p-3 flex items-center justify-between group transition-colors ${item.notes && item.status === 'PENDING' ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800' : 'bg-zinc-50 dark:bg-zinc-800/30 border-dashed border-zinc-200 dark:border-zinc-700'}`}>
+                                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                                <div className={`w-10 h-10 flex-shrink-0 rounded flex items-center justify-center ${item.notes && item.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
+                                                                    {item.notes && item.status === 'PENDING' ? (
+                                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                                    ) : (
+                                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                                    )}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-200 truncate pr-2">{(item as any).videoName || "Video Uploaded"}</p>
+                                                                    {item.notes && item.status === 'PENDING' ? (
+                                                                        <p className="text-xs font-bold text-amber-600 dark:text-amber-400">⚠️ Revision Requested</p>
+                                                                    ) : (
+                                                                        <p className="text-xs text-zinc-500">Ready for review</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
                                                             {getSectionState("PRODUCTION", batch.status) !== "future" && (
-                                                                <button
-                                                                    onClick={() => updateItem(item.id, { videoUrl: null })}
-                                                                    className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                                                                    title="Remove Video"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                </button>
+                                                                <div className="flex items-center gap-2">
+                                                                    {item.notes && item.status === 'PENDING' && (
+                                                                        <button
+                                                                            onClick={() => setReviewingItem({ id: item.id, videoUrl: (item as any).videoUrl, isReadOnly: true })}
+                                                                            className="text-sm bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-lg font-bold border border-amber-200 transition-colors mr-2 flex items-center gap-2 shadow-sm"
+                                                                        >
+                                                                            <span className="text-lg">🔍</span> Preview Revision Request
+                                                                        </button>
+                                                                    )}
+                                                                    {!item.notes && (
+                                                                        <button
+                                                                            onClick={() => setReviewingItem({ id: item.id, videoUrl: (item as any).videoUrl, isReadOnly: true })}
+                                                                            className="text-xs text-indigo-600 hover:text-indigo-700 px-2 py-1 rounded hover:bg-indigo-50 font-medium"
+                                                                        >
+                                                                            Preview
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        onClick={() => updateItem(item.id, { videoUrl: null, videoName: null })}
+                                                                        className="text-xs text-red-500 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50"
+                                                                    >
+                                                                        Replace File
+                                                                    </button>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     ) : (
@@ -1118,7 +1183,7 @@ export default function BatchDetailPage() {
                                                             brandId={(batch as any).brandId || undefined}
                                                             batchId={String(batch.id)}
                                                             variationLabel={getVariationLabel(index)}
-                                                            onUploadComplete={(url) => updateItem(item.id, { videoUrl: url })}
+                                                            onUploadComplete={(url, name) => updateItem(item.id, { videoUrl: url, videoName: name })}
                                                         />
                                                     )}
                                                 </div>
@@ -1127,7 +1192,7 @@ export default function BatchDetailPage() {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <div className="flex items-center justify-between mb-1">
-                                                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Visual Script</label>
+                                                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Voice Over Script</label>
                                                             <label className="flex items-center gap-1.5 cursor-pointer">
                                                                 <input
                                                                     type="checkbox"
@@ -1150,7 +1215,7 @@ export default function BatchDetailPage() {
                                                                 onBlur={(e) => updateItem(item.id, { script: e.target.value })}
                                                                 disabled={getSectionState("PRODUCTION", batch.status) === "future"}
                                                                 className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500 font-mono text-xs leading-relaxed"
-                                                                placeholder="Enter visual script..."
+                                                                placeholder="Enter voice over script..."
                                                             />
                                                         )}
                                                     </div>
@@ -1195,24 +1260,45 @@ export default function BatchDetailPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* ... existing review dashboard code ... */}
 
-                            {batch.items.map((item, index) => (
-                                <div key={item.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-lg text-zinc-700 w-8 h-8 flex items-center justify-center bg-zinc-100 rounded">{getVariationLabel(index)}</span>
-                                            <span className="text-sm font-medium text-zinc-600">{item.hook?.name || "No Hook"}</span>
+                            {batch.items
+                                .filter(item => !(item.status === 'PENDING' && item.notes)) // Hide items sent for revision
+                                .map((item, index) => (
+                                    <div key={item.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col gap-3">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-lg text-zinc-700 w-8 h-8 flex items-center justify-center bg-zinc-100 rounded">{getVariationLabel(index)}</span>
+                                                <span className="text-sm font-medium text-zinc-600">{item.hook?.name || "No Hook"}</span>
+                                            </div>
+                                            <div className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'DONE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{item.status}</div>
                                         </div>
-                                        <div className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'DONE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{item.status}</div>
+
+                                        {/* Video Preview in Review Dashboard */}
+                                        {(item as any).videoUrl ? (
+                                            <div className="my-2">
+                                                <button
+                                                    onClick={(e) => { e.preventDefault(); setReviewingItem({ id: item.id, videoUrl: (item as any).videoUrl }); }}
+                                                    className="w-full flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors group"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded bg-black flex items-center justify-center text-white">
+                                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <span className="block text-sm font-semibold text-zinc-900 dark:text-white group-hover:text-indigo-600">Review Video</span>
+                                                            <span className="block text-xs text-zinc-500">Click to open player</span>
+                                                        </div>
+                                                    </div>
+                                                    <svg className="w-5 h-5 text-zinc-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xs text-zinc-400 italic my-2">
+                                                No Video Uploaded
+                                            </div>
+                                        )}
+                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap max-h-40 overflow-y-auto">{item.script || "No Script Content"}</div>
                                     </div>
-                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap max-h-40 overflow-y-auto">{item.script || "No Script Content"}</div>
-                                    {getSectionState("REVIEW", batch.status) === "active" && (
-                                        <div className="flex gap-2 mt-auto pt-2">
-                                            <button onClick={() => updateItem(item.id, { status: "DONE" })} disabled={item.status === "DONE"} className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">Approve</button>
-                                            <button onClick={() => { const note = prompt("Add revision note:", item.notes || ""); if (note !== null) updateItem(item.id, { notes: note, status: "PENDING" }); }} className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 py-1.5 rounded text-xs font-medium transition-colors">Request Revision</button>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     </div>
                 </BatchSection>
@@ -1264,6 +1350,21 @@ export default function BatchDetailPage() {
                         onSelect={(hook) => {
                             updateItem(selectingHookForItem, { hookId: hook.id || null });
                             setSelectingHookForItem(null);
+                        }}
+                    />
+                )}
+                {reviewingItem && (
+                    <VideoReviewModal
+                        videoUrl={reviewingItem.videoUrl}
+                        batchItemId={reviewingItem.id}
+                        onClose={() => setReviewingItem(null)}
+                        brandId={(batch as any).brandId}
+                        onStatusChange={reviewingItem.isReadOnly ? undefined : (status, notes) => {
+                            if (status && reviewingItem.id) {
+                                const update: any = { status };
+                                if (notes) update.notes = notes;
+                                updateItem(reviewingItem.id, update);
+                            }
                         }}
                     />
                 )}

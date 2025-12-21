@@ -8,6 +8,9 @@ export interface Brand {
     name: string;
     logoUrl?: string | null;
     color?: string | null;
+    adAccountId?: string | null;
+    facebookAccessToken?: string | null;
+    breakEvenRoas?: number | null;
 }
 
 interface BrandContextType {

@@ -160,6 +160,7 @@ model Brand {
   color     String?  // Hex code for profile avatar background
   
   offerBrief String? // Information about the product/market/avatar for AI generation
+  breakEvenRoas Float?  @default(1.0)
   
   batches   AdBatch[]
   concepts  CreativeConcept[]
@@ -381,7 +382,22 @@ model BatchItem {
   notes     String?
   script    String?
   videoUrl  String?  // Link to Google Drive Video
+  videoName String?  // Original Filename
   status    String   @default("PENDING") // PENDING, DONE
+  
+  comments  CreativeComment[]
+}
+
+model CreativeComment {
+  id          String   @id @default(cuid())
+  batchItemId String
+  batchItem   BatchItem @relation(fields: [batchItemId], references: [id], onDelete: Cascade)
+  
+  text        String
+  timestamp   Float    // In seconds
+  
+  userName    String?
+  createdAt   DateTime @default(now())
 }
 
 model ImportBatch {

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-        const { hookId, notes, script, status, videoUrl } = await request.json();
+        const { hookId, notes, script, status, videoUrl, videoName } = await request.json();
 
         const updated = await prisma.batchItem.update({
             where: { id },
@@ -13,10 +13,19 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 notes: notes,
                 script: script,
                 status: status,
-                videoUrl: videoUrl
+                videoUrl: videoUrl,
+                videoName: videoName
             },
             include: { hook: true }
         });
+
+        // Loopback: If Revision Requested (PENDING + Notes), revert Batch to EDITING
+        if (status === 'PENDING' && notes) {
+            await prisma.adBatch.update({
+                where: { id: updated.batchId },
+                data: { status: 'EDITING' }
+            });
+        }
 
         return NextResponse.json(updated);
     } catch (error) {

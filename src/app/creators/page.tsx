@@ -25,16 +25,16 @@ interface Creator {
     joinedAt: string;
     profileImageUrl?: string;
     creatives?: { id: string; thumbnailUrl: string | null; driveFileId: string | null }[];
-    onboardingStep?: string; 
+    onboardingStep?: string;
     status?: string;        // Added
     gender?: string;        // Added
     ageGroup?: string;      // Added
     activeBatchId?: number; // Added
-    offerType?: string;      
-    offerAmount?: number;    
-    productLink?: string;    
-    couponCode?: string;     
-    orderNumber?: string;    
+    offerType?: string;
+    offerAmount?: number;
+    productLink?: string;
+    couponCode?: string;
+    orderNumber?: string;
 }
 
 const MESSAGING_PLATFORMS = ["Upwork", "Slack", "Zoho", "Whatsapp", "Instagram", "Gorgias"];
@@ -127,9 +127,9 @@ export default function CreatorsPage() {
 
 
 
-            const payload = { 
-                ...formData, 
-                brandId: selectedBrand.id, 
+            const payload = {
+                ...formData,
+                brandId: selectedBrand.id,
                 demographicId,
                 gender: selectedGender,    // Added
                 ageGroup: selectedAge      // Added
@@ -161,7 +161,7 @@ export default function CreatorsPage() {
     const handleReject = async (id: string) => {
         if (!confirm("Reject this creator?")) return;
         try {
-            await fetch(`/api/creators/${id}`, { 
+            await fetch(`/api/creators/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'REJECTED' })
@@ -174,7 +174,7 @@ export default function CreatorsPage() {
         if (creator) {
             setEditingCreator(creator);
             setFormData(creator);
-            
+
             // Prioritize Explicit Fields, then fallback to Demographic Name
             let gender = creator.gender || "";
             let age = creator.ageGroup || "";
@@ -229,10 +229,10 @@ export default function CreatorsPage() {
 
         try {
             const url = `/api/creators/${editingCreator.id}`;
-            const payload = { 
-                ...formData, 
+            const payload = {
+                ...formData,
                 status: 'APPROVED',
-                onboardingStep: 'OFFER' 
+                onboardingStep: 'OFFER'
             };
 
             const res = await fetch(url, {
@@ -244,31 +244,48 @@ export default function CreatorsPage() {
             if (res.ok) {
                 const updatedCreator = await res.json();
                 fetchCreators();
-                
+
                 // Show Link
                 if (updatedCreator.magicLinkToken) {
                     const link = `${window.location.origin}/portal?token=${updatedCreator.magicLinkToken}`;
                     setApprovedLink(link);
                 } else {
-                     setIsApproveModalOpen(false);
-                     setEditingCreator(null);
+                    setIsApproveModalOpen(false);
+                    setEditingCreator(null);
                 }
             }
         } catch (error) {
             console.error(error);
         }
     };
-    
+
     // ...
 
 
 
+    const getProxiedUrl = (url?: string | null) => {
+        if (!url) return null;
+
+        // Check if it's a Drive Link
+        let id = "";
+        const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (driveMatch && driveMatch[1]) id = driveMatch[1];
+
+        // Or query param id=
+        if (!id) {
+            const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
+            if (idMatch && idMatch[1]) id = idMatch[1];
+        }
+
+        if (id) return `/api/proxy/image/${id}`;
+        return url;
+    };
+
     const getThumbnail = (creative: { thumbnailUrl: string | null; driveFileId: string | null }) => {
-        // Use local proxy to avoid 403 on private files
         if (creative.driveFileId) {
             return `/api/proxy/image/${creative.driveFileId}`;
         }
-        return creative.thumbnailUrl;
+        return getProxiedUrl(creative.thumbnailUrl);
     };
 
     const filteredCreators = creators.filter(c => {
@@ -312,13 +329,13 @@ export default function CreatorsPage() {
 
             {/* Tabs */}
             <div className="flex border-b border-zinc-200 dark:border-zinc-800 mb-6">
-                <button 
+                <button
                     onClick={() => setActiveTab('active')}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'active' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
                 >
                     Active Creators
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('requests')}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'requests' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
                 >
@@ -329,7 +346,7 @@ export default function CreatorsPage() {
                         </span>
                     )}
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('rejected')}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'rejected' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
                 >
@@ -347,7 +364,7 @@ export default function CreatorsPage() {
             ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     {filteredCreators.map((c) => {
-                        const thumbnail = c.profileImageUrl || (c.creatives && c.creatives.length > 0 ? getThumbnail(c.creatives[0]) : null);
+                        const thumbnail = getProxiedUrl(c.profileImageUrl) || (c.creatives && c.creatives.length > 0 ? getThumbnail(c.creatives[0]) : null);
                         return (
                             <div key={c.id} className="group bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all overflow-hidden cursor-pointer" onClick={() => openModal(c)}>
                                 {/* Image / Cover Area */}
@@ -393,11 +410,11 @@ export default function CreatorsPage() {
                                                 Filming Batch
                                             </span>
                                         ) : c.onboardingStep === 'OFFER' ? (
-                                             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm bg-yellow-500 text-white">
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm bg-yellow-500 text-white">
                                                 Offer Sent
                                             </span>
                                         ) : c.onboardingStep === 'ORDER' || c.onboardingStep === 'UPLOAD' ? (
-                                             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm bg-indigo-500 text-white">
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm bg-indigo-500 text-white">
                                                 General Filming
                                             </span>
                                         ) : (
@@ -417,16 +434,16 @@ export default function CreatorsPage() {
                                         {activeTab === 'requests' ? (
                                             <>
                                                 <button
-                                                onClick={(e) => { e.stopPropagation(); openApproveModal(c); }}
-                                                className="bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition-colors"
+                                                    onClick={(e) => { e.stopPropagation(); openApproveModal(c); }}
+                                                    className="bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition-colors"
                                                 >
-                                                Approve
+                                                    Approve
                                                 </button>
                                                 <button
-                                                onClick={(e) => { e.stopPropagation(); handleReject(c.id); }}
-                                                className="bg-red-900/50 text-red-400 px-2 py-1 rounded hover:bg-red-900 transition-colors ml-2"
+                                                    onClick={(e) => { e.stopPropagation(); handleReject(c.id); }}
+                                                    className="bg-red-900/50 text-red-400 px-2 py-1 rounded hover:bg-red-900 transition-colors ml-2"
                                                 >
-                                                Reject
+                                                    Reject
                                                 </button>
                                             </>
                                         ) : (
@@ -596,7 +613,7 @@ export default function CreatorsPage() {
                                     {/* Preview */}
                                     <div className="w-24 h-24 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 flex-shrink-0 overflow-hidden relative self-start mt-8">
                                         {formData.profileImageUrl ? (
-                                            <img src={formData.profileImageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                            <img src={getProxiedUrl(formData.profileImageUrl) || ""} className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-zinc-400">
                                                 <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -706,26 +723,26 @@ export default function CreatorsPage() {
 
             {/* Approve Modal */}
             {isApproveModalOpen && (
-                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={(e) => { if(!approvedLink) { e.target === e.currentTarget && setIsApproveModalOpen(false) } }}>
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={(e) => { if (!approvedLink) { e.target === e.currentTarget && setIsApproveModalOpen(false) } }}>
                     <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-lg w-full p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95">
                         {approvedLink ? (
                             <div className="text-center">
                                 <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                 </div>
                                 <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-white">Offer Sent!</h2>
                                 <p className="text-zinc-500 mb-6">The creator has been approved. Share this link with them to access the portal:</p>
-                                
+
                                 <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg flex items-center gap-2 mb-6 border border-zinc-200 dark:border-zinc-700">
                                     <code className="flex-1 text-sm text-zinc-600 dark:text-zinc-300 truncate">{approvedLink}</code>
-                                    <button 
+                                    <button
                                         onClick={() => navigator.clipboard.writeText(approvedLink)}
                                         className="text-indigo-600 hover:text-indigo-500 font-medium text-sm"
                                     >
                                         Copy
                                     </button>
                                 </div>
-                                
+
                                 <button onClick={() => { setIsApproveModalOpen(false); setApprovedLink(null); setEditingCreator(null); }} className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors">
                                     Done
                                 </button>
@@ -734,13 +751,13 @@ export default function CreatorsPage() {
                             <>
                                 <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-white">Approve & Send Offer</h2>
                                 <p className="text-zinc-500 text-sm mb-6">Configure the offer for {editingCreator?.name}. This will notify them to proceed.</p>
-                                
+
                                 <form onSubmit={submitApproval} className="space-y-4">
                                     <div>
                                         <label className="block text-sm text-zinc-500 mb-1">Offer Type</label>
-                                        <select 
-                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
-                                            value={formData.offerType || 'FREE_KIT'} 
+                                        <select
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none"
+                                            value={formData.offerType || 'FREE_KIT'}
                                             onChange={e => setFormData({ ...formData, offerType: e.target.value })}
                                         >
                                             <option value="FREE_KIT">Free Product Kit</option>
@@ -751,40 +768,40 @@ export default function CreatorsPage() {
                                     {formData.offerType === 'PAID' && (
                                         <div>
                                             <label className="block text-sm text-zinc-500 mb-1">Amount ($)</label>
-                                            <input 
-                                                type="number" 
-                                                className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
-                                                value={formData.offerAmount || 0} 
-                                                onChange={e => setFormData({ ...formData, offerAmount: parseFloat(e.target.value) })} 
+                                            <input
+                                                type="number"
+                                                className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none"
+                                                value={formData.offerAmount || 0}
+                                                onChange={e => setFormData({ ...formData, offerAmount: parseFloat(e.target.value) })}
                                             />
                                         </div>
                                     )}
 
                                     <div>
                                         <label className="block text-sm text-zinc-500 mb-1">Product Link</label>
-                                        <input 
-                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
-                                            value={formData.productLink || ''} 
-                                            onChange={e => setFormData({ ...formData, productLink: e.target.value })} 
-                                            placeholder="https://brand.com/product" 
+                                        <input
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none"
+                                            value={formData.productLink || ''}
+                                            onChange={e => setFormData({ ...formData, productLink: e.target.value })}
+                                            placeholder="https://brand.com/product"
                                         />
                                     </div>
 
-                                     <div>
+                                    <div>
                                         <label className="block text-sm text-zinc-500 mb-1">Coupon Code</label>
-                                        <input 
-                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
-                                            value={formData.couponCode || ''} 
-                                            onChange={e => setFormData({ ...formData, couponCode: e.target.value })} 
-                                            placeholder="CREATOR100" 
+                                        <input
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none"
+                                            value={formData.couponCode || ''}
+                                            onChange={e => setFormData({ ...formData, couponCode: e.target.value })}
+                                            placeholder="CREATOR100"
                                         />
                                     </div>
 
                                     <div>
                                         <label className="block text-sm text-zinc-500 mb-1">Assign to Batch (Briefing)</label>
-                                        <select 
-                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none" 
-                                            value={formData.activeBatchId || ''} 
+                                        <select
+                                            className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 outline-none"
+                                            value={formData.activeBatchId || ''}
                                             onChange={e => setFormData({ ...formData, activeBatchId: parseInt(e.target.value) })}
                                         >
                                             <option value="">-- No Batch --</option>

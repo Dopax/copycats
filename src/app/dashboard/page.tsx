@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useBrand } from "@/context/BrandContext";
+import HeatmapGrid from "@/components/dashboard/HeatmapGrid";
 
 interface Distribution {
     name: string;
@@ -24,6 +25,7 @@ interface Stats {
 export default function DashboardPage() {
     const { selectedBrand } = useBrand();
     const [stats, setStats] = useState<Stats | null>(null);
+    const [heatmapData, setHeatmapData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -39,6 +41,13 @@ export default function DashboardPage() {
             if (res.ok) {
                 setStats(await res.json());
             }
+
+            // Fetch Heatmap
+            const heatRes = await fetch(`/api/analytics/heatmap?brandId=${selectedBrand?.id}`);
+            if (heatRes.ok) {
+                setHeatmapData(await heatRes.json());
+            }
+
         } catch (error) {
             console.error(error);
         } finally {
@@ -112,6 +121,21 @@ export default function DashboardPage() {
                     title="Top Performing Angle"
                     value={stats.distributions.topAngles[0]?.name || "N/A"}
                     subtext={stats.distributions.topAngles[0] ? `${stats.distributions.topAngles[0].count} batches` : "No data"}
+                />
+                <StatCard
+                    title="Top Performing Angle"
+                    value={stats.distributions.topAngles[0]?.name || "N/A"}
+                    subtext={stats.distributions.topAngles[0] ? `${stats.distributions.topAngles[0].count} batches` : "No data"}
+                />
+            </div>
+
+            {/* Creative Heatmap Section */}
+            <div className="h-[500px]">
+                <HeatmapGrid
+                    title="Creative Performance Matrix"
+                    description="Performance heatmap of Ad Angles vs Ad Formats. Color indicates ROAS efficiency."
+                    data={heatmapData}
+                    breakEvenRoas={selectedBrand?.breakEvenRoas || 1.5}
                 />
             </div>
 

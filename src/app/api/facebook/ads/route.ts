@@ -3,20 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
-    const { searchParams } = new URL(req.url); // Use standard URL interface
-    
+    const { searchParams } = new URL(req.url);
+
     // Simulating getting logged in user's active brand or pass via query
-    // In strict RBAC, we should get session. 
-    // For now, let's assume `brandId` is passed, or we look it up from User (TODO).
-    // The previous mocked page didn't pass brandId but `useBrand` context has it.
-    // Client should pass ?brandId
-    
-    // Cookie-based session access for brand is not standard here without middleware injection.
-    // For simplicity, we accept `?brandId=...` and rely on middleware protection for the route if needed.
-    // NOTE: Middleware protects generic /api, but we need to ensure the user has access to this brand.
-    
-    // TEMPORARY: Just use the brandId from query
     const brandId = searchParams.get("brandId");
+    // Date Preset from query, default to 'maximum'
+    // NOTE: 'maximum' is internal app code for 'lifetime' data
+    const datePreset = searchParams.get("datePreset") || "maximum";
 
     if (!brandId) {
         return NextResponse.json({ error: "Brand ID required" }, { status: 400 });
@@ -34,60 +27,131 @@ export async function GET(req: NextRequest) {
         const accessToken = brand.facebookAccessToken;
         const accountId = brand.adAccountId;
 
-        // Fetch Ads from Facebook Graph API
-        // Fields: name, status, spend, insights data
-        // We probably need to fetch 'ads' edge, then 'insights' edge for each, or robustly:
-        // Fetch ads with insights fields.
-        
-        // 'roas' is not a direct field. 'purchase_roas' is returned as a list of action types.
-        // For simplicity/stability, we fetch base metrics + purchase_roas.
-        const fields = "id,name,status,creative{id,name},insights.date_preset(maximum){spend,cpm,ctr,impressions,clicks,purchase_roas}";
-        const url = `https://graph.facebook.com/v18.0/${accountId}/ads?fields=${fields}&limit=50&access_token=${accessToken}`;
-        
-        console.log("Fetching FB Ads URL:", url.replace(accessToken, "REDACTED"));
+        // Recursive fetch for all ads
+        let allAds: any[] = [];
+        let afterCursor: string | null = null;
+        let hasNext = true;
 
-        const fbRes = await fetch(url);
-        const fbData = await fbRes.json();
-        
-        console.log("FB Ads Response:", JSON.stringify(fbData).substring(0, 500)); 
+        // Prevent infinite loops / too many requests if account is massive
+        const MAX_PAGES = 20; // Reduced from 50 to prevent immediate lockout
+        let pageCount = 0;
 
-        if (fbData.error) {
-            console.error("FB API Error", fbData.error);
-            // If token expired, we might want to return specific error code
-            return NextResponse.json({ error: fbData.error.message }, { status: 500 });
+        // Rate Limit Helper
+        const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+        while (hasNext && pageCount < MAX_PAGES) {
+            // Add slight delay to respect rate limits
+            if (pageCount > 0) await sleep(500);
+
+            // Construct Insights Field Params
+            let insightsParams = "";
+
+            if (datePreset === "maximum") {
+                // Use robust time_range for Maximum
+                // FB Limit: cannot be beyond 37 months from current date.
+                // We use 36 months (~3 years) to be safe.
+                const today = new Date();
+                const pastDate = new Date();
+                pastDate.setMonth(today.getMonth() - 36);
+
+                const todayStr = today.toISOString().split('T')[0];
+                const pastStr = pastDate.toISOString().split('T')[0];
+
+                const timeRange = JSON.stringify({ since: pastStr, until: todayStr });
+                insightsParams = `insights.time_range(${timeRange}){spend,cpm,ctr,impressions,clicks,purchase_roas,actions,action_values}`;
+            } else {
+                // Use standard presets
+                insightsParams = `insights.date_preset(${datePreset}){spend,cpm,ctr,impressions,clicks,purchase_roas,actions,action_values}`;
+            }
+
+            const fields = `id,name,status,creative{id,name},campaign{id,name},adset{id,name},${insightsParams}`;
+            let url = `https://graph.facebook.com/v18.0/${accountId}/ads?fields=${fields}&limit=50&access_token=${accessToken}`;
+
+            if (afterCursor) {
+                url += `&after=${afterCursor}`;
+            }
+
+            console.log(`Fetching FB Ads Page ${pageCount + 1}...`);
+            const fbRes = await fetch(url);
+            const fbData = await fbRes.json();
+
+            // Handle Per-Call Rate Limit Error specifically
+            if (fbData.error && fbData.error.code === 17) {
+                // Rate limit reached? Wait longer and retry once? 
+                // For now, break and return what we have to avoid crashing
+                console.warn("Rate limit hit, returning partial data.");
+                break;
+            }
+
+            if (fbData.error) {
+                console.error("FB API Error", fbData.error);
+                throw new Error(fbData.error.message);
+            }
+
+            if (fbData.data) {
+                allAds = [...allAds, ...fbData.data];
+            }
+
+            if (fbData.paging && fbData.paging.next && fbData.paging.cursors?.after) {
+                afterCursor = fbData.paging.cursors.after;
+                pageCount++;
+            } else {
+                hasNext = false;
+            }
         }
 
-        const ads = fbData.data.map((ad: any) => {
+        const ads = allAds.map((ad: any) => {
             const insights = ad.insights?.data?.[0] || {};
-            
-            // Extract ROAS safely
+            const spend = parseFloat(insights.spend || "0");
+
+            // Extract Revenue (Action Values) for ROAS robustness
+            let revenue = 0;
+            if (insights.action_values) {
+                const valObj = insights.action_values.find((x: any) => x.action_type === 'omni_purchase' || x.action_type === 'purchase');
+                if (valObj) revenue = parseFloat(valObj.value);
+            }
+
+            // Extract ROAS safely or Calculate
             let roas = 0;
             if (insights.purchase_roas) {
                 const roasObj = insights.purchase_roas.find((x: any) => x.action_type === 'omni_purchase' || x.action_type === 'purchase');
                 if (roasObj) roas = parseFloat(roasObj.value);
             }
+            if (roas === 0 && spend > 0 && revenue > 0) {
+                roas = revenue / spend;
+            }
+
+            // Calculate CPA (Cost per Purchase)
+            let purchases = 0;
+            if (insights.actions) {
+                const purchaseAction = insights.actions.find((x: any) => x.action_type === 'omni_purchase' || x.action_type === 'purchase');
+                if (purchaseAction) purchases = parseFloat(purchaseAction.value);
+            }
+            const cpa = purchases > 0 ? spend / purchases : 0;
 
             return {
                 id: ad.id,
                 name: ad.name,
+                campaignName: ad.campaign?.name || "Unknown Campaign",
+                adsetName: ad.adset?.name || "Unknown AdSet",
                 status: ad.status,
-                spend: parseFloat(insights.spend || "0"),
+                spend: spend,
                 roas: roas,
+                revenue: revenue,
+                cpa: cpa,
+                purchases: purchases,
                 cpm: parseFloat(insights.cpm || "0"),
                 ctr: parseFloat(insights.ctr || "0"),
                 clicks: parseInt(insights.clicks || "0"),
                 impressions: parseInt(insights.impressions || "0"),
-                // Check if already linked from DB
-                // We'll calculate this in a second query or join
             };
         });
-        
-        // Get existing links to overlay batch info
+
         const linkedAds = await prisma.facebookAd.findMany({
-            where: { id: { in: ads.map((a:any) => a.id) } },
+            where: { id: { in: ads.map((a: any) => a.id) } },
             include: { batch: { select: { id: true, name: true } } }
         });
-        
+
         const linkedMap = new Map(linkedAds.map(l => [l.id, l]));
 
         const finalAds = ads.map((ad: any) => {
@@ -102,7 +166,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(finalAds);
 
     } catch (error: any) {
-        console.error(error);
-        return NextResponse.json({ error: "Failed to fetch ads" }, { status: 500 });
+        console.error("Critical FB API Error:", error);
+        return NextResponse.json({ error: error.message || "Failed to fetch ads", details: JSON.stringify(error) }, { status: 500 });
     }
 }

@@ -91,3 +91,21 @@ export async function ensureFolder(drive: any, parentId: string, folderName: str
         throw error;
     }
 }
+
+export async function shareFile(fileId: string, authClient?: any) {
+    const auth = authClient || await authorize();
+    const drive = google.drive({ version: 'v3', auth });
+
+    try {
+        await drive.permissions.create({
+            fileId: fileId,
+            requestBody: {
+                role: 'reader',
+                type: 'anyone',
+            },
+        });
+        console.log(`Shared file ${fileId} with anyone`);
+    } catch (error) {
+        console.error("Share File Error:", error);
+    }
+}
