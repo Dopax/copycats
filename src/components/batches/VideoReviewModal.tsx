@@ -254,14 +254,31 @@ export default function VideoReviewModal({ videoUrl, batchItemId, onClose, onSta
                             <div
                                 key={comment.id}
                                 onClick={() => seekTo(comment.timestamp)}
-                                className={`p-3 rounded-lg border border-zinc-800 bg-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-700 cursor-pointer transition-all group ${Math.abs(currentTime - comment.timestamp) < 1 ? 'ring-1 ring-yellow-500 border-yellow-500/50' : ''
+                                className={`p-3 rounded-lg border border-zinc-800 bg-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-700 cursor-pointer transition-all group relative ${Math.abs(currentTime - comment.timestamp) < 1 ? 'ring-1 ring-yellow-500 border-yellow-500/50' : ''
                                     }`}
                             >
                                 <div className="flex justify-between items-start mb-1">
-                                    <span className="text-yellow-500 font-mono text-xs font-bold bg-yellow-500/10 px-1.5 py-0.5 rounded">
-                                        {fmtTime(comment.timestamp)}
-                                    </span>
-                                    <span className="text-[10px] text-zinc-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-yellow-500 font-mono text-xs font-bold bg-yellow-500/10 px-1.5 py-0.5 rounded">
+                                            {fmtTime(comment.timestamp)}
+                                        </span>
+                                        <span className="text-[10px] text-zinc-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                                    </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const handleDelete = async () => {
+                                                if (!confirm("Delete this comment?")) return;
+                                                setComments(prev => prev.filter(c => c.id !== comment.id));
+                                                await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' });
+                                            };
+                                            handleDelete();
+                                        }}
+                                        className="text-zinc-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1"
+                                        title="Delete Comment"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
                                 </div>
                                 <p className="text-sm text-zinc-300 leading-relaxed group-hover:text-white transition-colors">
                                     {comment.text}

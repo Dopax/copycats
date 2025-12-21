@@ -4,7 +4,12 @@ import { prisma } from '@/lib/prisma';
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-        const { hookId, notes, script, status, videoUrl, videoName } = await request.json();
+        const { hookId, notes, script, status, videoUrl, videoName, clearComments } = await request.json();
+
+        // Clear comments if requested (e.g. when replacing a video)
+        if (clearComments) {
+            await prisma.creativeComment.deleteMany({ where: { batchItemId: id } });
+        }
 
         const updated = await prisma.batchItem.update({
             where: { id },

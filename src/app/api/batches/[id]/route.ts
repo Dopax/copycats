@@ -67,7 +67,12 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 aiAdCopy: data.aiAdCopy,
                 aiImagePrompt: data.aiImagePrompt,
                 aiVideoPrompt: data.aiVideoPrompt,
-                projectFilesUrl: data.projectFilesUrl
+                projectFilesUrl: data.projectFilesUrl,
+                // New Fields
+                idea: data.idea,
+                creatorBrief: data.creatorBrief,
+                shotlist: data.shotlist,
+                creatorBriefType: data.creatorBriefType
             },
         });
 

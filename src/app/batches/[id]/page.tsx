@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
@@ -130,15 +130,17 @@ const STATUS_FLOW = ["IDEATION", "CREATOR_BRIEFING", "FILMING", "EDITOR_BRIEFING
 // Helper to determine active sections based on status
 const getSectionState = (section: string, currentStatus: string) => {
     // Define the sequence of major stages
-    // PRODUCTION covers Creator Briefing, Filming, Editor Briefing and Editing
-    const sequence = ["PRODUCTION", "REVIEW", "AI_BOOST", "LAUNCHED"];
+    // BRIEFING: Ideation, Creator Briefing, Filming (Strategist Work)
+    // PRODUCTION: Editor Briefing (Handover), Editing (Editor Work)
+    const sequence = ["BRIEFING", "PRODUCTION", "REVIEW", "AI_BOOST", "LAUNCHED"];
 
     // Map status to stage index
     const statusMap: Record<string, number> = {
-        "IDEATION": 0, "CREATOR_BRIEFING": 0, "FILMING": 0, "EDITOR_BRIEFING": 0, "EDITING": 0, // All map to PRODUCTION stage
-        "REVIEW": 1,
-        "AI_BOOST": 2, // Adjusted indices
-        "LAUNCHED": 3, "ARCHIVED": 3
+        "IDEATION": 0, "CREATOR_BRIEFING": 0, "FILMING": 0, "EDITOR_BRIEFING": 0,
+        "EDITING": 1,
+        "REVIEW": 2,
+        "AI_BOOST": 3,
+        "LAUNCHED": 4, "ARCHIVED": 4
     };
 
     const currentStageIndex = statusMap[currentStatus] ?? 0;
@@ -147,6 +149,76 @@ const getSectionState = (section: string, currentStatus: string) => {
     if (sectionIndex === currentStageIndex) return "active";
     if (sectionIndex < currentStageIndex) return "past";
     return "future";
+};
+
+// Helper Hook for Auto-Save with Unmount Flush
+function useAutoSave<T>(value: T, saveFn: (val: T) => void, delay = 1000) {
+    const valueRef = useRef(value);
+    const saveFnRef = useRef(saveFn);
+    const dirty = useRef(false);
+    const first = useRef(true);
+    const timer = useRef<any>(null);
+
+    // Keep refs fresh
+    useEffect(() => {
+        valueRef.current = value;
+        saveFnRef.current = saveFn;
+    }, [value, saveFn]);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (timer.current) clearTimeout(timer.current);
+        };
+    }, []);
+
+    // Debounce logic
+    useEffect(() => {
+        if (first.current) {
+            first.current = false;
+            return;
+        }
+
+        dirty.current = true;
+
+        if (timer.current) clearTimeout(timer.current);
+
+        timer.current = setTimeout(() => {
+            saveFnRef.current(value);
+            dirty.current = false;
+        }, delay);
+
+    }, [value, delay]);
+
+    // Unmount Flush
+    useEffect(() => {
+        return () => {
+            if (dirty.current) {
+                saveFnRef.current(valueRef.current);
+            }
+        };
+    }, []);
+}
+
+// Debounced Textarea for Mapped Lists
+const DebouncedTextarea = ({ value, onCommit, delay = 1000, ...props }: any) => {
+    const [localValue, setLocalValue] = useState(value);
+
+    useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    useAutoSave(localValue, (val) => {
+        if (val !== value) onCommit(val);
+    }, delay);
+
+    return (
+        <textarea
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            {...props}
+        />
+    );
 };
 
 // Accordion Component
@@ -420,6 +492,35 @@ export default function BatchDetailPage() {
     const [aiForm, setAiForm] = useState({ adCopy: "", imagePrompt: "", videoPrompt: "" });
     const [isSavingAi, setIsSavingAi] = useState(false);
 
+    // Auto-Save Refs & Effects
+    const isMounted = useRef(false);
+
+    useEffect(() => {
+        isMounted.current = true;
+        return () => { isMounted.current = false; };
+    }, []);
+
+    useAutoSave(idea, () => saveIdea());
+    useAutoSave(brief, () => saveBrief());
+    useAutoSave(creatorBrief, () => saveCreatorBrief()); // saveCreatorBrief reads shotlist/type from state, which might be stale in closure? 
+    // Wait, saveCreatorBrief closes over 'shotlist' and 'creatorBriefType'.
+    // useAutoSave captures the closure of saveFn passed to it.
+    // If I pass `() => saveCreatorBrief()`, this arrow function captures the scope of the render.
+    // `useAutoSave` puts this into `saveFnRef`.
+    // So `saveFnRef.current` is the LATEST arrow function.
+    // So it sees the LATEST state. Correct.
+
+    // However, I should probably include shotlist/type in the dependencies to trigger the debounce timer?
+    // useAutoSave only triggers on 'value' change.
+    // If I type in shotlist, 'idea' (passed as value above? No, I need separate calls or composite).
+
+    // I need to use useAutoSave for each group or pass composite object.
+    const creatorBriefComposite = useMemo(() => ({ creatorBrief, shotlist, creatorBriefType }), [creatorBrief, shotlist, creatorBriefType]);
+    useAutoSave(creatorBriefComposite, () => saveCreatorBrief());
+
+    const aiFormComposite = aiForm;
+    useAutoSave(aiFormComposite, () => saveAiBoost());
+
     useEffect(() => {
         if (id) fetchData();
     }, [id]);
@@ -510,7 +611,7 @@ export default function BatchDetailPage() {
 
     const saveIdea = async () => {
         if (!batch) return;
-        setIsSavingIdea(true);
+        if (isMounted.current) setIsSavingIdea(true);
         try {
             await fetch(`/api/batches/${batch.id}`, {
                 method: 'PUT',
@@ -520,13 +621,13 @@ export default function BatchDetailPage() {
         } catch (error) {
             console.error("Failed to save idea", error);
         } finally {
-            setIsSavingIdea(false);
+            if (isMounted.current) setIsSavingIdea(false);
         }
     };
 
     const saveCreatorBrief = async () => {
         if (!batch) return;
-        setIsSavingCreatorBrief(true);
+        if (isMounted.current) setIsSavingCreatorBrief(true);
         try {
             await fetch(`/api/batches/${batch.id}`, {
                 method: 'PUT',
@@ -540,7 +641,7 @@ export default function BatchDetailPage() {
         } catch (error) {
             console.error("Failed to save creator brief", error);
         } finally {
-            setIsSavingCreatorBrief(false);
+            if (isMounted.current) setIsSavingCreatorBrief(false);
         }
     };
 
@@ -560,7 +661,7 @@ export default function BatchDetailPage() {
 
     const saveBrief = async () => {
         if (!batch) return;
-        setIsSavingBrief(true);
+        if (isMounted.current) setIsSavingBrief(true);
         try {
             await fetch(`/api/batches/${batch.id}`, {
                 method: 'PUT',
@@ -570,7 +671,7 @@ export default function BatchDetailPage() {
         } catch (error) {
             console.error("Failed to save brief", error);
         } finally {
-            setIsSavingBrief(false);
+            if (isMounted.current) setIsSavingBrief(false);
         }
     };
 
@@ -597,7 +698,7 @@ export default function BatchDetailPage() {
         } catch (error) {
             console.error("Failed to save AI Boost", error);
         } finally {
-            setIsSavingAi(false);
+            if (isMounted.current) setIsSavingAi(false);
         }
     };
 
@@ -742,8 +843,15 @@ export default function BatchDetailPage() {
                     </div>
                 </div>
 
+                {/* Strategy Sentence */}
+                <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm mb-6">
+                    <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed text-center">
+                        This ad batch should talk to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.demographic.name}</span>, which are <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.awarenessLevel?.name?.replace('Problem Unaware', 'Unaware') || "Unaware"}</span> of their desire to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.angle.name}</span>. The overarching theme is <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.theme.name}</span>.
+                    </p>
+                </div>
+
                 {/* Concept Context Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
 
                     {/* Angle Hover Card */}
                     <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
@@ -838,6 +946,7 @@ export default function BatchDetailPage() {
                         </button>
                     )}
                 </div>
+
             </div>
 
             {/* --- ACCORDION SECTIONS --- */}
@@ -853,13 +962,9 @@ export default function BatchDetailPage() {
                     isOpen={expandedSections["IDEATION"] || false}
                     onToggle={() => toggleSection("IDEATION")}
                     actions={
-                        <button
-                            onClick={(e) => { e.stopPropagation(); saveIdea(); }}
-                            disabled={isSavingIdea}
-                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
-                        >
-                            {isSavingIdea ? "Saving..." : "Save Idea"}
-                        </button>
+                        <span className={`text-xs font-mono transition-colors ${isSavingIdea ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
+                            {isSavingIdea ? "Saving..." : "Saved"}
+                        </span>
                     }
                 >
                     <textarea
@@ -877,13 +982,9 @@ export default function BatchDetailPage() {
                     isOpen={expandedSections["CREATOR_BRIEFING"] || false}
                     onToggle={() => toggleSection("CREATOR_BRIEFING")}
                     actions={
-                        <button
-                            onClick={(e) => { e.stopPropagation(); saveCreatorBrief(); }}
-                            disabled={isSavingCreatorBrief}
-                            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
-                        >
-                            {isSavingCreatorBrief ? "Save Creator Brief" : "Save Creator Brief"}
-                        </button>
+                        <span className={`text-xs font-mono transition-colors ${isSavingCreatorBrief ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
+                            {isSavingCreatorBrief ? "Saving..." : "Saved"}
+                        </span>
                     }
                 >
                     <div className="space-y-6">
@@ -947,68 +1048,256 @@ export default function BatchDetailPage() {
                     </div>
                 </BatchSection>
 
-                {/* 4. EDITOR BRIEFING (Old Production) */}
+                {/* 4. BRIEFING & STRATEGY */}
                 <BatchSection
-                    title="4. Editor Briefing & Variations"
-                    status={["EDITOR_BRIEFING", "EDITING"].includes(batch.status) ? "active" : (["REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : "future")}
-                    isOpen={expandedSections["EDITOR_BRIEFING"] || expandedSections["EDITING"] || false}
-                    onToggle={() => toggleSection("EDITOR_BRIEFING")}
+                    title="4. Editor Briefing"
+                    status={batch.status === "EDITOR_BRIEFING" ? "active" : (["EDITING", "REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : "future")}
+                    isOpen={expandedSections["BRIEFING"] || false}
+                    onToggle={() => toggleSection("BRIEFING")}
                     actions={
-                        <div className="flex gap-2">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); saveBrief(); }}
-                                disabled={isSavingBrief}
-                                className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
-                            >
-                                {isSavingBrief ? "Saving Brief..." : "Save Editor Brief"}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); addBatchItem(); }}
-                                className="text-xs font-medium bg-white border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 px-3 py-1.5 rounded-lg shadow-sm transition-colors disabled:opacity-50"
-                            >
-                                + Variation
-                            </button>
-                        </div>
+                        <span className={`text-xs font-mono transition-colors ${isSavingBrief ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
+                            {isSavingBrief ? "Saving..." : "Saved"}
+                        </span>
                     }
                 >
-                    <div className="bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 mb-6 shadow-sm">
-                        <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed">
-                            This ad batch should talk to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.demographic.name}</span>, which are <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.awarenessLevel?.name?.replace('Problem Unaware', 'Unaware') || "Unaware"}</span> of their desire to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.angle.name}</span>. The overarching theme is <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.theme.name}</span>.
-                        </p>
-                    </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Brief Column (Left) */}
-                        <div className="space-y-6 lg:col-span-1">
-                            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm">
-                                <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-                                    <span>📦</span> Deliverables
+
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        {/* LEFT: Brief & Context */}
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-900 dark:text-white mb-2">Editor Brief</label>
+                                <textarea
+                                    value={brief}
+                                    onChange={(e) => setBrief(e.target.value)}
+                                    className="w-full h-96 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-sm focus:ring-2 focus:ring-indigo-500 resize-none font-sans leading-relaxed shadow-sm"
+                                    placeholder="Describe the ad concept, visual direction, and key messaging..."
+                                    disabled={batch.status !== "EDITOR_BRIEFING"}
+                                />
+                            </div>
+
+                            {/* Reference Ad */}
+                            {batch.referenceAd && (
+                                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                                    <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+                                        <h3 className="font-bold text-sm text-zinc-700 dark:text-zinc-300">Reference Ad</h3>
+                                        <div className="flex gap-2">
+                                            {batch.referenceAd.facebookLink && (
+                                                <a href={batch.referenceAd.facebookLink} target="_blank" className="text-xs flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-medium">
+                                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M18.77 7.46H14.5v-1.9c0-.9.6-1.1 1-1.1h3V.5h-4.33C10.24.5 9.5 3.44 9.5 5.32v2.15h-3v4h3v12h5v-12h3.85l.42-4z" /></svg>
+                                                    View Post
+                                                </a>
+                                            )}
+                                            {batch.referenceAd.videoUrl && (
+                                                <button onClick={handleTranscribeRef} disabled={transcribingRef} className="text-xs flex items-center gap-1 text-zinc-500 hover:text-zinc-700">
+                                                    {transcribingRef ? <span className="animate-spin">⏳</span> : <span>📝</span>}
+                                                    {batch.referenceAd.transcript ? "Re-Transcribe" : "Get Transcript"}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="p-4 flex gap-4">
+                                        <div className="w-24 h-32 bg-zinc-100 rounded-lg flex-shrink-0 overflow-hidden relative group cursor-pointer border border-zinc-200 dark:border-zinc-700">
+                                            {batch.referenceAd.videoUrl ? (
+                                                <video src={getPlayableUrl(batch.referenceAd.videoUrl)} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <img src={getPlayableUrl(batch.referenceAd.thumbnailUrl || "")} className="w-full h-full object-cover" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0 space-y-2">
+                                            <div>
+                                                <p className="font-bold text-sm text-zinc-900 dark:text-white line-clamp-1">{batch.referenceAd.headline}</p>
+                                                <p className="text-xs text-zinc-500 line-clamp-2 mt-0.5">{batch.referenceAd.description}</p>
+                                            </div>
+                                            {batch.referenceAd.transcript ? (
+                                                <div className="bg-zinc-50 dark:bg-zinc-800 p-2 rounded text-xs text-zinc-600 dark:text-zinc-400 max-h-20 overflow-y-auto whitespace-pre-wrap border border-zinc-100 dark:border-zinc-700">
+                                                    {batch.referenceAd.transcript}
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs text-zinc-400 italic">No transcript available.</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* RIGHT: Variation Planning (Hooks & Scripts) */}
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                    <span>🎬</span> Variations to Produce
                                 </h3>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); addBatchItem(); }}
+                                    disabled={batch.status !== "EDITOR_BRIEFING"}
+                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-white border border-indigo-200 px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1 disabled:opacity-50 disabled:shadow-none"
+                                >
+                                    <span>+</span> Add Variation
+                                </button>
+                            </div>
 
+                            <div className="space-y-4">
+                                {batch.items.map((item, index) => (
+                                    <div key={item.id} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm relative group">
+                                        <div className="flex flex-col gap-4">
+                                            {/* Header Row: Label + Hook Selector + Delete */}
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex items-center gap-4 flex-1">
+                                                    {/* Label */}
+                                                    <div className="h-12 w-auto min-w-[3rem] px-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 flex-shrink-0 text-sm">
+                                                        BATCH{batch.id}{getVariationLabel(index)}
+                                                    </div>
+
+                                                    {/* Hook Selector */}
+                                                    <div className="flex-1 max-w-md">
+                                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Hook</label>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setSelectingHookForItem(item.id); }}
+                                                                disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                                className={`flex-1 text-left px-3 py-2 rounded-lg border text-xs flex items-center justify-between transition-colors ${item.hookId
+                                                                    ? "bg-indigo-50 border-indigo-200 text-indigo-900"
+                                                                    : "bg-zinc-50 border-zinc-200 text-zinc-500 italic"
+                                                                    }`}
+                                                            >
+                                                                <span className="truncate font-medium">{item.hookId ? (hooks.find(h => h.id === item.hookId)?.name || "Unknown Hook") : "Select a Hook..."}</span>
+                                                                <svg className="w-3 h-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                            </button>
+                                                            {item.hookId && batch.status === "EDITOR_BRIEFING" && (
+                                                                <button onClick={() => updateItem(item.id, { hookId: null })} className="p-2 hover:bg-zinc-100 rounded text-zinc-400 hover:text-red-500">
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Delete Button */}
+                                                <button
+                                                    onClick={() => deleteItem(item.id)}
+                                                    disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                    className="text-zinc-300 hover:text-red-500 transition-colors p-2"
+                                                    title="Delete Variation"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
+
+                                            {/* Script & Notes */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Script</label>
+                                                    <DebouncedTextarea
+                                                        value={item.script || ""}
+                                                        onCommit={(val: string) => updateItem(item.id, { script: val })}
+                                                        disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                        className="w-full h-24 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded p-3 text-sm resize-none focus:ring-1 focus:ring-indigo-500 dark:text-zinc-200"
+                                                        placeholder="Script/Voiceover..."
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Notes</label>
+                                                    <DebouncedTextarea
+                                                        value={item.notes || ""}
+                                                        onCommit={(val: string) => updateItem(item.id, { notes: val })}
+                                                        disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                        className="w-full h-24 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded p-3 text-sm resize-none focus:ring-1 focus:ring-indigo-500 dark:text-zinc-200"
+                                                        placeholder="Visual notes..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {batch.items.length === 0 && (
+                                    <div className="text-center py-6 text-zinc-400 text-xs italic border border-dashed border-zinc-200 rounded-lg">
+                                        No variations planned yet.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    {/* Reference Ad (Existing code) */}
+
+
+
+                </BatchSection>
+
+                {/* 5. PRODUCTION WORKSPACE */}
+
+                <BatchSection
+                    title="5. Editing"
+                    status={batch.status === "EDITING" ? "active" : (["REVIEW", "AI_BOOST", "LAUNCHED", "ARCHIVED"].includes(batch.status) ? "past" : "future")}
+                    isOpen={expandedSections["PRODUCTION"] || false}
+                    onToggle={() => toggleSection("PRODUCTION")}
+                    actions={null} // No actions for editor to add items
+                >
+                    <div className="flex flex-col gap-6">
+                        {/* Editor Context & Project Files */}
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5">
+                            <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                                <span>🛠️</span> Editor Resources
+                            </h3>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Read-Only Brief Summary */}
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Project Files (Zip)</label>
+                                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Editor Instructions</label>
+                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm text-zinc-700 dark:text-zinc-300 max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                            {brief || <span className="text-zinc-400 italic">No specific instructions.</span>}
+                                        </div>
+                                    </div>
+                                    {batch.referenceAd && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Reference Ad</label>
+                                            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-zinc-100 rounded overflow-hidden flex-shrink-0">
+                                                    {batch.referenceAd.thumbnailUrl && <img src={getPlayableUrl(batch.referenceAd.thumbnailUrl)} className="w-full h-full object-cover" />}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium">{batch.referenceAd.headline}</p>
+                                                    <a href={batch.referenceAd.facebookLink || '#'} target="_blank" className="text-xs text-indigo-600 hover:underline">View Link</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Project Files Upload */}
+                                <div className="space-y-3">
+                                    <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Project Files (Zip)</label>
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
                                         {(batch as any).projectFilesUrl ? (
-                                            <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                                <a href={(batch as any).projectFilesUrl} target="_blank" className="text-sm text-indigo-600 hover:underline truncate max-w-[150px]">
-                                                    View Project Files
+                                            <div className="flex flex-col gap-2">
+                                                <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                    <span className="font-bold text-sm">Files Uploaded</span>
+                                                </div>
+                                                <a href={(batch as any).projectFilesUrl} target="_blank" className="text-sm text-indigo-600 hover:underline truncate block">
+                                                    Download Project Files
                                                 </a>
-                                                <button onClick={() => updateStatus('PROJECT_FILES_REMOVED')} className="text-zinc-400 hover:text-red-500">
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                <button
+                                                    onClick={() => updateStatus('PROJECT_FILES_REMOVED')}
+                                                    className="text-xs text-red-500 hover:text-red-600 text-left mt-1"
+                                                    disabled={batch.status !== "EDITING"}
+                                                >
+                                                    Remove / Replace
                                                 </button>
                                             </div>
                                         ) : (
-                                            batch.items.length > 0 && batch.items.every(i => i.status === 'DONE') ? (
+                                            <div className="text-center">
                                                 <FileUpload
                                                     batchName={batch.name}
                                                     type="zip"
                                                     brandId={(batch as any).brandId || undefined}
                                                     batchId={String(batch.id)}
                                                     onUploadComplete={(url) => {
-                                                        // Use local endpoint to update batch
                                                         const updated = { ...batch, projectFilesUrl: url };
                                                         setBatch(updated as any);
-
                                                         fetch(`/api/batches/${batch.id}`, {
                                                             method: 'PUT',
                                                             headers: { 'Content-Type': 'application/json' },
@@ -1016,236 +1305,129 @@ export default function BatchDetailPage() {
                                                         });
                                                     }}
                                                 />
-                                            ) : (
-                                                <div className="text-center p-4 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                                                    <p className="text-xs text-zinc-500 mb-1">Project files can be uploaded once all variations are approved.</p>
-                                                    <p className="text-[10px] text-zinc-400 font-mono">
-                                                        {batch.items.filter(i => i.status === 'DONE').length} of {batch.items.length} Approved
-                                                    </p>
-                                                </div>
-                                            )
+                                                <p className="text-[10px] text-zinc-400 mt-2">Upload project files for the editor (AE/Premiere/etc)</p>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
                             </div>
-
-                            <textarea
-                                value={brief}
-                                onChange={(e) => setBrief(e.target.value)}
-                                className="w-full h-64 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 resize-none font-sans leading-relaxed"
-                                placeholder="Describe the ad concept, visual direction, and key messaging..."
-                                disabled={getSectionState("PRODUCTION", batch.status) === "future"}
-                            />
-                            {/* Reference Ad (Existing code) */}
-                            {batch.referenceAd && (
-                                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                                    {/* ... existing ref ad content ... */}
-                                    {/* I'll need to restore the inner content if I overwrite the block. 
-                                        Since I am overwriting the whole "Brief & Variations" section block, 
-                                        I should ensure I include the Ref Ad part or leave it alone if possible.
-                                        But `BatchSection` wraps everything.
-                                        Wait, I can't easily partially replace within `BatchSection`.
-                                        I am replacing the START of BatchSection up to Brief textarea. 
-                                        I should verify if I can just insert the Deliverables box BEFORE the textarea.
-                                     */}
-
-                                    {/* Let's try to just INSERT the new box before the textarea. */}
-                                </div>
-                            )}
                         </div>
 
-                        {/* Variations Column (Right - Spans 2) */}
-                        <div className="flex flex-col gap-4 lg:col-span-2">
-                            <div className="space-y-4">
-                                {batch.items.map((item, index) => (
-                                    <div key={item.id} className={`bg-white dark:bg-zinc-900 rounded-xl border ${item.status === 'DONE' ? 'border-green-200 dark:border-green-900/50 bg-green-50/20' : 'border-zinc-200 dark:border-zinc-800'} p-5 shadow-sm transition-all`}>
-                                        <div className="flex items-start gap-4">
-                                            <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                                <div className="w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-800 dark:text-zinc-200 text-2xl border-2 border-zinc-200 dark:border-zinc-700 shadow-sm">
-                                                    {getVariationLabel(index)}
-                                                </div>
-                                                <span className="text-[10px] font-mono text-zinc-400 select-all" title="Variation ID">
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                <span>📤</span> Upload Deliverables
+                            </h3>
+                            {batch.items.map((item, index) => (
+                                <div key={item.id} className={`bg-white dark:bg-zinc-900 rounded-xl border ${item.status === 'DONE' ? 'border-green-200 dark:border-green-900/50 bg-green-50/20' : 'border-zinc-200 dark:border-zinc-800'} p-5 shadow-sm`}>
+                                    <div className="flex flex-col md:flex-row gap-6">
+
+                                        {/* Variation Context (Left) */}
+                                        <div className="flex-1 space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-12 w-auto min-w-[3rem] px-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 text-sm">
                                                     BATCH{batch.id}{getVariationLabel(index)}
-                                                </span>
-                                                {item.status === 'PENDING' && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold mt-1 border border-amber-200">
-                                                        REVISION
-                                                    </span>
-                                                )}
+                                                </div>
+                                                <div>
+                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">Hook</span>
+                                                    <span className="font-medium text-zinc-900 dark:text-white">{hooks.find(h => h.id === item.hookId)?.name || "Editor's Choice / No Hook Selected"}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex-1 space-y-4">
-                                                {/* Revision Alert */}
-                                                {item.status === 'PENDING' && item.notes && (
-                                                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200">
+
+                                            {/* Read Only Script/Notes */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded border border-zinc-100 dark:border-zinc-800">
+                                                    <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Script</span>
+                                                    <p className="text-xs text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">{item.script || "N/A"}</p>
+                                                </div>
+                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded border border-zinc-100 dark:border-zinc-800">
+                                                    <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Notes</span>
+                                                    <p className="text-xs text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">{item.notes || "None"}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Revision Alert */}
+                                            {item.status === 'PENDING' && item.notes && (
+                                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200 flex justify-between items-center gap-3">
+                                                    <div>
                                                         <p className="font-bold mb-1 flex items-center gap-2">
-                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                                            Revision Requested
+                                                            <span>⚠️</span> Revision Requested
                                                         </p>
                                                         <p>{item.notes}</p>
                                                     </div>
-                                                )}
-                                                {/* Hook Selection (Existing) */}
-                                                <div>
-                                                    <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Hook</label>
-                                                    <div className="flex gap-2">
+                                                    {(item as any).videoUrl && (
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); setSelectingHookForItem(item.id); }}
-                                                            disabled={getSectionState("PRODUCTION", batch.status) === "future"}
-                                                            className={`flex-1 text-left px-3 py-2 rounded-lg border text-sm flex items-center justify-between group transition-colors ${item.hookId
-                                                                ? "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white"
-                                                                : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-500 italic"
-                                                                }`}
+                                                            onClick={() => setReviewingItem({ id: item.id, videoUrl: (item as any).videoUrl, isReadOnly: true })}
+                                                            className="flex-shrink-0 bg-white/50 border border-amber-200 hover:bg-white text-amber-800 px-3 py-1.5 rounded text-xs font-bold transition-colors"
                                                         >
-                                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                                {item.hookId ? (
-                                                                    <span className="truncate font-medium">{hooks.find(h => h.id === item.hookId)?.name || "Unknown Hook"}</span>
-                                                                ) : (
-                                                                    <>
-                                                                        <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
-                                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                                                                        </span>
-                                                                        <span>Choose from Library...</span>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center gap-1">
-                                                                {item.hookId ? (
-                                                                    <div
-                                                                        onClick={(e) => { e.stopPropagation(); updateItem(item.id, { hookId: null }); }}
-                                                                        className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-full text-zinc-400 hover:text-red-500 transition-colors"
-                                                                        title="Clear Selection"
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-zinc-400 text-xs">Default: Editor's Choice</span>
-                                                                )}
-                                                            </div>
+                                                            Preview
                                                         </button>
-                                                        <button onClick={async (e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) { const id = await createHook(name); if (id) updateItem(item.id, { hookId: id }); } }} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="px-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors" title="Quick Create">+</button>
-                                                    </div>
-                                                </div>
-
-                                                {/* Upload Video Section (NEW) */}
-                                                <div>
-                                                    <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Final Video</label>
-                                                    {(item as any).videoUrl ? (
-                                                        <div className={`w-full rounded-lg border p-3 flex items-center justify-between group transition-colors ${item.notes && item.status === 'PENDING' ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800' : 'bg-zinc-50 dark:bg-zinc-800/30 border-dashed border-zinc-200 dark:border-zinc-700'}`}>
-                                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                                <div className={`w-10 h-10 flex-shrink-0 rounded flex items-center justify-center ${item.notes && item.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
-                                                                    {item.notes && item.status === 'PENDING' ? (
-                                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                                                    ) : (
-                                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                                                    )}
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-200 truncate pr-2">{(item as any).videoName || "Video Uploaded"}</p>
-                                                                    {item.notes && item.status === 'PENDING' ? (
-                                                                        <p className="text-xs font-bold text-amber-600 dark:text-amber-400">⚠️ Revision Requested</p>
-                                                                    ) : (
-                                                                        <p className="text-xs text-zinc-500">Ready for review</p>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            {getSectionState("PRODUCTION", batch.status) !== "future" && (
-                                                                <div className="flex items-center gap-2">
-                                                                    {item.notes && item.status === 'PENDING' && (
-                                                                        <button
-                                                                            onClick={() => setReviewingItem({ id: item.id, videoUrl: (item as any).videoUrl, isReadOnly: true })}
-                                                                            className="text-sm bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-lg font-bold border border-amber-200 transition-colors mr-2 flex items-center gap-2 shadow-sm"
-                                                                        >
-                                                                            <span className="text-lg">🔍</span> Preview Revision Request
-                                                                        </button>
-                                                                    )}
-                                                                    {!item.notes && (
-                                                                        <button
-                                                                            onClick={() => setReviewingItem({ id: item.id, videoUrl: (item as any).videoUrl, isReadOnly: true })}
-                                                                            className="text-xs text-indigo-600 hover:text-indigo-700 px-2 py-1 rounded hover:bg-indigo-50 font-medium"
-                                                                        >
-                                                                            Preview
-                                                                        </button>
-                                                                    )}
-                                                                    <button
-                                                                        onClick={() => updateItem(item.id, { videoUrl: null, videoName: null })}
-                                                                        className="text-xs text-red-500 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50"
-                                                                    >
-                                                                        Replace File
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <FileUpload
-                                                            batchName={`${batch.name}_${getVariationLabel(index)}`}
-                                                            type="video"
-                                                            brandId={(batch as any).brandId || undefined}
-                                                            batchId={String(batch.id)}
-                                                            variationLabel={getVariationLabel(index)}
-                                                            onUploadComplete={(url, name) => updateItem(item.id, { videoUrl: url, videoName: name })}
-                                                        />
                                                     )}
                                                 </div>
+                                            )}
+                                        </div>
 
-                                                {/* Script & Notes Grid */}
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div>
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Voice Over Script</label>
-                                                            <label className="flex items-center gap-1.5 cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    className="w-3 h-3 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                                                                    checked={item.script === 'N/A'}
-                                                                    onChange={(e) => updateItem(item.id, { script: e.target.checked ? 'N/A' : '' })}
-                                                                    disabled={getSectionState("PRODUCTION", batch.status) === "future"}
-                                                                />
-                                                                <span className="text-[10px] text-zinc-400 font-medium">No Script</span>
-                                                            </label>
+                                        {/* Upload Section (Right) */}
+                                        <div className="w-full md:w-80 flex-shrink-0">
+                                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Final Video</label>
+                                            {(item as any).videoUrl ? (
+                                                <div className={`w-full rounded-lg border p-3 flex flex-col gap-3 ${item.notes && item.status === 'PENDING' ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800' : 'bg-zinc-50 dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-700'}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-10 h-10 flex-shrink-0 rounded flex items-center justify-center ${item.notes && item.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
+                                                            <span className="text-lg">✓</span>
                                                         </div>
-                                                        {item.script === 'N/A' ? (
-                                                            <div className="w-full h-[120px] bg-zinc-50 dark:bg-zinc-800/50 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg flex items-center justify-center text-xs text-zinc-400 italic">
-                                                                No script required
-                                                            </div>
-                                                        ) : (
-                                                            <textarea
-                                                                value={item.script || ""}
-                                                                onChange={(e) => updateItem(item.id, { script: e.target.value })}
-                                                                onBlur={(e) => updateItem(item.id, { script: e.target.value })}
-                                                                disabled={getSectionState("PRODUCTION", batch.status) === "future"}
-                                                                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500 font-mono text-xs leading-relaxed"
-                                                                placeholder="Enter voice over script..."
-                                                            />
-                                                        )}
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-200 truncate">{(item as any).videoName || "Video Uploaded"}</p>
+                                                            <p className="text-xs text-zinc-500">Ready for review</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Visual Notes</label>
-                                                        <textarea value={item.notes || ""} onChange={(e) => updateItem(item.id, { notes: e.target.value })} onBlur={(e) => updateItem(item.id, { notes: e.target.value })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm min-h-[120px] resize-y focus:ring-2 focus:ring-indigo-500" placeholder="Notes for editor..." />
-                                                    </div>
+
+                                                    {(batch.status === "EDITING" || (item.status === 'PENDING' && item.notes)) && (
+                                                        <div className="flex flex-col gap-2">
+                                                            <button
+                                                                onClick={() => updateItem(item.id, { videoUrl: null, videoName: null, clearComments: true } as any)}
+                                                                className="w-full bg-white border border-zinc-200 py-1.5 rounded text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-200 shadow-sm"
+                                                            >
+                                                                Replace
+                                                            </button>
+                                                            {item.notes && item.status === 'PENDING' && (
+                                                                <button
+                                                                    onClick={() => updateItem(item.id, { notes: "" })}
+                                                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 rounded text-xs font-bold transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                                                >
+                                                                    <span>🚀</span> Resubmit for Review
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                            <div className="flex flex-col items-center gap-2">
-                                                <button onClick={() => updateItem(item.id, { status: item.status === 'DONE' ? 'PENDING' : 'DONE' })} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className={`p-2 rounded-full transition-colors ${item.status === 'DONE' ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'}`}><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></button>
-                                                <button onClick={() => deleteItem(item.id)} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                                            </div>
+                                            ) : (
+                                                <FileUpload
+                                                    batchName={`${batch.name}_${getVariationLabel(index)}`}
+                                                    type="video"
+                                                    brandId={(batch as any).brandId || undefined}
+                                                    batchId={String(batch.id)}
+                                                    variationLabel={getVariationLabel(index)}
+                                                    onUploadComplete={(url, name) => updateItem(item.id, { videoUrl: url, videoName: name })}
+                                                />
+                                            )}
                                         </div>
                                     </div>
-                                ))}
-                                {batch.items.length === 0 && (
-                                    <div className="text-center py-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
-                                        <p className="text-zinc-500 text-sm mb-2">No variations added yet.</p>
-                                        <button onClick={addBatchItem} disabled={getSectionState("PRODUCTION", batch.status) === "future"} className="text-indigo-600 hover:underline text-sm font-medium">Add your first variation</button>
-                                    </div>
-                                )}
-                            </div>
+                                </div>
+                            ))}
+                            {batch.items.length === 0 && (
+                                <div className="text-center py-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
+                                    <p className="text-zinc-500 text-sm mb-2">No variations assigned yet.</p>
+                                    <p className="text-xs text-zinc-400">Variations must be added in the Strategy section first.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </BatchSection>
 
+
                 {/* 3. REVIEW DASHBOARD */}
                 <BatchSection
-                    title="Review Dashboard"
+                    title="6. Review"
                     status={getSectionState("REVIEW", batch.status)}
                     isOpen={expandedSections["REVIEW"] || false}
                     onToggle={() => toggleSection("REVIEW")}
@@ -1266,7 +1448,7 @@ export default function BatchDetailPage() {
                                     <div key={item.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col gap-3">
                                         <div className="flex justify-between items-start">
                                             <div className="flex items-center gap-2">
-                                                <span className="font-bold text-lg text-zinc-700 w-8 h-8 flex items-center justify-center bg-zinc-100 rounded">{getVariationLabel(index)}</span>
+                                                <span className="font-bold text-xs text-zinc-700 h-8 px-2 flex items-center justify-center bg-zinc-100 rounded border border-zinc-200">BATCH{batch.id}{getVariationLabel(index)}</span>
                                                 <span className="text-sm font-medium text-zinc-600">{item.hook?.name || "No Hook"}</span>
                                             </div>
                                             <div className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'DONE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{item.status}</div>
@@ -1305,14 +1487,14 @@ export default function BatchDetailPage() {
 
                 {/* 4. AI BOOST */}
                 <BatchSection
-                    title="AI Boost Assets"
+                    title="7. AI Boost"
                     status={getSectionState("AI_BOOST", batch.status)}
                     isOpen={expandedSections["AI_BOOST"] || false}
                     onToggle={() => toggleSection("AI_BOOST")}
                     actions={
-                        <button onClick={saveAiBoost} disabled={isSavingAi || getSectionState("AI_BOOST", batch.status) === "future"} className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg disabled:opacity-50">
-                            {isSavingAi ? "Saving..." : "Save Assets"}
-                        </button>
+                        <span className={`text-xs font-mono transition-colors ${isSavingAi ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
+                            {isSavingAi ? "Saving..." : "Saved"}
+                        </span>
                     }
                 >
                     <div className="space-y-6">
@@ -1340,35 +1522,41 @@ export default function BatchDetailPage() {
 
                 {/* Doc View Modal */}
                 {/* Modals */}
-                {viewingDoc && (
-                    <ViewDocModal content={viewingDoc} onClose={() => setViewingDoc(null)} />
-                )}
-                {selectingHookForItem && (
-                    <HookLibraryModal
-                        hooks={hooks}
-                        onClose={() => setSelectingHookForItem(null)}
-                        onSelect={(hook) => {
-                            updateItem(selectingHookForItem, { hookId: hook.id || null });
-                            setSelectingHookForItem(null);
-                        }}
-                    />
-                )}
-                {reviewingItem && (
-                    <VideoReviewModal
-                        videoUrl={reviewingItem.videoUrl}
-                        batchItemId={reviewingItem.id}
-                        onClose={() => setReviewingItem(null)}
-                        brandId={(batch as any).brandId}
-                        onStatusChange={reviewingItem.isReadOnly ? undefined : (status, notes) => {
-                            if (status && reviewingItem.id) {
-                                const update: any = { status };
-                                if (notes) update.notes = notes;
-                                updateItem(reviewingItem.id, update);
-                            }
-                        }}
-                    />
-                )}
+                {
+                    viewingDoc && (
+                        <ViewDocModal content={viewingDoc} onClose={() => setViewingDoc(null)} />
+                    )
+                }
+                {
+                    selectingHookForItem && (
+                        <HookLibraryModal
+                            hooks={hooks}
+                            onClose={() => setSelectingHookForItem(null)}
+                            onSelect={(hook) => {
+                                updateItem(selectingHookForItem, { hookId: hook.id || null });
+                                setSelectingHookForItem(null);
+                            }}
+                        />
+                    )
+                }
+                {
+                    reviewingItem && (
+                        <VideoReviewModal
+                            videoUrl={reviewingItem.videoUrl}
+                            batchItemId={reviewingItem.id}
+                            onClose={() => setReviewingItem(null)}
+                            brandId={(batch as any).brandId}
+                            onStatusChange={reviewingItem.isReadOnly ? undefined : (status, notes) => {
+                                if (status && reviewingItem.id) {
+                                    const update: any = { status };
+                                    if (notes) update.notes = notes;
+                                    updateItem(reviewingItem.id, update);
+                                }
+                            }}
+                        />
+                    )
+                }
             </div>
-        </div>
+        </div >
     );
 }
