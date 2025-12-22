@@ -1,9 +1,8 @@
 
 import { NextResponse } from 'next/server';
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-const DEFAULT_PROMPT = `
+const DEFAULT_SCENARIOS_PROMPT = `
 You are a world-class marketing strategist. Based on the provided Buyer Persona and Core Problem, generate 5 specific, "Day in the Life" scenarios where this persona acutely feels the pain of their problem.
 
 Structure each scenario as follows:
@@ -31,6 +30,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
                 angle: true,
                 theme: true,
                 demographic: true,
+                awarenessLevel: true,
                 brand: true
             }
         });
@@ -51,12 +51,14 @@ CONCEPT CONTEXT:
 Concept Name: ${concept.name}
 Angle: ${concept.angle.name}
 Theme: ${concept.theme.name}
+Demographic: ${concept.demographic.name}
+Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
         `;
 
         const systemPrompt = (concept.brand as any)?.scenariosPrompt || DEFAULT_SCENARIOS_PROMPT;
         const fullPrompt = `${context}\n\n${systemPrompt}`;
 
-        const response = await fetch('https://api.openai.com/v1/responses', {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

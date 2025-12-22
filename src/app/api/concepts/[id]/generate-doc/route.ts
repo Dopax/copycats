@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { DEFAULT_PERSONA_PROMPT } from '@/lib/constants/prompts';
-`;
+// (Line 5 removal is implicit by replacing surrounding lines or just targeting it. I will target the imports area to clean up.)
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
     try {
@@ -32,33 +32,32 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
         const context = `
 INFORMATION ABOUT THE PRODUCT(Brand Offer Brief):
-${ brandOffer }
+${brandOffer}
 
 CONCEPT CONTEXT:
-Concept Name: ${ concept.name }
-Angle: ${ concept.angle.name } (${ (concept.angle as any).description || "No description" })
-Theme: ${ concept.theme.name } (${ (concept.theme as any).description || "No description" })
-Demographic: ${ concept.demographic.name }
-Awareness Level: ${ concept.awarenessLevel?.name || "Unknown" }
+Concept Name: ${concept.name}
+Angle: ${concept.angle.name} (${(concept.angle as any).description || "No description"})
+Theme: ${concept.theme.name} (${(concept.theme as any).description || "No description"})
+Demographic: ${concept.demographic.name}
+Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
 `;
 
-        const systemPrompt = (concept.brand as any)?.personaPrompt || DEFAULT_PROMPT;
-        const fullPrompt = `${ context } \n\n${ systemPrompt } `;
+        const systemPrompt = (concept.brand as any)?.personaPrompt || DEFAULT_PERSONA_PROMPT;
+        const fullPrompt = `${context}\n\n${systemPrompt}`;
 
-        // Call OpenAI Responses API
-        const response = await fetch('https://api.openai.com/v1/responses', {
+        // Call OpenAI Chat Completions API
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${ apiKey } `
+                'Authorization': `Bearer ${apiKey} `
             },
             body: JSON.stringify({
-                model: "gpt-4o", 
+                model: "gpt-4o",
                 messages: [
                     { role: "system", content: "You are a world-class marketing analyst." },
                     { role: "user", content: fullPrompt }
-                ],
-                tools: [{ type: "web_search" }]
+                ]
             })
         });
 
@@ -76,7 +75,7 @@ Awareness Level: ${ concept.awarenessLevel?.name || "Unknown" }
         }
 
         // Save to DB using raw SQL to bypass stale Prisma Client interface (Windows file lock issue)
-        await prisma.$executeRaw`UPDATE CreativeConcept SET conceptDoc = ${ content } WHERE id = ${ id } `;
+        await prisma.$executeRaw`UPDATE CreativeConcept SET conceptDoc = ${content} WHERE id = ${id} `;
 
         // Fetch the updated record to return it (optional but good for UI update)
         const updatedConcept = await prisma.creativeConcept.findUnique({

@@ -437,23 +437,23 @@ export default function ConceptsPage() {
                                             <div className="flex flex-wrap gap-2">
                                                 <div className="flex flex-col gap-1 items-start">
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800" title="Angle">
-                                                        Angle: {concept.angle.name}
+                                                        Angle: {concept.angle?.name || "N/A"}
                                                     </span>
-                                                    {concept.angle.brainClicks && <span className="text-[10px] text-zinc-400">🧠 {concept.angle.brainClicks}</span>}
+                                                    {concept.angle?.brainClicks && <span className="text-[10px] text-zinc-400">🧠 {concept.angle.brainClicks}</span>}
                                                 </div>
                                                 <div className="flex flex-col gap-1 items-start">
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 border border-pink-100 dark:border-pink-800" title="Theme">
-                                                        Theme: {concept.theme.name}
+                                                        Theme: {concept.theme?.name || "N/A"}
                                                     </span>
-                                                    {concept.theme.description && <span className="text-[10px] text-zinc-400 italic max-w-[150px] truncate">{concept.theme.description}</span>}
+                                                    {concept.theme?.description && <span className="text-[10px] text-zinc-400 italic max-w-[150px] truncate">{concept.theme.description}</span>}
                                                 </div>
 
                                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800" title="Demographic">
-                                                    {concept.demographic.name}
+                                                    {concept.demographic?.name || "N/A"}
                                                 </span>
                                                 {concept.awarenessLevel && (
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-100 dark:border-violet-800" title="Awareness Level">
-                                                        {concept.awarenessLevel.name}
+                                                        {concept.awarenessLevel?.name}
                                                     </span>
                                                 )}
                                             </div>
