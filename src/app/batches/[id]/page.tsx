@@ -897,7 +897,7 @@ export default function BatchDetailPage() {
                 {/* Strategy Sentence */}
                 <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm mb-6">
                     <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed text-center">
-                        This ad batch should talk to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.demographic.name}</span>, which are <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.awarenessLevel?.name?.replace('Problem Unaware', 'Unaware') || "Unaware"}</span> of their desire to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.angle.name}</span>. The overarching theme is <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.theme.name}</span>.
+                        This ad batch should talk to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.demographic.name}</span>, which are <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.awarenessLevel?.name || "Unaware"}</span> of their desire to <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.angle.name}</span>. The overarching theme is <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.concept.theme.name}</span>.
                     </p>
                 </div>
 
@@ -950,11 +950,11 @@ export default function BatchDetailPage() {
                     </div>
 
                     {/* Awareness Level */}
-                    <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
                         <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Awareness</span>
                         <div className="flex items-center justify-between gap-2">
                             <span className="font-medium text-cyan-600 dark:text-cyan-400 text-sm whitespace-nowrap">
-                                {batch.concept.awarenessLevel?.name?.replace('Problem Unaware', 'Unaware') || "Not set"}
+                                {batch.concept.awarenessLevel?.name || "Not set"}
                             </span>
                             {/* Battery Indicator */}
                             <div className="flex gap-0.5 h-3 items-end">
@@ -984,6 +984,14 @@ export default function BatchDetailPage() {
                                 })}
                             </div>
                         </div>
+
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">Awareness Context</h4>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                                <strong>{batch.concept.awarenessLevel?.name || "Unaware"}</strong> of their desire/problem to <strong>{batch.concept.angle.name}</strong>.
+                            </p>
+                        </div>
                     </div>
 
                     {/* Persona Button (New Dedicated Card) */}
@@ -1007,20 +1015,45 @@ export default function BatchDetailPage() {
             {/* --- STEPPER NAVIGATION --- */}
             <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar px-1">
                 {WORKFLOW_STEPS.map((step) => {
-                    const isActive = activeStep === step.id;
-                    const isComplete = isStepComplete(step.id);
+                    // Determine the STRICT step for the current status
+                    const statusToStep: Record<string, string> = {
+                        "IDEATION": "IDEATION",
+                        "CREATOR_BRIEFING": "CREATOR_BRIEFING",
+                        "FILMING": "FILMING",
+                        "EDITOR_BRIEFING": "BRIEFING",
+                        "EDITING": "PRODUCTION",
+                        "REVIEW": "REVIEW",
+                        "AI_BOOST": "AI_BOOST",
+                        "LAUNCHED": "AI_BOOST",
+                        "LEARNING": "LEARNING",
+                        "ARCHIVED": "LEARNING"
+                    };
+
+                    const currentStatusStep = batch?.status ? statusToStep[batch.status] : "IDEATION";
+                    const isAllowed = step.id === currentStatusStep;
+
+                    // Force active step to match status if it doesn't (auto-correct view)
+                    if (isAllowed && activeStep !== step.id) {
+                        // We strictly want to conform to status, but avoid render loop. 
+                        // It's better to rely on disabled buttons to prevent leaving.
+                        // The initial useEffect handles the initial set.
+                    }
+
                     return (
                         <button
                             key={step.id}
-                            onClick={() => setActiveStep(step.id)}
-                            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border ${isActive
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105'
-                                : isComplete
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                    : 'bg-white text-zinc-400 border-zinc-200 hover:border-zinc-300 dark:bg-zinc-800 dark:border-zinc-700'
+                            onClick={() => isAllowed && setActiveStep(step.id)}
+                            disabled={!isAllowed}
+                            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border 
+                                ${isAllowed
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-200 dark:ring-indigo-900'
+                                    : 'bg-zinc-100 text-zinc-400 border-zinc-200 opacity-60 cursor-not-allowed grayscale dark:bg-zinc-800 dark:border-zinc-700'
                                 }`}
                         >
-                            {isComplete && !isActive && <span className="text-lg leading-none">✓</span>}
+                            {/* Show lock icon if not allowed */}
+                            {!isAllowed && (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            )}
                             {step.label}
                         </button>
                     );

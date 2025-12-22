@@ -15,6 +15,7 @@ interface AdWithSnapshots extends Ad {
     theme?: AdTheme | null;
     angle?: AdAngle | null;
     awarenessLevel?: AdAwarenessLevel | null;
+    referencedInBatches?: { id: number; name: string; status: string }[];
 }
 
 interface AdCardProps {
@@ -678,6 +679,21 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                     </div>
 
                     <div className="border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 mt-auto">
+                        {/* Linked Batches */}
+                        {ad.referencedInBatches && ad.referencedInBatches.length > 0 && (
+                            <div className="px-3 pt-2 flex flex-wrap gap-2">
+                                {ad.referencedInBatches.map(batch => (
+                                    <Link
+                                        key={batch.id}
+                                        href={`/batches/${batch.id}`}
+                                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-[10px] text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                                    >
+                                        <span className="font-mono font-bold">BATCH{batch.id}</span>
+                                        <span className="truncate max-w-[100px]">{batch.name}</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
                         <div className="flex items-center p-2 gap-2 flex-wrap">
 
                             <Link

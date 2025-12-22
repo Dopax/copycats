@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useBrand } from "@/context/BrandContext";
 import TeamSettings from "@/components/team/TeamSettings";
+import TrashBin from "@/components/settings/TrashBin";
 import { DEFAULT_PERSONA_PROMPT, DEFAULT_SCENARIOS_PROMPT } from "@/lib/constants/prompts";
 
 // Brand Interface
@@ -309,6 +310,22 @@ export default function BrandSettingsPage() {
                     </div>
 
                 </div>
+            </section>
+
+            <hr className="border-zinc-200 dark:border-zinc-800" />
+
+
+
+            {/* Trash Bin Section */}
+            <section>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    Trash Bin
+                </h2>
+                <div className="mb-4 text-sm text-zinc-500">
+                    Recover deleted batches or permanently remove them.
+                </div>
+                <TrashBin />
             </section>
 
             <hr className="border-zinc-200 dark:border-zinc-800" />

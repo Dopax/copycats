@@ -20,7 +20,14 @@ interface Batch {
     _count?: { items: number };
 }
 
-interface Concept { id: string; name: string; }
+interface Concept {
+    id: string;
+    name: string;
+    angleId: string;
+    themeId: string;
+    demographicId: string;
+    awarenessLevelId?: string;
+}
 interface Format { id: string; name: string; }
 interface Angle { id: string; name: string; }
 interface Theme { id: string; name: string; }
@@ -65,6 +72,7 @@ function BatchesContent() {
     const [newBatchEditor, setNewBatchEditor] = useState("");
     const [newBatchStrategist, setNewBatchStrategist] = useState("");
     const [newBatchMainMessaging, setNewBatchMainMessaging] = useState("");
+    const [showArchived, setShowArchived] = useState(false);
 
     // Iteration State
     const [referenceBatchId, setReferenceBatchId] = useState<string | null>(null);
@@ -120,6 +128,45 @@ function BatchesContent() {
                 setReferenceAdPostId(refPostId || "Unknown");
                 setNewBatchType("COPYCAT"); // Default to Copycat if ad provided
                 setNewBatchName(refPostId ? `Copycat of ${refPostId}` : "");
+
+                // Fetch Ad Details for Main Messaging & Concept Auto-Fill
+                fetch(`/api/ads/${refId}`).then(res => res.json()).then((ad: any) => {
+                    if (!ad) return;
+
+                    // 1. Messaging
+                    if (ad.mainMessaging) {
+                        setNewBatchMainMessaging(ad.mainMessaging);
+                    }
+
+                    // 2. Format
+                    if (ad.formatId) {
+                        setNewBatchFormat(ad.formatId);
+                    }
+
+                    // 3. Auto-Concept Logic
+                    if (ad.angleId && ad.themeId && ad.demographicId) {
+                        // Check if a concept with these exact tags already exists
+                        const existingConcept = concepts.find(c =>
+                            c.angleId === ad.angleId &&
+                            c.themeId === ad.themeId &&
+                            c.demographicId === ad.demographicId &&
+                            (ad.awarenessLevelId ? c.awarenessLevelId === ad.awarenessLevelId : true)
+                        );
+
+                        if (existingConcept) {
+                            setNewBatchConcept(existingConcept.id);
+                        } else {
+                            // Pre-fill creation form and open it
+                            setIsCreatingConcept(true);
+                            setNewConceptForm({
+                                angleId: ad.angleId,
+                                themeId: ad.themeId,
+                                demographicId: ad.demographicId,
+                                awarenessLevelId: ad.awarenessLevelId || ""
+                            });
+                        }
+                    }
+                }).catch(err => console.error("Failed to fetch ad details", err));
 
                 // CHECK FOR DUPLICATES
                 checkForDuplicates(refId, refPostId || undefined);
@@ -311,18 +358,37 @@ function BatchesContent() {
     // Drag and Drop State
     const [draggedBatchId, setDraggedBatchId] = useState<number | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [validDropZones, setValidDropZones] = useState<string[]>([]);
 
-    const handleDragStart = (e: React.DragEvent, id: number) => {
+    const handleDragStart = (e: React.DragEvent, id: number, currentStatus: string) => {
         setDraggedBatchId(id);
         setIsDragging(true);
         e.dataTransfer.effectAllowed = "move";
         // Set data for compatibility, though we rely on state
         e.dataTransfer.setData("text/plain", id.toString());
+
+        // Calculate Only Valid Next/Prev Steps
+        const currentIndex = STATUS_COLUMNS.findIndex(c => c.key === currentStatus);
+        const valid = [];
+        if (currentIndex > -1) {
+            // Allow move to Prev
+            if (currentIndex > 0) valid.push(STATUS_COLUMNS[currentIndex - 1].key);
+            // Allow move to Next
+            if (currentIndex < STATUS_COLUMNS.length - 1) valid.push(STATUS_COLUMNS[currentIndex + 1].key);
+            // Allow stay in same (optional, but good for UX so it doesn't flicker invalid immediately)
+            valid.push(currentStatus);
+        } else {
+            // If dragging from Archived or unknown, maybe allow move to first column? 
+            // For now, let's assume we can move back to Ideation if Archived
+            if (currentStatus === 'ARCHIVED') valid.push('IDEATION');
+        }
+        setValidDropZones(valid);
     };
 
     const handleDragEnd = () => {
         setDraggedBatchId(null);
         setIsDragging(false);
+        setValidDropZones([]);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -335,6 +401,15 @@ function BatchesContent() {
 
         if (draggedBatchId === null) return;
 
+        // Validation: Block drop if not in valid zones
+        // Exception: Dragging to "ARCHIVED" is not handled by this drop zone code yet (it's a column if showed).
+        // Let's assume if 'showArchived' is true and we drop on ARCHIVED, we should allow it?
+        // Actually user requirement was "Only relevant section available". 
+        // So I will STRICTLY enforce validDropZones.
+        if (validDropZones.length > 0 && !validDropZones.includes(newStatus) && newStatus !== 'ARCHIVED') {
+            return;
+        }
+
         // Optimistic Update
         const updatedBatches = batches.map(b =>
             b.id === draggedBatchId ? { ...b, status: newStatus } : b
@@ -344,6 +419,7 @@ function BatchesContent() {
         // Clear drag state
         setDraggedBatchId(null);
         setIsDragging(false);
+        setValidDropZones([]);
 
         // API Update
         try {
@@ -358,6 +434,27 @@ function BatchesContent() {
         }
     };
 
+    const handleTrashBatch = async (e: React.MouseEvent, id: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!confirm("Move this batch to Trash?")) return;
+
+        // Optimistic Remove
+        setBatches(batches.filter(b => b.id !== id));
+
+        try {
+            await fetch(`/api/batches/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'TRASHED' })
+            });
+        } catch (error) {
+            console.error("Failed to trash batch", error);
+            fetchData(); // Revert on fail
+        }
+    };
+
     return (
         <div className="h-full flex flex-col overflow-hidden">
             {/* Header */}
@@ -366,30 +463,59 @@ function BatchesContent() {
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Ad Batches</h1>
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Manage and track your creative production pipeline.</p>
                 </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    New Batch
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowArchived(!showArchived)}
+                        className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors border ${showArchived
+                            ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-200 dark:border-zinc-700"
+                            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                            }`}
+                    >
+                        {showArchived ? "Hide Archived" : "Show Archived"}
+                    </button>
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        New Batch
+                    </button>
+                </div>
             </div>
 
             {/* Kanban Board */}
             <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
                 <div className="flex h-full gap-6 min-w-max">
-                    {STATUS_COLUMNS.map(column => {
+                    {(showArchived
+                        ? [...STATUS_COLUMNS, { key: "ARCHIVED", label: "Archived", color: "bg-zinc-100 dark:bg-zinc-800" }]
+                        : STATUS_COLUMNS
+                    ).map(column => {
                         const columnBatches = batches.filter(b => b.status === column.key);
+
+                        // Check if this column is valid drop target
+                        const isDropTarget = isDragging && validDropZones.includes(column.key);
+                        const isBlocked = isDragging && !isDropTarget && column.key !== 'ARCHIVED'; // Allow Archived? Or strict? 
+                        // Strict based on user request "others need to be grayed out"
+
                         return (
                             <div
                                 key={column.key}
-                                className={`w-80 flex flex-col h-full rounded-xl transition-colors ${isDragging ? 'bg-zinc-100/80 dark:bg-zinc-900/80 border-dashed border-2' : 'bg-zinc-50/50 dark:bg-zinc-900/50 border'
-                                    } border-zinc-200 dark:border-zinc-800/50`}
-                                onDragOver={handleDragOver}
-                                onDrop={(e) => handleDrop(e, column.key)}
+                                className={`w-80 flex flex-col h-full rounded-xl transition-all duration-300
+                                    ${isDropTarget ? 'ring-2 ring-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : ''}
+                                    ${isBlocked ? 'opacity-30 grayscale pointer-events-none' : ''}
+                                    ${!isDragging && !isBlocked ? 'bg-zinc-50/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/50' : ''}
+                                `}
+                                onDragOver={(e) => {
+                                    if (isBlocked) return;
+                                    handleDragOver(e);
+                                }}
+                                onDrop={(e) => {
+                                    if (isBlocked) return;
+                                    handleDrop(e, column.key);
+                                }}
                             >
                                 {/* Column Header */}
-                                <div className={`px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 rounded-t-xl flex justify-between items-center ${column.color}`}>
+                                <div className={`px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 rounded-t-xl flex justify-between items-center ${isBlocked ? 'bg-gray-200 dark:bg-zinc-800' : column.color}`}>
                                     <h3 className="font-semibold text-zinc-700 dark:text-zinc-200 text-sm">{column.label}</h3>
                                     <span className="bg-white/50 dark:bg-black/20 text-zinc-600 dark:text-zinc-400 text-xs font-mono px-2 py-0.5 rounded-full">
                                         {columnBatches.length}
@@ -402,7 +528,7 @@ function BatchesContent() {
                                         <div
                                             key={batch.id}
                                             draggable
-                                            onDragStart={(e) => handleDragStart(e, batch.id)}
+                                            onDragStart={(e) => handleDragStart(e, batch.id, batch.status)}
                                             onDragEnd={handleDragEnd}
                                             className="transform transition-transform active:scale-95"
                                         >
@@ -410,11 +536,22 @@ function BatchesContent() {
                                                 <div className={`bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-grab active:cursor-grabbing ${draggedBatchId === batch.id ? 'opacity-50' : ''}`}>
 
                                                     {/* Card Header: Priority & Type */}
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">
-                                                            {getTypeLabel(batch.batchType)}
-                                                        </span>
-                                                        {getPriorityBadge(batch.priority)}
+                                                    <div className="flex justify-between items-start mb-2 relative">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">
+                                                                {getTypeLabel(batch.batchType)}
+                                                            </span>
+                                                            {getPriorityBadge(batch.priority)}
+                                                        </div>
+
+                                                        {/* Trash Action */}
+                                                        <button
+                                                            onClick={(e) => handleTrashBatch(e, batch.id)}
+                                                            className="text-zinc-300 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100 absolute right-0 -top-1"
+                                                            title="Move to Trash"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
                                                     </div>
 
                                                     {/* Revision Badge */}
@@ -483,310 +620,314 @@ function BatchesContent() {
             </div>
 
             {/* Create Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}>
-                    <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-lg w-full p-6 border border-zinc-200 dark:border-zinc-700">
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">Create New Ad Batch</h3>
-                        <form onSubmit={handleCreateBatch} className="space-y-4">
+            {
+                isModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}>
+                        <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-lg w-full p-6 border border-zinc-200 dark:border-zinc-700">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">Create New Ad Batch</h3>
+                            <form onSubmit={handleCreateBatch} className="space-y-4">
 
-                            {/* Reference Ad Info - displayed if relevant type selected */}
-                            {(newBatchType === 'COPYCAT' || newBatchType === 'ITERATION') && (
-                                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                                    <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-300 mb-1">
-                                        Reference Ad
+                                {/* Reference Ad Info - displayed if relevant type selected */}
+                                {(newBatchType === 'COPYCAT' || newBatchType === 'ITERATION') && (
+                                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                        <label className="block text-xs font-semibold text-indigo-900 dark:text-indigo-300 mb-1">
+                                            Reference Ad
+                                        </label>
+                                        {referenceAdId ? (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-indigo-700 dark:text-indigo-200">
+                                                    ID: <strong>{referenceAdPostId || referenceAdId}</strong>
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setReferenceAdId(null); setReferenceAdPostId(null); }}
+                                                    className="text-xs text-red-600 hover:text-red-700 underline"
+                                                >
+                                                    Unlink
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="text-xs text-indigo-600/70 dark:text-indigo-400 flex flex-col gap-1">
+                                                <p>No ad selected to copy.</p>
+                                                <Link href="/ads?selectMode=true" className="text-indigo-600 hover:underline font-semibold">
+                                                    Select form Swipe File →
+                                                </Link>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {duplicateWarning && (
+                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                                        <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                        <div className="text-sm text-amber-800">
+                                            <p className="font-medium">Duplicate Batch</p>
+                                            <p className="text-xs mt-0.5">
+                                                {duplicateWarning}
+                                                {duplicateBatchId && (
+                                                    <Link href={`/batches/${duplicateBatchId}`} className="underline font-bold ml-1 hover:text-amber-900">
+                                                        View Batch #{duplicateBatchId} →
+                                                    </Link>
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Name */}
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Batch Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newBatchName}
+                                        onChange={(e) => setNewBatchName(e.target.value)}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="e.g., UGC Test - Student Angle"
+                                    />
+                                </div>
+
+                                {/* Type & Priority Row */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Type</label>
+                                        <select
+                                            value={newBatchType}
+                                            onChange={(e) => setNewBatchType(e.target.value)}
+                                            className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                        >
+                                            <option value="NET_NEW">✨ Net New</option>
+                                            <option value="COPYCAT">🐱 Copycat</option>
+                                            <option value="ITERATION">🔄 Iteration</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Priority</label>
+                                        <select
+                                            value={newBatchPriority}
+                                            onChange={(e) => setNewBatchPriority(e.target.value)}
+                                            className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                        >
+                                            <option value="MEDIUM">Medium</option>
+                                            <option value="HIGH">High</option>
+                                            <option value="LOW">Low</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Main Messaging - NEW FIELD in Creation */}
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                        Main Messaging <span className="text-zinc-400 font-normal">(Optional)</span>
                                     </label>
-                                    {referenceAdId ? (
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm text-indigo-700 dark:text-indigo-200">
-                                                ID: <strong>{referenceAdPostId || referenceAdId}</strong>
-                                            </span>
+                                    <textarea
+                                        value={newBatchMainMessaging}
+                                        onChange={(e) => setNewBatchMainMessaging(e.target.value)}
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 h-20 resize-none"
+                                        placeholder="What does my customer care about? Why should it interest the customer?"
+                                    />
+                                </div>
+
+                                {/* Iteration Linking */}
+                                {newBatchType === "ITERATION" && (
+                                    <div className="space-y-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                                        <label className="block text-sm font-medium text-zinc-900 dark:text-white">
+                                            Original Batch to Iterate On
+                                        </label>
+                                        <select
+                                            value={referenceBatchId || ""}
+                                            onChange={(e) => setReferenceBatchId(e.target.value || null)}
+                                            className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5"
+                                        >
+                                            <option value="">Select Original Batch...</option>
+                                            {eligibleBatches.map(b => (
+                                                <option key={b.id} value={b.id}>
+                                                    {b.name} ({b.concept.name})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-zinc-500">
+                                            Select a launched batch to base this iteration on.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Concept (Required) */}
+                                {/* Concept (Required) */}
+                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Concept</label>
+
+                                    {!isCreatingConcept ? (
+                                        <div className="flex gap-2">
+                                            <select
+                                                required
+                                                value={newBatchConcept}
+                                                onChange={(e) => setNewBatchConcept(e.target.value)}
+                                                className="flex-1 w-0 min-w-0 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 truncate pr-8"
+                                            >
+                                                <option value="">Select a Creative Concept...</option>
+                                                {concepts.map(c => (
+                                                    <option key={c.id} value={c.id} className="truncate max-w-[300px]">
+                                                        {c.name}
+                                                    </option>
+                                                ))}
+                                            </select>
                                             <button
                                                 type="button"
-                                                onClick={() => { setReferenceAdId(null); setReferenceAdPostId(null); }}
-                                                className="text-xs text-red-600 hover:text-red-700 underline"
+                                                onClick={() => setIsCreatingConcept(true)}
+                                                className="px-3 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 rounded-lg text-zinc-600 dark:text-zinc-300 font-bold"
+                                                title="Create New Concept"
                                             >
-                                                Unlink
+                                                +
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="text-xs text-indigo-600/70 dark:text-indigo-400 flex flex-col gap-1">
-                                            <p>No ad selected to copy.</p>
-                                            <Link href="/ads?selectMode=true" className="text-indigo-600 hover:underline font-semibold">
-                                                Select form Swipe File →
-                                            </Link>
+                                        <div className="space-y-3 animate-in slide-in-from-top-2">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-xs font-bold text-indigo-600 uppercase">New Concept</span>
+                                                <button type="button" onClick={() => setIsCreatingConcept(false)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <select
+                                                    className="w-full rounded text-xs p-2 border-zinc-200"
+                                                    value={newConceptForm.angleId}
+                                                    onChange={e => setNewConceptForm(prev => ({ ...prev, angleId: e.target.value }))}
+                                                >
+                                                    <option value="">Angle...</option>
+                                                    {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                                </select>
+                                                <select
+                                                    className="w-full rounded text-xs p-2 border-zinc-200"
+                                                    value={newConceptForm.themeId}
+                                                    onChange={e => setNewConceptForm(prev => ({ ...prev, themeId: e.target.value }))}
+                                                >
+                                                    <option value="">Theme...</option>
+                                                    {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                </select>
+                                                <select
+                                                    className="w-full rounded text-xs p-2 border-zinc-200"
+                                                    value={newConceptForm.demographicId}
+                                                    onChange={e => setNewConceptForm(prev => ({ ...prev, demographicId: e.target.value }))}
+                                                >
+                                                    <option value="">Demographic...</option>
+                                                    {demographics.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                                </select>
+                                                <select
+                                                    className="w-full rounded text-xs p-2 border-zinc-200"
+                                                    value={newConceptForm.awarenessLevelId}
+                                                    onChange={e => setNewConceptForm(prev => ({ ...prev, awarenessLevelId: e.target.value }))}
+                                                >
+                                                    <option value="">Awareness (Opt)...</option>
+                                                    {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleCreateConcept}
+                                                className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded"
+                                            >
+                                                Create Concept
+                                            </button>
+                                        </div>
+                                    )}
+                                    {concepts.length === 0 && !isCreatingConcept && (
+                                        <p className="text-xs text-amber-600 mt-1">No concepts found. Click + to create one.</p>
+                                    )}
+                                </div>
+
+                                {/* Format (Optional) */}
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Format</label>
+                                    {!isCreatingFormat ? (
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={newBatchFormat}
+                                                onChange={(e) => setNewBatchFormat(e.target.value)}
+                                                className="flex-1 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                            >
+                                                <option value="">Select Format (Optional)...</option>
+                                                {formats.map(f => (
+                                                    <option key={f.id} value={f.id}>{f.name}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsCreatingFormat(true)}
+                                                className="px-3 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 rounded-lg text-zinc-600 dark:text-zinc-300 font-bold"
+                                                title="Create New Format"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-2 animate-in slide-in-from-left-2">
+                                            <input
+                                                type="text"
+                                                className="flex-1 rounded text-sm p-2 border-zinc-300 dark:border-zinc-700"
+                                                placeholder="Format Name (e.g. 9:16 UGC)"
+                                                value={newFormatName}
+                                                onChange={e => setNewFormatName(e.target.value)}
+                                                autoFocus
+                                            />
+                                            <button type="button" onClick={handleCreateFormat} className="px-3 bg-indigo-600 text-white rounded text-xs font-bold">Save</button>
+                                            <button type="button" onClick={() => setIsCreatingFormat(false)} className="px-2 text-zinc-500 hover:text-red-500">✕</button>
                                         </div>
                                     )}
                                 </div>
-                            )}
 
-                            {duplicateWarning && (
-                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-                                    <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                    <div className="text-sm text-amber-800">
-                                        <p className="font-medium">Duplicate Batch</p>
-                                        <p className="text-xs mt-0.5">
-                                            {duplicateWarning}
-                                            {duplicateBatchId && (
-                                                <Link href={`/batches/${duplicateBatchId}`} target="_blank" className="underline font-bold ml-1 hover:text-amber-900">
-                                                    View Batch #{duplicateBatchId} →
-                                                </Link>
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Name */}
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Batch Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={newBatchName}
-                                    onChange={(e) => setNewBatchName(e.target.value)}
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 focus:ring-2 focus:ring-indigo-500"
-                                    placeholder="e.g., UGC Test - Student Angle"
-                                />
-                            </div>
-
-                            {/* Type & Priority Row */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Type</label>
-                                    <select
-                                        value={newBatchType}
-                                        onChange={(e) => setNewBatchType(e.target.value)}
-                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
-                                    >
-                                        <option value="NET_NEW">✨ Net New</option>
-                                        <option value="COPYCAT">🐱 Copycat</option>
-                                        <option value="ITERATION">🔄 Iteration</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Priority</label>
-                                    <select
-                                        value={newBatchPriority}
-                                        onChange={(e) => setNewBatchPriority(e.target.value)}
-                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
-                                    >
-                                        <option value="MEDIUM">Medium</option>
-                                        <option value="HIGH">High</option>
-                                        <option value="LOW">Low</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Main Messaging - NEW FIELD in Creation */}
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                    Main Messaging <span className="text-zinc-400 font-normal">(Optional)</span>
-                                </label>
-                                <textarea
-                                    value={newBatchMainMessaging}
-                                    onChange={(e) => setNewBatchMainMessaging(e.target.value)}
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 h-20 resize-none"
-                                    placeholder="What does my customer care about? Why should it interest the customer?"
-                                />
-                            </div>
-
-                            {/* Iteration Linking */}
-                            {newBatchType === "ITERATION" && (
-                                <div className="space-y-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                                    <label className="block text-sm font-medium text-zinc-900 dark:text-white">
-                                        Original Batch to Iterate On
-                                    </label>
-                                    <select
-                                        value={referenceBatchId || ""}
-                                        onChange={(e) => setReferenceBatchId(e.target.value || null)}
-                                        className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5"
-                                    >
-                                        <option value="">Select Original Batch...</option>
-                                        {eligibleBatches.map(b => (
-                                            <option key={b.id} value={b.id}>
-                                                {b.name} ({b.concept.name})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <p className="text-xs text-zinc-500">
-                                        Select a launched batch to base this iteration on.
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Concept (Required) */}
-                            {/* Concept (Required) */}
-                            <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Concept</label>
-
-                                {!isCreatingConcept ? (
-                                    <div className="flex gap-2">
+                                {/* Team Assignment */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Editor</label>
                                         <select
-                                            required
-                                            value={newBatchConcept}
-                                            onChange={(e) => setNewBatchConcept(e.target.value)}
-                                            className="flex-1 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                            value={newBatchEditor}
+                                            onChange={(e) => setNewBatchEditor(e.target.value)}
+                                            className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
                                         >
-                                            <option value="">Select a Creative Concept...</option>
-                                            {concepts.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            <option value="">Unassigned</option>
+                                            {users.filter(u => u.role === 'VIDEO_EDITOR' || u.role === 'OWNER').map(u => (
+                                                <option key={u.id} value={u.id}>{u.name || u.email}</option>
                                             ))}
                                         </select>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsCreatingConcept(true)}
-                                            className="px-3 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 rounded-lg text-zinc-600 dark:text-zinc-300 font-bold"
-                                            title="Create New Concept"
-                                        >
-                                            +
-                                        </button>
                                     </div>
-                                ) : (
-                                    <div className="space-y-3 animate-in slide-in-from-top-2">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-xs font-bold text-indigo-600 uppercase">New Concept</span>
-                                            <button type="button" onClick={() => setIsCreatingConcept(false)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <select
-                                                className="w-full rounded text-xs p-2 border-zinc-200"
-                                                value={newConceptForm.angleId}
-                                                onChange={e => setNewConceptForm(prev => ({ ...prev, angleId: e.target.value }))}
-                                            >
-                                                <option value="">Angle...</option>
-                                                {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                            </select>
-                                            <select
-                                                className="w-full rounded text-xs p-2 border-zinc-200"
-                                                value={newConceptForm.themeId}
-                                                onChange={e => setNewConceptForm(prev => ({ ...prev, themeId: e.target.value }))}
-                                            >
-                                                <option value="">Theme...</option>
-                                                {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                            </select>
-                                            <select
-                                                className="w-full rounded text-xs p-2 border-zinc-200"
-                                                value={newConceptForm.demographicId}
-                                                onChange={e => setNewConceptForm(prev => ({ ...prev, demographicId: e.target.value }))}
-                                            >
-                                                <option value="">Demographic...</option>
-                                                {demographics.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                            </select>
-                                            <select
-                                                className="w-full rounded text-xs p-2 border-zinc-200"
-                                                value={newConceptForm.awarenessLevelId}
-                                                onChange={e => setNewConceptForm(prev => ({ ...prev, awarenessLevelId: e.target.value }))}
-                                            >
-                                                <option value="">Awareness (Opt)...</option>
-                                                {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleCreateConcept}
-                                            className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded"
-                                        >
-                                            Create Concept
-                                        </button>
-                                    </div>
-                                )}
-                                {concepts.length === 0 && !isCreatingConcept && (
-                                    <p className="text-xs text-amber-600 mt-1">No concepts found. Click + to create one.</p>
-                                )}
-                            </div>
-
-                            {/* Format (Optional) */}
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Format</label>
-                                {!isCreatingFormat ? (
-                                    <div className="flex gap-2">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Strategist</label>
                                         <select
-                                            value={newBatchFormat}
-                                            onChange={(e) => setNewBatchFormat(e.target.value)}
-                                            className="flex-1 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
+                                            value={newBatchStrategist}
+                                            onChange={(e) => setNewBatchStrategist(e.target.value)}
+                                            className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
                                         >
-                                            <option value="">Select Format (Optional)...</option>
-                                            {formats.map(f => (
-                                                <option key={f.id} value={f.id}>{f.name}</option>
+                                            <option value="">Unassigned</option>
+                                            {users.filter(u => u.role === 'CREATIVE_STRATEGIST' || u.role === 'OWNER').map(u => (
+                                                <option key={u.id} value={u.id}>{u.name || u.email}</option>
                                             ))}
                                         </select>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsCreatingFormat(true)}
-                                            className="px-3 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 rounded-lg text-zinc-600 dark:text-zinc-300 font-bold"
-                                            title="Create New Format"
-                                        >
-                                            +
-                                        </button>
                                     </div>
-                                ) : (
-                                    <div className="flex gap-2 animate-in slide-in-from-left-2">
-                                        <input
-                                            type="text"
-                                            className="flex-1 rounded text-sm p-2 border-zinc-300 dark:border-zinc-700"
-                                            placeholder="Format Name (e.g. 9:16 UGC)"
-                                            value={newFormatName}
-                                            onChange={e => setNewFormatName(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <button type="button" onClick={handleCreateFormat} className="px-3 bg-indigo-600 text-white rounded text-xs font-bold">Save</button>
-                                        <button type="button" onClick={() => setIsCreatingFormat(false)} className="px-2 text-zinc-500 hover:text-red-500">✕</button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Team Assignment */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Editor</label>
-                                    <select
-                                        value={newBatchEditor}
-                                        onChange={(e) => setNewBatchEditor(e.target.value)}
-                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {users.filter(u => u.role === 'VIDEO_EDITOR' || u.role === 'OWNER').map(u => (
-                                            <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                                        ))}
-                                    </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Strategist</label>
-                                    <select
-                                        value={newBatchStrategist}
-                                        onChange={(e) => setNewBatchStrategist(e.target.value)}
-                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {users.filter(u => u.role === 'CREATIVE_STRATEGIST' || u.role === 'OWNER').map(u => (
-                                            <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
 
-                            {/* Actions */}
-                            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-700">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isCreating}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50"
-                                >
-                                    {isCreating ? "Creating..." : "Create Batch"}
-                                </button>
-                            </div>
-                        </form>
+                                {/* Actions */}
+                                <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-700">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsModalOpen(false)}
+                                        className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isCreating}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50"
+                                    >
+                                        {isCreating ? "Creating..." : "Create Batch"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 

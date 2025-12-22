@@ -17,6 +17,9 @@ export async function GET() {
                 angle: true,
                 awarenessLevel: true,
                 demographic: true,
+                referencedInBatches: {
+                    select: { id: true, name: true, status: true }
+                }
             },
             orderBy: { lastSeen: "desc" },
         });

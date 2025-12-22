@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get('token');
-    
+
     let creator;
 
     if (token) {
@@ -19,20 +19,20 @@ export async function GET(req: Request) {
         // Fallback to Session
         const session = await auth();
         if (session && session.user && (session.user as any).role === "CREATOR") {
-             const userId = session.user.id;
-             creator = await prisma.creator.findUnique({
-                where: { userId },
+            const userId = session.user.id;
+            creator = await prisma.creator.findFirst({
+                where: { user: { id: userId } },
                 include: { brand: true }
-             });
+            });
         }
     }
 
     if (!creator) {
         // Return Public Application State
         const brands = await prisma.brand.findMany({
-            select: { 
-                id: true, 
-                name: true, 
+            select: {
+                id: true,
+                name: true,
                 logoUrl: true,
                 assets: {
                     where: { name: 'Creator Terms' },
@@ -42,14 +42,14 @@ export async function GET(req: Request) {
             },
             orderBy: { name: 'asc' }
         });
-        
-        return NextResponse.json({ 
+
+        return NextResponse.json({
             step: 'PUBLIC_APPLICATION',
             brands
         });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
         step: creator.onboardingStep,
         offer: {
             type: creator.offerType,
@@ -61,6 +61,12 @@ export async function GET(req: Request) {
             name: creator.brand.name,
             logo: creator.brand.logoUrl
         },
+        activeBatch: creator.activeBatchId ? await prisma.adBatch.findUnique({
+            where: { id: creator.activeBatchId },
+            include: {
+                referenceAd: true
+            }
+        }) : null,
         creatorName: creator.name,
         status: creator.status
     });

@@ -5,9 +5,17 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const brandId = searchParams.get('brandId');
+        const status = searchParams.get('status');
+
+        const where: any = { brandId: brandId || null };
+        if (status) {
+            where.status = status;
+        } else {
+            where.status = { not: "TRASHED" };
+        }
 
         const batches = await prisma.adBatch.findMany({
-            where: { brandId: brandId || null },
+            where,
             include: {
                 concept: {
                     include: {
@@ -52,7 +60,6 @@ export async function POST(request: Request) {
                 editorId: data.editorId || null,
                 strategistId: data.strategistId || null,
                 brief: data.brief,
-                referenceAdId: data.referenceAdId,
                 referenceAdId: data.referenceAdId,
                 brandId: data.brandId,
                 mainMessaging: data.mainMessaging,
