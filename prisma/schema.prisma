@@ -163,6 +163,7 @@ model Brand {
   color     String?  // Hex code for profile avatar background
   
   offerBrief String? // Information about the product/market/avatar for AI generation
+  brandDescription String? // High-level description of the brand, replacing full offer brief in some AI contexts
   personaPrompt String? // Custom system prompt for Persona generation
   scenariosPrompt String? // Custom system prompt for Scenarios generation
   breakEvenRoas Float?  @default(1.0)

@@ -28,11 +28,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
             return NextResponse.json({ error: "Concept not found" }, { status: 404 });
         }
 
-        const brandOffer = concept.brand?.offerBrief || "No brand / offer brief found.";
+        const brandInfo = (concept.brand as any)?.brandDescription || concept.brand?.offerBrief || "No brand description found.";
 
         const context = `
-INFORMATION ABOUT THE PRODUCT(Brand Offer Brief):
-${brandOffer}
+INFORMATION ABOUT THE BRAND:
+${brandInfo}
 
 CONCEPT CONTEXT:
 Concept Name: ${concept.name}
@@ -42,8 +42,31 @@ Demographic: ${concept.demographic.name}
 Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
 `;
 
-        const systemPrompt = (concept.brand as any)?.personaPrompt || DEFAULT_PERSONA_PROMPT;
-        const fullPrompt = `${context}\n\n${systemPrompt}`;
+        let finalSystemPrompt = (concept.brand as any)?.personaPrompt || DEFAULT_PERSONA_PROMPT;
+
+        // Dynamic Placeholder Replacement
+        const demoName = concept.demographic.name || "";
+        // Simple heuristic: assume demographic is something like "Male 25-34"
+        const gender = demoName.split(' ')[0] || "Unknown";
+        const ageRange = demoName.replace(gender, '').trim() || "Unknown";
+
+        const replacements: Record<string, string> = {
+            "\\[GENDER\\]": gender,
+            "\\[AGE RANGE\\]": ageRange,
+            "\\[AWARENESS STAGE\\]": concept.awarenessLevel?.name || "Unknown",
+            "\\[ANGLE\\]": concept.angle.name,
+            "\\[THEME\\]": concept.theme.name,
+            "\\[BRAND DESCRIPTION\\]": (concept.brand as any)?.brandDescription || "No description",
+            "\\[OFFER BRIEF\\]": concept.brand?.offerBrief || "No offer brief",
+            "\\[ANGLE DESCRIPTION\\]": (concept.angle as any).description || (concept.angle as any).notes || "No description",
+            "\\[THEME DESCRIPTION\\]": (concept.theme as any).description || "No description"
+        };
+
+        Object.entries(replacements).forEach(([placeholder, value]) => {
+            finalSystemPrompt = finalSystemPrompt.replace(new RegExp(placeholder, 'gi'), value);
+        });
+
+        const fullPrompt = `${context}\n\n${finalSystemPrompt}`;
 
         // Call OpenAI Chat Completions API
         const response = await fetch('https://api.openai.com/v1/chat/completions', {

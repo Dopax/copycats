@@ -12,6 +12,7 @@ interface Brand {
     name: string;
     googleEmail?: string | null;
     breakEvenRoas?: number | string;
+    brandDescription?: string;
     personaPrompt?: string;
     scenariosPrompt?: string;
 }
@@ -25,6 +26,7 @@ export default function BrandSettingsPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [formState, setFormState] = useState({
         breakEvenRoas: "1.00",
+        brandDescription: "",
         personaPrompt: "",
         scenariosPrompt: ""
     });
@@ -50,6 +52,7 @@ export default function BrandSettingsPage() {
                 setBrandData(data);
                 setFormState({
                     breakEvenRoas: data.breakEvenRoas ? data.breakEvenRoas.toString() : "1.00",
+                    brandDescription: data.brandDescription || "",
                     personaPrompt: data.personaPrompt || DEFAULT_PERSONA_PROMPT,
                     scenariosPrompt: data.scenariosPrompt || DEFAULT_SCENARIOS_PROMPT
                 });
@@ -217,27 +220,47 @@ export default function BrandSettingsPage() {
                 </div>
 
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        {/* Brand Description */}
                         <div>
-                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Break-Even ROAS</label>
-                            <div className="flex items-center gap-4">
-                                {isEditing ? (
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        className="w-32 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
-                                        placeholder="e.g. 1.0"
-                                        value={formState.breakEvenRoas}
-                                        onChange={e => setFormState({ ...formState, breakEvenRoas: e.target.value })}
-                                    />
-                                ) : (
-                                    <div className="text-xl font-mono font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-800 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 inline-block">
-                                        {formState.breakEvenRoas || "1.00"}
-                                    </div>
-                                )}
-                                <p className="text-sm text-zinc-500 flex-1">
-                                    Ads with ROAS above this value will be highlighted in green across the dashboard.
-                                </p>
+                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Brand Description</label>
+                            <p className="text-xs text-zinc-500 mb-2">A high-level overview of the brand, products, and target audience. Used as context for AI generation.</p>
+                            {isEditing ? (
+                                <textarea
+                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-3 focus:ring-2 focus:ring-indigo-500 min-h-[100px]"
+                                    placeholder="Describe the brand..."
+                                    value={formState.brandDescription}
+                                    onChange={e => setFormState({ ...formState, brandDescription: e.target.value })}
+                                />
+                            ) : (
+                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                                    {formState.brandDescription || "No description set."}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Break-Even ROAS</label>
+                                <div className="flex items-center gap-4">
+                                    {isEditing ? (
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            className="w-32 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
+                                            placeholder="e.g. 1.0"
+                                            value={formState.breakEvenRoas}
+                                            onChange={e => setFormState({ ...formState, breakEvenRoas: e.target.value })}
+                                        />
+                                    ) : (
+                                        <div className="text-xl font-mono font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-800 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 inline-block">
+                                            {formState.breakEvenRoas || "1.00"}
+                                        </div>
+                                    )}
+                                    <p className="text-sm text-zinc-500 flex-1">
+                                        Ads with ROAS above this value will be highlighted in green across the dashboard.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -267,6 +290,28 @@ export default function BrandSettingsPage() {
                             )}
                         </div>
                         <p className="text-sm text-zinc-500 mb-2">Overrides the system prompt used for generating Buyer Personas.</p>
+
+                        {isEditing && (
+                            <div className="mb-3">
+                                <span className="text-xs font-medium text-zinc-500 block mb-1">Available Placeholders (Click to Copy):</span>
+                                <div className="flex flex-wrap gap-2">
+                                    {["[GENDER]", "[AGE RANGE]", "[AWARENESS STAGE]", "[ANGLE]", "[THEME]", "[BRAND DESCRIPTION]", "[OFFER BRIEF]", "[ANGLE DESCRIPTION]", "[THEME DESCRIPTION]", "[BRAIN CLICKS]"].map(tag => (
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(tag);
+                                                // Optional: Show toast or feedback
+                                            }}
+                                            className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded border border-indigo-100 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800 transition-colors cursor-pointer"
+                                            title="Click to copy"
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {isEditing ? (
                             <textarea
                                 value={formState.personaPrompt}

@@ -31,7 +31,7 @@ interface CreativeConcept {
     personaScenarios?: string;
 }
 
-function ViewDocModal({ title, content, onClose }: { title: string, content: string, onClose: () => void }) {
+function ViewDocModal({ title, content, onClose, onDelete }: { title: string, content: string, onClose: () => void, onDelete?: () => void }) {
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -44,19 +44,35 @@ function ViewDocModal({ title, content, onClose }: { title: string, content: str
                 <div className="p-6 overflow-y-auto font-mono text-sm leading-relaxed whitespace-pre-wrap dark:text-zinc-300">
                     {content}
                 </div>
-                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2 bg-zinc-50 dark:bg-zinc-800/50">
-                    <button
-                        onClick={() => navigator.clipboard.writeText(content)}
-                        className="px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 text-sm font-medium transition-colors"
-                    >
-                        Copy to Clipboard
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
-                    >
-                        Close
-                    </button>
+                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                    <div>
+                        {onDelete && (
+                            <button
+                                onClick={() => {
+                                    if (confirm("Are you sure you want to delete this document? This action cannot be undone.")) {
+                                        onDelete();
+                                    }
+                                }}
+                                className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 text-sm font-medium transition-colors"
+                            >
+                                Delete Doc
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => navigator.clipboard.writeText(content)}
+                            className="px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 text-sm font-medium transition-colors"
+                        >
+                            Copy to Clipboard
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -81,7 +97,7 @@ export default function ConceptsPage() {
     const [generatingScenarioIds, setGeneratingScenarioIds] = useState<Set<string>>(new Set());
 
     // Doc View State
-    const [viewingDoc, setViewingDoc] = useState<{ title: string, content: string } | null>(null);
+    const [viewingDoc, setViewingDoc] = useState<{ title: string; content: string; conceptId?: string; type?: 'persona' | 'scenarios' } | null>(null);
 
     // Form State
     const [selectedAngle, setSelectedAngle] = useState<string>("");
@@ -90,6 +106,36 @@ export default function ConceptsPage() {
     const [selectedGender, setSelectedGender] = useState<string>("");
     const [selectedAge, setSelectedAge] = useState<string>("");
     const [selectedAwarenessLevel, setSelectedAwarenessLevel] = useState<string>("");
+    const [editingConceptId, setEditingConceptId] = useState<string | null>(null);
+
+    const resetForm = () => {
+        setSelectedAngle("");
+        setSelectedTheme("");
+        setSelectedGender("");
+        setSelectedAge("");
+        setSelectedAwarenessLevel("");
+        setEditingConceptId(null);
+    };
+
+    const startEditing = (concept: any) => {
+        setEditingConceptId(concept.id);
+        setSelectedAngle(concept.angleId);
+        setSelectedTheme(concept.themeId);
+        if (concept.demographic?.name) {
+            // Heuristic to split "Female 18-24" -> Gender="Female", Age="18-24"
+            // Assumes format "[Gender] [Age]"
+            const parts = concept.demographic.name.trim().split(' ');
+            if (parts.length >= 2) {
+                setSelectedGender(parts[0]);
+                setSelectedAge(parts.slice(1).join(' '));
+            } else {
+                setSelectedGender("");
+                setSelectedAge("");
+            }
+        }
+        setSelectedAwarenessLevel(concept.awarenessLevelId || "");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     // Modal States
     const [showThemeModal, setShowThemeModal] = useState(false);
@@ -237,47 +283,44 @@ export default function ConceptsPage() {
         }
     };
 
-    const handleCreateConcept = async (e: React.FormEvent) => {
+    const handleSubmitConcept = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Resolve Demographic ID
         const demoName = (selectedGender && selectedAge) ? `${selectedGender} ${selectedAge}` : null;
-        const selectedDemographic = demoName ? demographics.find(d => d.name === demoName)?.id : null;
+        const selectedDemographicId = demoName ? demographics.find(d => d.name === demoName)?.id : null;
 
-        if (!selectedAngle || !selectedTheme || !selectedDemographic) {
+        if (!selectedAngle || !selectedTheme || !selectedDemographicId) {
             alert("Please select all three components (Angle, Theme, Demographic).");
             return;
         }
 
         setIsCreating(true);
         try {
-            const res = await fetch('/api/concepts', {
-                method: 'POST',
+            const endpoint = editingConceptId ? `/api/concepts/${editingConceptId}` : '/api/concepts';
+            const method = editingConceptId ? 'PUT' : 'POST';
+
+            const res = await fetch(endpoint, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     angleId: selectedAngle,
                     themeId: selectedTheme,
-                    demographicId: selectedDemographic,
+                    demographicId: selectedDemographicId,
                     awarenessLevelId: selectedAwarenessLevel || undefined,
                     brandId: selectedBrand?.id
                 })
             });
 
             if (res.ok) {
-                const newConcept = await res.json();
-                setConcepts([newConcept, ...concepts]);
-                // Reset form
-                // Reset form
-                setSelectedAngle("");
-                setSelectedTheme("");
-                setSelectedGender("");
-                setSelectedAge("");
-                setSelectedAwarenessLevel("");
+                // Re-fetch all concepts to ensure data consistency and order
+                await fetchData();
+                resetForm();
             } else {
-                alert("Failed to create concept.");
+                alert(`Failed to ${editingConceptId ? 'update' : 'create'} concept.`);
             }
         } catch (error) {
-            console.error("Error creating concept:", error);
+            console.error(`Error ${editingConceptId ? 'updating' : 'creating'} concept:`, error);
         } finally {
             setIsCreating(false);
         }
@@ -307,8 +350,8 @@ export default function ConceptsPage() {
 
             {/* Concept Creator Card */}
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">New Concept Matrix</h2>
-                <form onSubmit={handleCreateConcept} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{editingConceptId ? "Edit Concept" : "New Concept Matrix"}</h2>
+                <form onSubmit={handleSubmitConcept} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
 
 
                     {/* Angle */}
@@ -397,13 +440,24 @@ export default function ConceptsPage() {
                     </div>
 
                     {/* Submit */}
-                    <button
-                        type="submit"
-                        disabled={isCreating}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition-colors disabled:opacity-50"
-                    >
-                        {isCreating ? "Generating..." : "Generate Concept"}
-                    </button>
+                    <div className="flex flex-col gap-2">
+                        <button
+                            type="submit"
+                            disabled={isCreating}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition-colors disabled:opacity-50 w-full"
+                        >
+                            {editingConceptId ? "Update Concept" : (isCreating ? "Generating..." : "Generate Concept")}
+                        </button>
+                        {editingConceptId && (
+                            <button
+                                type="button"
+                                onClick={resetForm}
+                                className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300 underline text-center"
+                            >
+                                Cancel Edit
+                            </button>
+                        )}
+                    </div>
                 </form>
             </div>
 
@@ -467,7 +521,7 @@ export default function ConceptsPage() {
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                                             <button
-                                                                onClick={() => setViewingDoc({ title: "Buyer Persona", content: concept.conceptDoc! })}
+                                                                onClick={() => setViewingDoc({ title: "Buyer Persona", content: concept.conceptDoc!, conceptId: concept.id, type: 'persona' })}
                                                                 className="text-xs text-indigo-600 hover:text-indigo-900 underline font-medium"
                                                             >
                                                                 View
@@ -491,7 +545,7 @@ export default function ConceptsPage() {
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                                             <button
-                                                                onClick={() => setViewingDoc({ title: "Persona Scenarios", content: concept.personaScenarios! })}
+                                                                onClick={() => setViewingDoc({ title: "Persona Scenarios", content: concept.personaScenarios!, conceptId: concept.id, type: 'scenarios' })}
                                                                 className="text-xs text-indigo-600 hover:text-indigo-900 underline font-medium"
                                                             >
                                                                 View
@@ -525,12 +579,20 @@ export default function ConceptsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                            <button
-                                                onClick={() => handleDelete(concept.id)}
-                                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                                            >
-                                                Delete
-                                            </button>
+                                            <div className="flex justify-end gap-3">
+                                                <button
+                                                    onClick={() => startEditing(concept)}
+                                                    className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(concept.id)}
+                                                    className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -548,7 +610,40 @@ export default function ConceptsPage() {
             </div>
 
             {/* Doc View Modal */}
-            {viewingDoc && <ViewDocModal title={viewingDoc.title} content={viewingDoc.content} onClose={() => setViewingDoc(null)} />}
+            {viewingDoc && (
+                <ViewDocModal
+                    title={viewingDoc.title}
+                    content={viewingDoc.content}
+                    onClose={() => setViewingDoc(null)}
+                    onDelete={async () => {
+                        if (viewingDoc.conceptId) {
+                            try {
+                                const body: any = {};
+                                // Set the specific field to null
+                                if (viewingDoc.type === 'persona') body.conceptDoc = null;
+                                if (viewingDoc.type === 'scenarios') body.personaScenarios = null;
+
+                                const res = await fetch(`/api/concepts/${viewingDoc.conceptId}/update-doc`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(body)
+                                });
+
+                                if (res.ok) {
+                                    const updated = await res.json();
+                                    setConcepts(prev => prev.map(c => c.id === viewingDoc.conceptId ? updated : c));
+                                    setViewingDoc(null); // Close modal
+                                } else {
+                                    alert("Failed to delete document.");
+                                }
+                            } catch (e) {
+                                console.error("Delete doc error", e);
+                                alert("Error deleting document.");
+                            }
+                        }
+                    }}
+                />
+            )}
 
             {/* Theme Modal */}
             {showThemeModal && (
