@@ -26,6 +26,7 @@ model Ad {
   notes           String?
   whyItWorks      String?
   transcript      String?
+  mainMessaging   String?
   
   snapshots       AdSnapshot[]
   tags            Tag[]
@@ -100,6 +101,7 @@ model AdAngle {
   category String?
   description String?
   brainClicks String?
+  notes    String?
   ads      Ad[]
   concepts CreativeConcept[]
   brandId  String?
@@ -151,6 +153,7 @@ model CreativeConcept {
   updatedAt     DateTime @updatedAt
   
   conceptDoc    String?
+  personaScenarios String?
 }
 
 model Brand {
@@ -160,6 +163,8 @@ model Brand {
   color     String?  // Hex code for profile avatar background
   
   offerBrief String? // Information about the product/market/avatar for AI generation
+  personaPrompt String? // Custom system prompt for Persona generation
+  scenariosPrompt String? // Custom system prompt for Scenarios generation
   breakEvenRoas Float?  @default(1.0)
   
   batches   AdBatch[]
@@ -327,6 +332,9 @@ model FacebookAd {
   batchId         Int?
   batch           AdBatch? @relation(fields: [batchId], references: [id])
   
+  batchItemId     String?
+  batchItem       BatchItem? @relation(fields: [batchItemId], references: [id])
+  
   updatedAt       DateTime @updatedAt
 }
 
@@ -370,14 +378,23 @@ model AdBatch {
   aiImagePrompt String?
   aiVideoPrompt String?
 
-  // If Copycat or Iteration, link to an existing Ad
+  // Copycat: Link to external Ad
   referenceAdId String?
   referenceAd   Ad?     @relation(fields: [referenceAdId], references: [id])
+
+  // Iteration: Link to internal Batch
+  referenceBatchId Int?
+  referenceBatch   AdBatch?  @relation("BatchIterations", fields: [referenceBatchId], references: [id])
+  iterations       AdBatch[] @relation("BatchIterations")
 
   projectFilesUrl String? // Link to Google Drive Zip
 
   // Linked Facebook Ads
   facebookAds   FacebookAd[]
+
+  mainMessaging String?
+  launchedAt    DateTime?
+  learnings     String?
 
   items       BatchItem[]
   assignedCreators Creator[] @relation("ActiveBatch")
@@ -400,6 +417,8 @@ model BatchItem {
   videoName String?  // Original Filename
   status    String   @default("PENDING") // PENDING, DONE
   
+  facebookAds FacebookAd[] // Linked Ads for this variation
+
   comments  CreativeComment[]
 }
 

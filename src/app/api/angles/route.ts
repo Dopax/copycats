@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const { name, brandId, category, description, brainClicks } = await request.json();
+        const { name, brandId, category, description, brainClicks, notes } = await request.json();
 
         if (!name) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
                 category,
                 description,
                 brainClicks,
+                notes,
                 brandId: brandId || null
             }
         });

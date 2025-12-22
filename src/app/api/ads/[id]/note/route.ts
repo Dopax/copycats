@@ -13,6 +13,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         const data: any = {};
         if (body.notes !== undefined) data.notes = body.notes;
         if (body.whyItWorks !== undefined) data.whyItWorks = body.whyItWorks;
+        if (body.mainMessaging !== undefined) data.mainMessaging = body.mainMessaging;
         if (body.transcript !== undefined) data.transcript = body.transcript;
 
         const updatedAd = await prisma.ad.update({

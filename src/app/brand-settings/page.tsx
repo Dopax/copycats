@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useBrand } from "@/context/BrandContext";
 import TeamSettings from "@/components/team/TeamSettings";
+import { DEFAULT_PERSONA_PROMPT, DEFAULT_SCENARIOS_PROMPT } from "@/lib/constants/prompts";
 
 // Brand Interface
 interface Brand {
@@ -10,6 +11,8 @@ interface Brand {
     name: string;
     googleEmail?: string | null;
     breakEvenRoas?: number | string;
+    personaPrompt?: string;
+    scenariosPrompt?: string;
 }
 
 export default function BrandSettingsPage() {
@@ -20,7 +23,9 @@ export default function BrandSettingsPage() {
     // Edit State for General Settings
     const [isEditing, setIsEditing] = useState(false);
     const [formState, setFormState] = useState({
-        breakEvenRoas: "1.00"
+        breakEvenRoas: "1.00",
+        personaPrompt: "",
+        scenariosPrompt: ""
     });
 
     // Import State
@@ -43,7 +48,9 @@ export default function BrandSettingsPage() {
                 const data = await res.json();
                 setBrandData(data);
                 setFormState({
-                    breakEvenRoas: data.breakEvenRoas ? data.breakEvenRoas.toString() : "1.00"
+                    breakEvenRoas: data.breakEvenRoas ? data.breakEvenRoas.toString() : "1.00",
+                    personaPrompt: data.personaPrompt || DEFAULT_PERSONA_PROMPT,
+                    scenariosPrompt: data.scenariosPrompt || DEFAULT_SCENARIOS_PROMPT
                 });
             }
         } catch (error) {
@@ -233,6 +240,74 @@ export default function BrandSettingsPage() {
                             </div>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <hr className="border-zinc-200 dark:border-zinc-800" />
+
+            {/* AI Configuration Section */}
+            <section>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span>🤖</span> AI Configuration
+                </h2>
+                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-8">
+
+                    {/* Persona Prompt */}
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="block text-sm font-bold text-zinc-900 dark:text-white">Custom Persona Prompt</label>
+                            {isEditing && (
+                                <button
+                                    onClick={() => setFormState(prev => ({ ...prev, personaPrompt: DEFAULT_PERSONA_PROMPT }))}
+                                    className="text-xs text-indigo-600 hover:text-indigo-800"
+                                >
+                                    Reset to Default
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-sm text-zinc-500 mb-2">Overrides the system prompt used for generating Buyer Personas.</p>
+                        {isEditing ? (
+                            <textarea
+                                value={formState.personaPrompt}
+                                onChange={e => setFormState({ ...formState, personaPrompt: e.target.value })}
+                                className="w-full h-48 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 font-mono"
+                                placeholder="Enter custom prompt here..."
+                            />
+                        ) : (
+                            <div className="w-full h-48 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 overflow-y-auto text-sm font-mono text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">
+                                {formState.personaPrompt || DEFAULT_PERSONA_PROMPT}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Scenarios Prompt */}
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="block text-sm font-bold text-zinc-900 dark:text-white">Custom Scenarios Prompt</label>
+                            {isEditing && (
+                                <button
+                                    onClick={() => setFormState(prev => ({ ...prev, scenariosPrompt: DEFAULT_SCENARIOS_PROMPT }))}
+                                    className="text-xs text-indigo-600 hover:text-indigo-800"
+                                >
+                                    Reset to Default
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-sm text-zinc-500 mb-2">Overrides the system prompt used for generating "Day in the Life" scenarios.</p>
+                        {isEditing ? (
+                            <textarea
+                                value={formState.scenariosPrompt}
+                                onChange={e => setFormState({ ...formState, scenariosPrompt: e.target.value })}
+                                className="w-full h-48 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 font-mono"
+                                placeholder="Enter custom prompt here..."
+                            />
+                        ) : (
+                            <div className="w-full h-48 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 overflow-y-auto text-sm font-mono text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">
+                                {formState.scenariosPrompt || DEFAULT_SCENARIOS_PROMPT}
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </section>
 

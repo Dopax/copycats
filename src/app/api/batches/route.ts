@@ -53,7 +53,9 @@ export async function POST(request: Request) {
                 strategistId: data.strategistId || null,
                 brief: data.brief,
                 referenceAdId: data.referenceAdId,
+                referenceAdId: data.referenceAdId,
                 brandId: data.brandId,
+                mainMessaging: data.mainMessaging,
             },
             include: {
                 concept: true,

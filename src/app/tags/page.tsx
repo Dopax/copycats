@@ -46,6 +46,7 @@ interface AngleTag extends Tag {
     category?: string;
     description?: string;
     brainClicks?: string;
+    notes?: string;
 }
 
 function FormatCard({ format, onEdit, onDelete }: { format: FormatTag, onEdit: (f: FormatTag) => void, onDelete: (id: string) => void }) {
@@ -265,6 +266,13 @@ function AngleCard({ angle, onEdit, onDelete }: { angle: AngleTag, onEdit: (a: A
                 <p className="text-sm text-zinc-400 italic">No description</p>
             )}
 
+            {angle.notes && (
+                <div className="mt-2 text-xs bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-800 text-amber-800 dark:text-amber-200">
+                    <span className="font-semibold block mb-0.5">Strategy Notes:</span>
+                    {angle.notes}
+                </div>
+            )}
+
             <div className="flex justify-end gap-2 mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800 opacity-60 group-hover:opacity-100 transition-opacity">
                 <button
                     onClick={() => onEdit(angle)}
@@ -310,7 +318,7 @@ export default function TagsPage() {
     // Angle Modal State
     const [isAngleModalOpen, setIsAngleModalOpen] = useState(false);
     const [editingAngle, setEditingAngle] = useState<AngleTag | null>(null);
-    const [angleForm, setAngleForm] = useState<Partial<AngleTag>>({ name: '', category: '', description: '', brainClicks: '' });
+    const [angleForm, setAngleForm] = useState<Partial<AngleTag>>({ name: '', category: '', description: '', brainClicks: '', notes: '' });
 
 
     const { selectedBrand, isLoading: isBrandLoading } = useBrand();
@@ -495,7 +503,7 @@ export default function TagsPage() {
             setAngleForm({ ...angle });
         } else {
             setEditingAngle(null);
-            setAngleForm({ name: '', category: '', description: '', brainClicks: '' });
+            setAngleForm({ name: '', category: '', description: '', brainClicks: '', notes: '' });
         }
         setIsAngleModalOpen(true);
     };

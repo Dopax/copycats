@@ -37,6 +37,7 @@ const STATUS_COLUMNS = [
     { key: "REVIEW", label: "Review", color: "bg-purple-50 dark:bg-purple-900/10" },
     { key: "AI_BOOST", label: "AI Boost", color: "bg-indigo-50 dark:bg-indigo-900/10" },
     { key: "LAUNCHED", label: "Launched", color: "bg-green-50 dark:bg-green-900/10" },
+    { key: "LEARNING", label: "Learning", color: "bg-emerald-50 dark:bg-emerald-900/10" },
 ];
 
 function BatchesContent() {
@@ -63,6 +64,19 @@ function BatchesContent() {
     const [newBatchFormat, setNewBatchFormat] = useState("");
     const [newBatchEditor, setNewBatchEditor] = useState("");
     const [newBatchStrategist, setNewBatchStrategist] = useState("");
+    const [newBatchMainMessaging, setNewBatchMainMessaging] = useState("");
+
+    // Iteration State
+    const [referenceBatchId, setReferenceBatchId] = useState<string | null>(null);
+    const [eligibleBatches, setEligibleBatches] = useState<Batch[]>([]);
+
+    useEffect(() => {
+        if (newBatchType === 'ITERATION' && batches.length > 0) {
+            // Filter eligible batches (e.g. Launched or Learning?) - For now just show all relevant ones
+            setEligibleBatches(batches.filter(b => b.status === "LAUNCHED" || b.status === "LEARNING" || b.status === "ARCHIVED"));
+        }
+    }, [newBatchType, batches]);
+
     const [isCreating, setIsCreating] = useState(false);
 
     // Inline Creation State
@@ -186,10 +200,12 @@ function BatchesContent() {
                     priority: newBatchPriority,
                     conceptId: newBatchConcept,
                     formatId: newBatchFormat || null,
-                    referenceAdId: (newBatchType === 'COPYCAT' || newBatchType === 'ITERATION') ? referenceAdId : null,
+                    referenceAdId: (newBatchType === 'COPYCAT') ? referenceAdId : null,
+                    referenceBatchId: (newBatchType === 'ITERATION') ? referenceBatchId : null,
                     brandId: selectedBrand?.id,
                     editorId: newBatchEditor || undefined,
-                    strategistId: newBatchStrategist || undefined
+                    strategistId: newBatchStrategist || undefined,
+                    mainMessaging: newBatchMainMessaging
                 }),
             });
 
@@ -198,6 +214,7 @@ function BatchesContent() {
                 setBatches([created, ...batches]);
                 setIsModalOpen(false);
                 resetForm();
+                setReferenceBatchId(null);
 
                 // If created from URL param flow, clean up URL
                 if (searchParams.get("create")) {
@@ -271,6 +288,7 @@ function BatchesContent() {
         setReferenceAdPostId(null);
         setNewBatchEditor("");
         setNewBatchStrategist("");
+        setNewBatchMainMessaging("");
     };
 
     const getPriorityBadge = (p: string) => {
@@ -558,6 +576,43 @@ function BatchesContent() {
                                     </select>
                                 </div>
                             </div>
+
+                            {/* Main Messaging - NEW FIELD in Creation */}
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                    Main Messaging <span className="text-zinc-400 font-normal">(Optional)</span>
+                                </label>
+                                <textarea
+                                    value={newBatchMainMessaging}
+                                    onChange={(e) => setNewBatchMainMessaging(e.target.value)}
+                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 h-20 resize-none"
+                                    placeholder="What does my customer care about? Why should it interest the customer?"
+                                />
+                            </div>
+
+                            {/* Iteration Linking */}
+                            {newBatchType === "ITERATION" && (
+                                <div className="space-y-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                                    <label className="block text-sm font-medium text-zinc-900 dark:text-white">
+                                        Original Batch to Iterate On
+                                    </label>
+                                    <select
+                                        value={referenceBatchId || ""}
+                                        onChange={(e) => setReferenceBatchId(e.target.value || null)}
+                                        className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5"
+                                    >
+                                        <option value="">Select Original Batch...</option>
+                                        {eligibleBatches.map(b => (
+                                            <option key={b.id} value={b.id}>
+                                                {b.name} ({b.concept.name})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-zinc-500">
+                                        Select a launched batch to base this iteration on.
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Concept (Required) */}
                             {/* Concept (Required) */}

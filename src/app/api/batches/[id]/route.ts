@@ -19,7 +19,20 @@ export async function GET(request: Request, { params }: { params: { id: string }
                 },
                 format: true,
                 items: { include: { hook: true } },
-                referenceAd: true
+                referenceAd: {
+                    include: {
+                        snapshots: true,
+                        hook: true,
+                        format: true
+                    }
+                },
+                referenceBatch: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                facebookAds: true
             },
         });
 
@@ -52,6 +65,22 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
         // Prevent updating items directly here, usually done via separate endpoints or careful nested updates
         // For now, allow simple field updates
+        // Check for status change to LAUNCHED
+        let extraUpdates: any = {};
+        if (data.status === "LAUNCHED") {
+            // Only set launchedAt if it wasn't set before? Or reset it? 
+            // Let's set it if we are moving TO launched.
+            // But we need to know previous status to be sure? 
+            // Simplified: If passing LAUNCHED, update launchedAt if not present, or maybe just update it.
+            // Let's just update `launchedAt` if data.launchedAt is passed OR if status is LAUNCHED
+            // Actually, best to do it if status changes. We can check if it's currently not LAUNCHED?
+            // For simplicity in this one-shot update:
+            extraUpdates.launchedAt = new Date();
+        }
+
+        // Allow manual override if passed
+        if (data.launchedAt) extraUpdates.launchedAt = data.launchedAt;
+
         const updatedBatch = await prisma.adBatch.update({
             where: { id },
             data: {
@@ -64,6 +93,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 formatId: data.formatId,
                 conceptId: data.conceptId,
                 referenceAdId: data.referenceAdId,
+                referenceBatchId: data.referenceBatchId,
                 aiAdCopy: data.aiAdCopy,
                 aiImagePrompt: data.aiImagePrompt,
                 aiVideoPrompt: data.aiVideoPrompt,
@@ -72,7 +102,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 idea: data.idea,
                 creatorBrief: data.creatorBrief,
                 shotlist: data.shotlist,
-                creatorBriefType: data.creatorBriefType
+                creatorBriefType: data.creatorBriefType,
+
+                mainMessaging: data.mainMessaging,
+                learnings: data.learnings,
+                ...extraUpdates
             },
         });
 

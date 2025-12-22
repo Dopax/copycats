@@ -46,6 +46,7 @@ interface Ad {
     snapshots: AdSnapshot[];
     notes?: string;
     whyItWorks?: string;
+    mainMessaging?: string;
     format?: AdFormat | null;
     hook?: AdHook | null;
     theme?: AdTheme | null;
@@ -63,6 +64,7 @@ export default function AdDetailPage() {
     // Notes & Tags State (Copied from AdCard logic)
     const [notes, setNotes] = useState("");
     const [whyItWorks, setWhyItWorks] = useState("");
+    const [mainMessaging, setMainMessaging] = useState("");
     const [showNotesField, setShowNotesField] = useState(false);
     const [isSavingNotes, setIsSavingNotes] = useState(false);
     const [isExtractingHook, setIsExtractingHook] = useState(false);
@@ -161,7 +163,7 @@ export default function AdDetailPage() {
             await fetch(`/api/ads/${ad.id}/note`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notes, whyItWorks }),
+                body: JSON.stringify({ notes, whyItWorks, mainMessaging }),
             });
 
             // Save Tags
@@ -198,6 +200,7 @@ export default function AdDetailPage() {
                 // Initialize state from fetched ad
                 setNotes(data.notes || "");
                 setWhyItWorks(data.whyItWorks || "");
+                setMainMessaging(data.mainMessaging || "");
                 setShowNotesField(!!data.notes);
                 setSelectedFormat(data.format?.id || null);
                 setSelectedHook(data.hook?.id || null);
@@ -498,6 +501,18 @@ export default function AdDetailPage() {
                                     className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
                                 >+</button>
                             </div>
+                        </div>
+
+
+                        {/* Main Messaging */}
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Main Messaging</label>
+                            <textarea
+                                value={mainMessaging}
+                                onChange={(e) => setMainMessaging(e.target.value)}
+                                placeholder="What does my customer care about? Why should it interest the customer?"
+                                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
+                            />
                         </div>
 
                         {/* Why it works */}

@@ -17,7 +17,7 @@ export interface AdWithSnapshots extends Ad {
     angle?: AdAngle | null;
     awarenessLevel?: AdAwarenessLevel | null;
     demographic?: AdDemographic | null;
-    transcript?: string | null;
+
 }
 
 interface AdQuickViewProps {
@@ -30,6 +30,7 @@ interface AdQuickViewProps {
 export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickViewProps) {
     const [notes, setNotes] = useState(ad.notes || "");
     const [whyItWorks, setWhyItWorks] = useState((ad as any).whyItWorks || "");
+    const [mainMessaging, setMainMessaging] = useState((ad as any).mainMessaging || "");
     const [isSaving, setIsSaving] = useState(false);
     const [isExtractingHook, setIsExtractingHook] = useState(false);
 
@@ -59,6 +60,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
     useEffect(() => {
         setNotes(ad.notes || "");
         setWhyItWorks((ad as any).whyItWorks || "");
+        setMainMessaging((ad as any).mainMessaging || "");
         setTranscript((ad as any).transcript || "");
         setSelectedFormat(ad.format?.id || null);
         setSelectedHook(ad.hook?.id || null);
@@ -145,7 +147,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
             await fetch(`/api/ads/${ad.id}/note`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notes, whyItWorks, transcript }),
+                body: JSON.stringify({ notes, whyItWorks, mainMessaging, transcript }),
             });
 
             // Save Tags
@@ -172,6 +174,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                     ...ad,
                     notes,
                     whyItWorks,
+                    mainMessaging,
                     transcript,
                     format: formats.find(f => f.id === selectedFormat) || null,
                     hook: hooks.find(h => h.id === selectedHook) || null,
@@ -434,6 +437,18 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                 </div>
 
                                 <h3 className="font-semibold text-zinc-900 dark:text-white pt-4 pb-2 border-b border-zinc-100 dark:border-zinc-800">Notes & Analysis</h3>
+
+
+                                {/* Main Messaging */}
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-500 mb-1">Main Messaging</label>
+                                    <textarea
+                                        value={mainMessaging}
+                                        onChange={e => setMainMessaging(e.target.value)}
+                                        className="w-full h-32 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                        placeholder="What does my customer care about? Why should it interest the customer?"
+                                    />
+                                </div>
 
                                 {/* Why it works */}
                                 <div>

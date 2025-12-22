@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
         const body = await request.json();
-        const { name, logoUrl, color, color2, fontUrl, offerBrief, adAccountId, breakEvenRoas } = body;
+        const { name, logoUrl, color, color2, fontUrl, offerBrief, adAccountId, breakEvenRoas, personaPrompt, scenariosPrompt } = body;
 
         const brand = await prisma.brand.update({
             where: { id: params.id },
@@ -35,6 +35,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 fontUrl,
                 offerBrief,
                 adAccountId,
+                personaPrompt,
+                scenariosPrompt,
                 // @ts-ignore
                 breakEvenRoas: breakEvenRoas ? parseFloat(breakEvenRoas) : undefined
             }
