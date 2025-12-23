@@ -190,6 +190,8 @@ model Brand {
   googleRefreshToken String?
   googleDriveFolderId String?
   googleEmail        String?
+  creativesParentFolderId String?
+  batchesParentFolderId   String?
 
   creators           Creator[]
   // Facebook Ads Integration

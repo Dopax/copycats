@@ -24,7 +24,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     try {
         const body = await request.json();
         console.log("UPDATE BRAND BODY:", body);
-        const { name, logoUrl, color, color2, fontUrl, offerBrief, brandDescription, adAccountId, breakEvenRoas, personaPrompt, scenariosPrompt } = body;
+        const { name, logoUrl, color, color2, fontUrl, offerBrief, brandDescription, adAccountId, breakEvenRoas, personaPrompt, scenariosPrompt, creativesParentFolderId, batchesParentFolderId } = body;
 
         const brand = await prisma.brand.update({
             where: { id: params.id },
@@ -39,6 +39,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 adAccountId,
                 personaPrompt,
                 scenariosPrompt,
+                creativesParentFolderId,
+                batchesParentFolderId,
                 // @ts-ignore
                 breakEvenRoas: breakEvenRoas ? parseFloat(breakEvenRoas) : undefined
             }

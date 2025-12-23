@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useBrand } from "@/context/BrandContext";
+import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 
 // Types
 interface Batch {
@@ -720,12 +721,13 @@ function BatchesContent() {
                                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                                         Main Messaging <span className="text-zinc-400 font-normal">(Optional)</span>
                                     </label>
-                                    <textarea
-                                        value={newBatchMainMessaging}
-                                        onChange={(e) => setNewBatchMainMessaging(e.target.value)}
-                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 h-20 resize-none"
-                                        placeholder="What does my customer care about? Why should it interest the customer?"
-                                    />
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                        <MessagingAnalysisToolbox
+                                            value={newBatchMainMessaging}
+                                            onChange={(val) => setNewBatchMainMessaging(val)}
+                                            className="border-0 shadow-none rounded-lg bg-transparent"
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Iteration Linking */}

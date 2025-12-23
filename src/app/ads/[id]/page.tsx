@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { format } from "date-fns";
+import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 import {
     LineChart,
     Line,
@@ -505,13 +506,10 @@ export default function AdDetailPage() {
 
 
                         {/* Main Messaging */}
-                        <div>
-                            <label className="block text-xs font-medium text-zinc-500 mb-1">Main Messaging</label>
-                            <textarea
+                        <div className="mb-2">
+                            <MessagingAnalysisToolbox
                                 value={mainMessaging}
-                                onChange={(e) => setMainMessaging(e.target.value)}
-                                placeholder="What does my customer care about? Why should it interest the customer?"
-                                className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
+                                onChange={setMainMessaging}
                             />
                         </div>
 

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         const batch = await prisma.adBatch.create({
             data: {
                 name: data.name,
-                status: "IDEATION",
+                status: data.batchType === "COPYCAT" ? "CREATOR_BRIEFING" : "IDEATION",
                 batchType: data.batchType,
                 priority: data.priority,
                 conceptId: data.conceptId,

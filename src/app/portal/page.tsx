@@ -306,7 +306,6 @@ function PublicLanding({ brands }: any) {
                                     className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-indigo-500 outline-none"
                                     value={form.ageGroup}
                                     onChange={e => setForm({ ...form, ageGroup: e.target.value })}
-                                    onChange={e => setForm({ ...form, ageGroup: e.target.value })}
                                     required
                                 >
                                     <option value="">Select...</option>
@@ -324,7 +323,6 @@ function PublicLanding({ brands }: any) {
                                     className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-indigo-500 outline-none"
                                     value={form.country}
                                     onChange={e => setForm({ ...form, country: e.target.value })}
-                                    onChange={e => setForm({ ...form, country: e.target.value })}
                                     required
                                 >
                                     <option value="">Select...</option>
@@ -338,9 +336,6 @@ function PublicLanding({ brands }: any) {
                                 <select
                                     className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-indigo-500 outline-none"
                                     value={form.language}
-                                    onChange={e => setForm({ ...form, language: e.target.value })}
-                                    required
-                                >
                                     onChange={e => setForm({ ...form, language: e.target.value })}
                                     required
                                 >

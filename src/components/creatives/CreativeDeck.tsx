@@ -6,6 +6,7 @@ interface Creative {
     id: string;
     thumbnailUrl: string | null;
     createdAt?: string | Date;
+    driveFileId?: string | null;
 }
 
 interface CreativeDeckProps {
@@ -57,6 +58,11 @@ export default function CreativeDeck({ title, count, creatives, onClick }: Creat
                     const scale = 1 - (previewItems.length - 1 - index) * 0.05;
                     const opacity = 1 - (previewItems.length - 1 - index) * 0.2;
 
+                    // Robust Thumbnail Logic
+                    const thumbUrl = creative.driveFileId
+                        ? `https://lh3.googleusercontent.com/d/${creative.driveFileId}=s400`
+                        : creative.thumbnailUrl;
+
                     return (
                         <div
                             key={creative.id}
@@ -69,10 +75,24 @@ export default function CreativeDeck({ title, count, creatives, onClick }: Creat
                             }}
                         >
                             <div className="bg-zinc-900 rounded-lg overflow-hidden border border-zinc-700 shadow-xl aspect-[9/16] relative">
-                                {creative.thumbnailUrl ? (
-                                    <img src={creative.thumbnailUrl} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                                {thumbUrl ? (
+                                    <img
+                                        src={thumbUrl}
+                                        referrerPolicy="no-referrer"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            // Fallback to original thumbnailUrl if LH3 fails, or hide if it WAS the original
+                                            if (creative.thumbnailUrl && e.currentTarget.src !== creative.thumbnailUrl) {
+                                                e.currentTarget.src = creative.thumbnailUrl;
+                                            } else {
+                                                e.currentTarget.style.display = 'none';
+                                            }
+                                        }}
+                                    />
                                 ) : (
-                                    <div className="w-full h-full bg-zinc-800" />
+                                    <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                                        <svg className="w-8 h-8 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    </div>
                                 )}
 
                                 {isTop && (

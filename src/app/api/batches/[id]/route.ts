@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
                     }
                 },
                 format: true,
-                items: { include: { hook: true } },
+                items: { include: { hook: true }, orderBy: { id: 'asc' } },
                 referenceAd: {
                     include: {
                         snapshots: true,

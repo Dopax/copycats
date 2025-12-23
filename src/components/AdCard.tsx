@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Ad, AdSnapshot } from "@prisma/client";
+import { useAdTags } from "../hooks/useAdTags";
 
 interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
@@ -30,12 +31,18 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
     const [priority, setPriority] = useState<number | null>((ad as any).priority || null);
     const [showPriorityMenu, setShowPriorityMenu] = useState(false);
 
-    // Tags State
-    const [formats, setFormats] = useState<AdFormat[]>([]);
-    const [hooks, setHooks] = useState<AdHook[]>([]);
-    const [themes, setThemes] = useState<AdTheme[]>([]);
-    const [angles, setAngles] = useState<AdAngle[]>([]);
-    const [awarenessLevels, setAwarenessLevels] = useState<AdAwarenessLevel[]>([]);
+    // Tags State (Managed by Hook)
+    const {
+        formats, hooks, themes, angles, awarenessLevels,
+        loadTags,
+        createFormat: createFormatApi,
+        createHook: createHookApi,
+        extractHook: extractHookApi,
+        createTheme: createThemeApi,
+        createAngle: createAngleApi,
+        createAwarenessLevel: createAwarenessLevelApi,
+        isExtractingHook
+    } = useAdTags();
 
     const [selectedFormat, setSelectedFormat] = useState<string | null>(ad.format?.id || null);
     const [selectedHook, setSelectedHook] = useState<string | null>(ad.hook?.id || null);
@@ -121,54 +128,19 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
     const [showNotesField, setShowNotesField] = useState(!!ad.notes);
     const [showNotes, setShowNotes] = useState(false);
     const [isSavingNotes, setIsSavingNotes] = useState(false);
-    const [isExtractingHook, setIsExtractingHook] = useState(false);
+
 
     // Fetch tags when opening menu
-    const loadTags = async () => {
-        try {
-            const [formatsRes, hooksRes, themesRes, anglesRes, awarenessRes] = await Promise.all([
-                fetch('/api/formats'),
-                fetch('/api/hooks'),
-                fetch('/api/themes'),
-                fetch('/api/angles'),
-                fetch('/api/awareness-levels')
-            ]);
-            setFormats(await formatsRes.json());
-            setHooks(await hooksRes.json());
-            setThemes(await themesRes.json());
-            setAngles(await anglesRes.json());
-            setAwarenessLevels(await awarenessRes.json());
-        } catch (e) {
-            console.error("Failed to load tags", e);
-        }
-    };
+
 
     const createFormat = async (name: string) => {
-        try {
-            const res = await fetch('/api/formats', {
-                method: 'POST',
-                body: JSON.stringify({ name })
-            });
-            const newFormat = await res.json();
-            setFormats([...formats, newFormat]);
-            setSelectedFormat(newFormat.id);
-        } catch (e) {
-            console.error("Failed to create format", e);
-        }
+        const newFormat = await createFormatApi(name);
+        if (newFormat) setSelectedFormat(newFormat.id);
     };
 
     const createHook = async (name: string) => {
-        try {
-            const res = await fetch('/api/hooks', {
-                method: 'POST',
-                body: JSON.stringify({ name })
-            });
-            const newHook = await res.json();
-            setHooks([...hooks, newHook]);
-            setSelectedHook(newHook.id);
-        } catch (e) {
-            console.error("Failed to create hook", e);
-        }
+        const newHook = await createHookApi(name);
+        if (newHook) setSelectedHook(newHook.id);
     };
 
     const extractHook = async () => {
@@ -181,75 +153,29 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
         const name = prompt("Enter a name for this video hook:", defaultName);
         if (!name) return;
 
-        setIsExtractingHook(true);
-        try {
-            const res = await fetch('/api/hooks/extract', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    videoUrl: ad.videoUrl,
-                    name,
-                    brandId: (ad as any).brandId
-                })
-            });
+        const result = await extractHookApi(ad.videoUrl, name, (ad as any).brandId);
 
-            if (res.ok) {
-                const newHook = await res.json();
-                setHooks([...hooks, newHook]);
-                setSelectedHook(newHook.id);
-                alert("Hook extracted and saved successfully!");
-            } else {
-                const err = await res.json();
-                alert(`Failed to extract hook: ${err.error || 'Unknown error'}`);
-            }
-        } catch (e) {
-            console.error("Failed to extract hook", e);
-            alert("Error extracting hook");
-        } finally {
-            setIsExtractingHook(false);
+        if (result.success && result.hook) {
+            setSelectedHook(result.hook.id);
+            alert("Hook extracted and saved successfully!");
+        } else {
+            alert(`Failed to extract hook: ${result.error || 'Unknown error'}`);
         }
     };
 
     const createTheme = async (name: string) => {
-        try {
-            const res = await fetch('/api/themes', {
-                method: 'POST',
-                body: JSON.stringify({ name })
-            });
-            const newTheme = await res.json();
-            setThemes([...themes, newTheme]);
-            setSelectedTheme(newTheme.id);
-        } catch (e) {
-            console.error("Failed to create theme", e);
-        }
+        const newTheme = await createThemeApi(name);
+        if (newTheme) setSelectedTheme(newTheme.id);
     };
 
     const createAngle = async (name: string) => {
-        try {
-            const res = await fetch('/api/angles', {
-                method: 'POST',
-                body: JSON.stringify({ name })
-            });
-            const newAngle = await res.json();
-            setAngles([...angles, newAngle]);
-            setSelectedAngle(newAngle.id);
-        } catch (e) {
-            console.error("Failed to create angle", e);
-        }
+        const newAngle = await createAngleApi(name);
+        if (newAngle) setSelectedAngle(newAngle.id);
     };
 
     const createAwarenessLevel = async (name: string) => {
-        try {
-            const res = await fetch('/api/awareness-levels', {
-                method: 'POST',
-                body: JSON.stringify({ name })
-            });
-            const newLevel = await res.json();
-            setAwarenessLevels([...awarenessLevels, newLevel]);
-            setSelectedAwareness(newLevel.id);
-        } catch (e) {
-            console.error("Failed to create awareness level", e);
-        }
+        const newLevel = await createAwarenessLevelApi(name);
+        if (newLevel) setSelectedAwareness(newLevel.id);
     };
 
     const saveAll = async () => {
@@ -447,20 +373,21 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                                     <option key={h.id} value={h.id}>{h.name}</option>
                                 ))}
                             </select>
-                            {ad.videoUrl && (
-                                <button
-                                    onClick={(e) => { e.preventDefault(); extractHook(); }}
-                                    disabled={isExtractingHook}
-                                    className="flex-shrink-0 px-3 py-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 disabled:opacity-50"
-                                    title="Extract First 3.5s as Video Hook"
-                                >
-                                    {isExtractingHook ? (
-                                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    ) : (
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm8.486-8.486a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243z" /></svg>
-                                    )}
-                                </button>
-                            )}
+                            <button
+                                onClick={(e) => { e.preventDefault(); if (ad.videoUrl) extractHook(); }}
+                                disabled={isExtractingHook || !ad.videoUrl}
+                                className={`flex-shrink-0 px-3 py-2 rounded-lg border transition-colors ${!ad.videoUrl
+                                        ? "bg-zinc-100 text-zinc-300 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-600 cursor-not-allowed"
+                                        : "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100"
+                                    }`}
+                                title={!ad.videoUrl ? "No video available to extract hook" : "Extract First 3.5s as Video Hook"}
+                            >
+                                {isExtractingHook ? (
+                                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm8.486-8.486a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243z" /></svg>
+                                )}
+                            </button>
                             <button
                                 onClick={(e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) createHook(name); }}
                                 className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"

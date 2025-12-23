@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import MessagingAnalysisToolbox from "./MessagingAnalysisToolbox";
 
 interface AdSnapshot {
     id: string;
@@ -80,14 +81,12 @@ export default function ReferenceAdIntegration({ ad, className = "" }: Reference
                     <div className="flex-1 overflow-y-auto max-h-[500px]">
 
                         {/* Main Messaging - Highlighted */}
-                        <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                            <h4 className="flex items-center gap-2 text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
-                                Main Messaging
-                            </h4>
-                            <div className="text-sm text-zinc-800 dark:text-zinc-100 font-medium leading-relaxed bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                                {ad.mainMessaging || "No main messaging analyzed yet."}
-                            </div>
+                        <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                            <MessagingAnalysisToolbox
+                                value={ad.mainMessaging}
+                                readOnly
+                                className="border-0 shadow-none rounded-none"
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-zinc-200 dark:bg-zinc-800">

@@ -11,6 +11,12 @@ export async function GET() {
                         ads: true,
                         batches: true
                     }
+                },
+                batches: {
+                    select: { id: true, name: true, status: true }
+                },
+                ads: {
+                    select: { id: true, postId: true, brand: true, thumbnailUrl: true, videoUrl: true }
                 }
             },
             orderBy: {

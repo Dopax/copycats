@@ -14,7 +14,12 @@ export async function GET(request: Request) {
                 ]
             } : {},
             orderBy: { name: 'asc' },
-            include: { brand: true }
+            include: {
+                brand: true,
+                _count: {
+                    select: { ads: true, batchItems: true }
+                }
+            }
         });
         return NextResponse.json(hooks);
     } catch (error) {

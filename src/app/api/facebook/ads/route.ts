@@ -147,6 +147,94 @@ export async function GET(req: NextRequest) {
             };
         });
 
+        // --- AUTOMATIC LINKING LOGIC ---
+        try {
+            // Updated regex to support "batch-2a", "batch_2_B", "BATCH 2 A etc"
+            const BATCH_REGEX = /BATCH[\s\-_]*(\d+)[\s\-_]*([A-Z])/i;
+            const potentialMatches: { adIndex: number, batchId: number, variationLabel: string }[] = [];
+            const batchIdsToFetch = new Set<number>();
+
+            // 1. Scan for pattern matches
+            ads.forEach((ad: any, idx: number) => {
+                const match = ad.name.match(BATCH_REGEX);
+                if (match) {
+                    const bid = parseInt(match[1]);
+                    const label = match[2].toUpperCase();
+                    if (!isNaN(bid)) {
+                        batchIdsToFetch.add(bid);
+                        potentialMatches.push({ adIndex: idx, batchId: bid, variationLabel: label });
+                    }
+                }
+            });
+
+            if (potentialMatches.length > 0) {
+                // 2. Fetch required batches with items (Sorted by ID for stable index 'A' -> 0)
+                const batches = await prisma.adBatch.findMany({
+                    where: { id: { in: Array.from(batchIdsToFetch) } },
+                    include: { items: { orderBy: { id: 'asc' } } }
+                });
+
+                const batchMap = new Map(batches.map(b => [b.id, b]));
+                const linkOperations = [];
+
+                // 3. Match and Prepare Upserts
+                for (const pm of potentialMatches) {
+                    const batch = batchMap.get(pm.batchId);
+                    if (batch) {
+                        const index = pm.variationLabel.charCodeAt(0) - 65; // A=0, B=1...
+                        if (index >= 0 && index < batch.items.length) {
+                            const targetItem = batch.items[index];
+                            const adData = ads[pm.adIndex];
+
+                            // Prepare Upsert (Link this FB Ad to the Batch Item)
+                            linkOperations.push(
+                                prisma.facebookAd.upsert({
+                                    where: { id: adData.id },
+                                    create: {
+                                        id: adData.id,
+                                        name: adData.name,
+                                        status: adData.status,
+                                        spend: adData.spend,
+                                        roas: adData.roas || 0,
+                                        clicks: adData.clicks,
+                                        impressions: adData.impressions,
+                                        cpm: adData.cpm,
+                                        ctr: adData.ctr,
+                                        // Link to Batch & Item
+                                        batchId: batch.id,
+                                        batchItemId: targetItem.id
+                                    },
+                                    update: {
+                                        // Update stats and links
+                                        name: adData.name,
+                                        status: adData.status,
+                                        spend: adData.spend,
+                                        roas: adData.roas || 0,
+                                        clicks: adData.clicks,
+                                        impressions: adData.impressions,
+                                        cpm: adData.cpm,
+                                        ctr: adData.ctr,
+                                        batchId: batch.id,
+                                        batchItemId: targetItem.id
+                                    }
+                                })
+                            );
+                        }
+                    }
+                }
+
+                // 4. Exec Transaction
+                if (linkOperations.length > 0) {
+                    console.log(`Auto-linking ${linkOperations.length} ads...`);
+                    await prisma.$transaction(linkOperations);
+                }
+            }
+        } catch (linkError) {
+            console.error("Auto-linking failed", linkError);
+            // Non-blocking catch
+        }
+        // -------------------------------
+
         const linkedAds = await prisma.facebookAd.findMany({
             where: { id: { in: ads.map((a: any) => a.id) } },
             include: { batch: { select: { id: true, name: true } } }

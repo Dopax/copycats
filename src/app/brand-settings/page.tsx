@@ -15,6 +15,8 @@ interface Brand {
     brandDescription?: string;
     personaPrompt?: string;
     scenariosPrompt?: string;
+    creativesParentFolderId?: string;
+    batchesParentFolderId?: string;
 }
 
 export default function BrandSettingsPage() {
@@ -28,7 +30,9 @@ export default function BrandSettingsPage() {
         breakEvenRoas: "1.00",
         brandDescription: "",
         personaPrompt: "",
-        scenariosPrompt: ""
+        scenariosPrompt: "",
+        creativesParentFolderId: "",
+        batchesParentFolderId: ""
     });
 
     // Import State
@@ -54,7 +58,9 @@ export default function BrandSettingsPage() {
                     breakEvenRoas: data.breakEvenRoas ? data.breakEvenRoas.toString() : "1.00",
                     brandDescription: data.brandDescription || "",
                     personaPrompt: data.personaPrompt || DEFAULT_PERSONA_PROMPT,
-                    scenariosPrompt: data.scenariosPrompt || DEFAULT_SCENARIOS_PROMPT
+                    scenariosPrompt: data.scenariosPrompt || DEFAULT_SCENARIOS_PROMPT,
+                    creativesParentFolderId: data.creativesParentFolderId || "",
+                    batchesParentFolderId: data.batchesParentFolderId || ""
                 });
             }
         } catch (error) {
@@ -140,7 +146,7 @@ export default function BrandSettingsPage() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-12 pb-20 p-8">
+        <main className="max-w-4xl mx-auto space-y-12 pb-20 p-8">
             <div>
                 <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Brand Settings</h1>
                 <p className="text-zinc-500 mt-1">Configure integrations, benchmarks, and data management for {brandData?.name}.</p>
@@ -148,10 +154,21 @@ export default function BrandSettingsPage() {
 
             {/* 1. Integrations Section */}
             <section>
-                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    Integrations
-                </h2>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
+                        <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        Integrations
+                    </h2>
+                    <button
+                        onClick={() => isEditing ? handleSaveGeneral() : setIsEditing(true)}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${isEditing
+                            ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                            : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                            }`}
+                    >
+                        {isEditing ? "Save Changes" : "Edit Config"}
+                    </button>
+                </div>
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
                     <div className="flex items-start justify-between">
                         <div className="flex gap-4">
@@ -186,10 +203,51 @@ export default function BrandSettingsPage() {
                             {brandData?.googleEmail ? "Reconnect" : "Connect"}
                         </button>
                     </div>
+
+                    {/* Folder Configuration */}
+                    <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                        <h3 className="font-semibold text-zinc-900 dark:text-white mb-4">Drive Folder Configuration</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Creatives Parent Folder ID</label>
+                                <p className="text-xs text-zinc-500 mb-2">The Google Drive Folder ID where new creative assets will be uploaded.</p>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="e.g. 1A2b3C..."
+                                        value={formState.creativesParentFolderId}
+                                        onChange={e => setFormState({ ...formState, creativesParentFolderId: e.target.value })}
+                                    />
+                                ) : (
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-600 dark:text-zinc-400 font-mono truncate">
+                                        {formState.creativesParentFolderId || "Not configured"}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Batches Parent Folder ID</label>
+                                <p className="text-xs text-zinc-500 mb-2">The Google Drive Folder ID where new batch folders will be created.</p>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="e.g. 9Z8y7X..."
+                                        value={formState.batchesParentFolderId}
+                                        onChange={e => setFormState({ ...formState, batchesParentFolderId: e.target.value })}
+                                    />
+                                ) : (
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-600 dark:text-zinc-400 font-mono truncate">
+                                        {formState.batchesParentFolderId || "Not configured"}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
-
-
 
             <hr className="border-zinc-200 dark:border-zinc-800" />
 
@@ -202,22 +260,10 @@ export default function BrandSettingsPage() {
 
             {/* 3. General Settings Section */}
             <section>
-                {/* ... */}
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-                        <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-                        General Configuration
-                    </h2>
-                    <button
-                        onClick={() => isEditing ? handleSaveGeneral() : setIsEditing(true)}
-                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${isEditing
-                            ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                            : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700"
-                            }`}
-                    >
-                        {isEditing ? "Save Changes" : "Edit Config"}
-                    </button>
-                </div>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                    General Configuration
+                </h2>
 
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
                     <div className="space-y-6">
@@ -457,6 +503,6 @@ export default function BrandSettingsPage() {
                     </div>
                 </div>
             </section>
-        </div>
+        </main>
     );
 }

@@ -64,6 +64,7 @@ interface Batch {
 }
 
 import ReferenceAdIntegration from "@/components/ReferenceAdIntegration";
+import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 
 function FileUpload({ batchName, type, brandId, batchId, variationLabel, onUploadComplete }:
     { batchName: string, type: 'video' | 'zip', brandId?: string, batchId?: string, variationLabel?: string, onUploadComplete: (url: string, name: string) => void }) {
@@ -580,6 +581,28 @@ export default function BatchDetailPage() {
             console.error("Failed to load data", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const updateBatch = async (updates: Partial<Batch>) => {
+        if (!batch) return;
+
+        // Optimistic update
+        setBatch(prev => prev ? { ...prev, ...updates } : null);
+
+        try {
+            const res = await fetch(`/api/batches/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+
+            if (!res.ok) {
+                console.error("Failed to update batch");
+                // Ideally revert here
+            }
+        } catch (error) {
+            console.error("Error updating batch", error);
         }
     };
 
@@ -1111,6 +1134,22 @@ export default function BatchDetailPage() {
                                     ))}
                                 </div>
 
+                                {/* Reference Ad Integration - Show in Copycat Batches */}
+                                {batch.referenceAd && (
+                                    <div className="mb-6">
+                                        <ReferenceAdIntegration ad={batch.referenceAd as any} />
+                                    </div>
+                                )}
+
+                                {/* Main Messaging Analysis - Editable in Briefing */}
+                                <div className="mb-6">
+                                    <MessagingAnalysisToolbox
+                                        value={batch.mainMessaging}
+                                        onChange={(val) => updateBatch({ mainMessaging: val })}
+                                        className="transition-shadow hover:shadow-md"
+                                    />
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Instructions / Brief</label>
@@ -1342,6 +1381,17 @@ export default function BatchDetailPage() {
                                                     {brief || <span className="text-zinc-400 italic">No specific instructions.</span>}
                                                 </div>
                                             </div>
+
+                                            {/* Core Messaging for Editor */}
+                                            <div>
+                                                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Core Messaging</label>
+                                                <MessagingAnalysisToolbox
+                                                    value={batch.mainMessaging}
+                                                    readOnly
+                                                    className="p-3 border text-xs"
+                                                />
+                                            </div>
+
                                             {batch.referenceAd && (
                                                 <div className="mt-4">
                                                     <ReferenceAdIntegration ad={batch.referenceAd as any} />
@@ -1529,148 +1579,147 @@ export default function BatchDetailPage() {
                                         </div>
                                     )}
 
-                                    {/* 8. LEARNING & OPTIMIZATION */}
-                                    {activeStep === "LEARNING" && (
-                                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                                                <div className="flex items-center justify-between mb-6">
-                                                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                                                        <span>🧠</span> Learning Phase
-                                                    </h3>
-                                                    <div className="text-xs font-mono text-zinc-400">
-                                                        Launched: {batch.launchedAt ? new Date(batch.launchedAt).toLocaleDateString() : "Pending"}
-                                                    </div>
-                                                </div>
-
-                                                {/* Top Stats / Winner */}
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                                    {/* Winning Variation Logic */}
-                                                    <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800 rounded-xl p-5">
-                                                        <h4 className="font-bold text-emerald-800 dark:text-emerald-400 mb-4 flex items-center gap-2">
-                                                            <span>🏆</span> Winning Variation
-                                                        </h4>
-
-                                                        {(() => {
-                                                            // Identify winner
-                                                            if (!batch.facebookAds || batch.facebookAds.length === 0) return <p className="text-sm text-zinc-500 italic">No ads linked yet.</p>;
-
-                                                            const winner = batch.facebookAds.reduce((prev, current) => (prev.spend > current.spend) ? prev : current);
-                                                            if (winner.spend < 200) {
-                                                                return <p className="text-sm text-zinc-500">Not enough spend yet (Highest: ${winner.spend.toFixed(2)})</p>;
-                                                            }
-
-                                                            // Find linked variation
-                                                            const winningItem = batch.items.find(i => i.id === winner.batchItemId);
-
-                                                            return (
-                                                                <div className="space-y-4">
-                                                                    <div className="flex items-start gap-4">
-                                                                        <div className="w-24 h-32 bg-black rounded-lg overflow-hidden flex-shrink-0">
-                                                                            {winningItem && winningItem.videoUrl ? (
-                                                                                <video src={winningItem.videoUrl} className="w-full h-full object-cover" muted autoPlay loop />
-                                                                            ) : (
-                                                                                <div className="w-full h-full flex items-center justify-center text-zinc-500">No Video</div>
-                                                                            )}
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="font-bold text-lg text-emerald-900 dark:text-emerald-300">
-                                                                                Variation {winningItem ? getVariationLabel(batch.items.indexOf(winningItem)) : "?"}
-                                                                            </div>
-                                                                            <div className="text-sm text-emerald-700 dark:text-emerald-500 mb-2">
-                                                                                {winner.name}
-                                                                            </div>
-                                                                            <div className="grid grid-cols-2 gap-4 text-xs">
-                                                                                <div className="bg-white/50 dark:bg-black/20 p-2 rounded">
-                                                                                    <span className="block text-zinc-500">Spend</span>
-                                                                                    <span className="font-bold">${winner.spend.toFixed(2)}</span>
-                                                                                </div>
-                                                                                <div className="bg-white/50 dark:bg-black/20 p-2 rounded">
-                                                                                    <span className="block text-zinc-500">ROAS</span>
-                                                                                    <span className="font-bold">{winner.roas.toFixed(2)}x</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })()}
-                                                    </div>
-
-                                                    {/* Learnings Input */}
-                                                    <div className="flex flex-col h-full">
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <label className="font-bold text-zinc-700 dark:text-zinc-300">Learnings & Ideas</label>
-                                                            <span className={`text-xs font-mono transition-colors ${isSavingLearnings ? 'text-indigo-500' : 'text-zinc-300'}`}>
-                                                                {isSavingLearnings ? "Saving..." : "Saved"}
-                                                            </span>
-                                                        </div>
-                                                        <textarea
-                                                            value={learnings}
-                                                            onChange={(e) => setLearnings(e.target.value)}
-                                                            className="flex-1 w-full bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 resize-none"
-                                                            placeholder="- Why did the winner perform well?&#10;- New angles to test?&#10;- Iteration ideas?"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                {/* Ad Connection Table */}
-                                                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-6">
-                                                    <h4 className="font-bold text-zinc-900 dark:text-white mb-4">Linked Ads</h4>
-                                                    <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
-                                                        <table className="w-full text-sm text-left">
-                                                            <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 font-medium">
-                                                                <tr>
-                                                                    <th className="p-3">Ad Name</th>
-                                                                    <th className="p-3">Spend</th>
-                                                                    <th className="p-3">Variation Link</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                                                {batch.facebookAds?.map(ad => (
-                                                                    <tr key={ad.id} className="bg-white dark:bg-zinc-900">
-                                                                        <td className="p-3 font-medium text-zinc-900 dark:text-zinc-200 max-w-xs truncate" title={ad.name}>
-                                                                            {ad.name}
-                                                                        </td>
-                                                                        <td className="p-3 text-zinc-600 dark:text-zinc-400">${ad.spend.toFixed(2)}</td>
-                                                                        <td className="p-3">
-                                                                            <select
-                                                                                value={ad.batchItemId || ""}
-                                                                                onChange={(e) => linkAdToVariation(ad.id, e.target.value)}
-                                                                                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg text-xs py-1.5 px-2 w-full max-w-[200px]"
-                                                                            >
-                                                                                <option value="">Unassigned</option>
-                                                                                {batch.items.map((item, idx) => (
-                                                                                    <option key={item.id} value={item.id}>
-                                                                                        Var {getVariationLabel(idx)} ({hooks.find(h => h.id === item.hookId)?.name || 'No Hook'})
-                                                                                    </option>
-                                                                                ))}
-                                                                            </select>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                                {(!batch.facebookAds || batch.facebookAds.length === 0) && (
-                                                                    <tr>
-                                                                        <td colSpan={3} className="p-6 text-center text-zinc-400 italic">
-                                                                            No Facebook Ads linked to this batch yet.
-                                                                        </td>
-                                                                    </tr>
-                                                                )}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
 
+                {/* 8. LEARNING & OPTIMIZATION */}
+                {activeStep === "LEARNING" && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                    <span>🧠</span> Learning Phase
+                                </h3>
+                                <div className="text-xs font-mono text-zinc-400">
+                                    Launched: {batch.launchedAt ? new Date(batch.launchedAt).toLocaleDateString() : "Pending"}
+                                </div>
+                            </div>
 
-                {/* 3. REVIEW DASHBOARD */}
+                            {/* Top Stats / Winner */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                {/* Winning Variation Logic */}
+                                <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800 rounded-xl p-5">
+                                    <h4 className="font-bold text-emerald-800 dark:text-emerald-400 mb-4 flex items-center gap-2">
+                                        <span>🏆</span> Winning Variation
+                                    </h4>
+
+                                    {(() => {
+                                        // Identify winner
+                                        if (!batch.facebookAds || batch.facebookAds.length === 0) return <p className="text-sm text-zinc-500 italic">No ads linked yet.</p>;
+
+                                        const winner = batch.facebookAds.reduce((prev, current) => (prev.spend > current.spend) ? prev : current);
+                                        if (winner.spend < 200) {
+                                            return <p className="text-sm text-zinc-500">Not enough spend yet (Highest: ${winner.spend.toFixed(2)})</p>;
+                                        }
+
+                                        // Find linked variation
+                                        const winningItem = batch.items.find(i => i.id === winner.batchItemId);
+
+                                        return (
+                                            <div className="space-y-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-24 h-32 bg-black rounded-lg overflow-hidden flex-shrink-0">
+                                                        {winningItem && winningItem.videoUrl ? (
+                                                            <video src={winningItem.videoUrl} className="w-full h-full object-cover" muted autoPlay loop />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-zinc-500">No Video</div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-lg text-emerald-900 dark:text-emerald-300">
+                                                            Variation {winningItem ? getVariationLabel(batch.items.indexOf(winningItem)) : "?"}
+                                                        </div>
+                                                        <div className="text-sm text-emerald-700 dark:text-emerald-500 mb-2">
+                                                            {winner.name}
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-4 text-xs">
+                                                            <div className="bg-white/50 dark:bg-black/20 p-2 rounded">
+                                                                <span className="block text-zinc-500">Spend</span>
+                                                                <span className="font-bold">${winner.spend.toFixed(2)}</span>
+                                                            </div>
+                                                            <div className="bg-white/50 dark:bg-black/20 p-2 rounded">
+                                                                <span className="block text-zinc-500">ROAS</span>
+                                                                <span className="font-bold">{winner.roas.toFixed(2)}x</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Learnings Input */}
+                                <div className="flex flex-col h-full">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="font-bold text-zinc-700 dark:text-zinc-300">Learnings & Ideas</label>
+                                        <span className={`text-xs font-mono transition-colors ${isSavingLearnings ? 'text-indigo-500' : 'text-zinc-300'}`}>
+                                            {isSavingLearnings ? "Saving..." : "Saved"}
+                                        </span>
+                                    </div>
+                                    <textarea
+                                        value={learnings}
+                                        onChange={(e) => setLearnings(e.target.value)}
+                                        className="flex-1 w-full bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 resize-none"
+                                        placeholder="- Why did the winner perform well?&#10;- New angles to test?&#10;- Iteration ideas?"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Ad Connection Table */}
+                            <div className="border-t border-zinc-100 dark:border-zinc-800 pt-6">
+                                <h4 className="font-bold text-zinc-900 dark:text-white mb-4">Linked Ads</h4>
+                                <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 font-medium">
+                                            <tr>
+                                                <th className="p-3">Ad Name</th>
+                                                <th className="p-3">Spend</th>
+                                                <th className="p-3">Variation Link</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                            {batch.facebookAds?.map(ad => (
+                                                <tr key={ad.id} className="bg-white dark:bg-zinc-900">
+                                                    <td className="p-3 font-medium text-zinc-900 dark:text-zinc-200 max-w-xs truncate" title={ad.name}>
+                                                        {ad.name}
+                                                    </td>
+                                                    <td className="p-3 text-zinc-600 dark:text-zinc-400">${ad.spend.toFixed(2)}</td>
+                                                    <td className="p-3">
+                                                        <select
+                                                            value={ad.batchItemId || ""}
+                                                            onChange={(e) => linkAdToVariation(ad.id, e.target.value)}
+                                                            className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg text-xs py-1.5 px-2 w-full max-w-[200px]"
+                                                        >
+                                                            <option value="">Unassigned</option>
+                                                            {batch.items.map((item, idx) => (
+                                                                <option key={item.id} value={item.id}>
+                                                                    Var {getVariationLabel(idx)} ({hooks.find(h => h.id === item.hookId)?.name || 'No Hook'})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {(!batch.facebookAds || batch.facebookAds.length === 0) && (
+                                                <tr>
+                                                    <td colSpan={3} className="p-6 text-center text-zinc-400 italic">
+                                                        No Facebook Ads linked to this batch yet.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                )}
+
                 {/* 6. REVIEW DASHBOARD */}
                 {activeStep === "REVIEW" && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -1682,6 +1731,17 @@ export default function BatchDetailPage() {
                                         <p><strong>Review Mode:</strong> Please approve variations or add revision notes.</p>
                                     </div>
                                 )}
+
+                                {/* Reference Messaging for Reviewer */}
+                                <div className="mb-4">
+                                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Core Messaging Reference</h4>
+                                    <MessagingAnalysisToolbox
+                                        value={batch.mainMessaging}
+                                        readOnly
+                                        className="p-3 border text-xs bg-zinc-50 dark:bg-zinc-800/50"
+                                    />
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* ... existing review dashboard code ... */}
 
@@ -1763,7 +1823,8 @@ export default function BatchDetailPage() {
                             </div>
                         </div>
                     </div>
-                )}
+                )
+                }
 
                 {/* Doc View Modal */}
                 {/* Modals */}
@@ -1801,7 +1862,7 @@ export default function BatchDetailPage() {
                         />
                     )
                 }
-            </div>
+            </div >
         </div >
     );
 }

@@ -36,6 +36,7 @@ interface Hook extends Tag {
     videoUrl?: string;
     thumbnailUrl?: string;
     brand?: { name: string } | null;
+    _count?: { ads: number; batchItems: number; }; // Usage counts
 }
 
 interface ThemeTag extends Tag {
@@ -176,6 +177,19 @@ function HookCard({ hook, onEdit, onDelete }: { hook: Hook, onEdit: (h: Hook) =>
                         {hook.type.replace('_', ' ')}
                     </div>
                 )}
+                {/* Source Badge */}
+                <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold rounded uppercase flex items-center gap-1">
+                    {(hook._count?.ads || 0) > 0 ? (
+                        <>
+                            <span className="text-purple-400">⚡</span> Competitor
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-emerald-400">✨</span> Our Hook
+                        </>
+                    )}
+                </div>
+
                 {/* Brand Badge */}
                 {hook.brand && (
                     <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-sm text-white text-[9px] font-medium rounded flex items-center gap-1 border border-white/10">

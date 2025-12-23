@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Ad, AdSnapshot } from "@prisma/client";
 import Link from "next/link";
+import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 
 interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
@@ -303,11 +304,11 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                     <div>
                                         <label className="block text-xs font-medium text-zinc-500 mb-1">Format</label>
                                         <div className="flex gap-2">
-                                            <select value={selectedFormat || ""} onChange={e => setSelectedFormat(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                            <select value={selectedFormat || ""} onChange={e => setSelectedFormat(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
                                                 <option value="">Select Format...</option>
                                                 {formats.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                             </select>
-                                            <button onClick={() => { const n = prompt("New Format:"); if (n) createTag('/api/formats', n, setFormats, formats, setSelectedFormat); }} className="px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <button onClick={() => { const n = prompt("New Format:"); if (n) createTag('/api/formats', n, setFormats, formats, setSelectedFormat); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
                                         </div>
                                     </div>
 
@@ -315,16 +316,16 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                     <div>
                                         <label className="block text-xs font-medium text-zinc-500 mb-1">Hook</label>
                                         <div className="flex gap-2">
-                                            <select value={selectedHook || ""} onChange={e => setSelectedHook(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                            <select value={selectedHook || ""} onChange={e => setSelectedHook(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
                                                 <option value="">Select Hook...</option>
                                                 {hooks.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                                             </select>
                                             {ad.videoUrl && (
-                                                <button onClick={extractHook} disabled={isExtractingHook} className="px-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 text-xs font-bold disabled:opacity-50" title="Extract as new hook">
+                                                <button onClick={extractHook} disabled={isExtractingHook} className="flex-shrink-0 px-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 text-xs font-bold disabled:opacity-50" title="Extract as new hook">
                                                     {isExtractingHook ? '...' : 'Ext'}
                                                 </button>
                                             )}
-                                            <button onClick={() => { const n = prompt("New Hook:"); if (n) createTag('/api/hooks', n, setHooks, hooks, setSelectedHook); }} className="px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <button onClick={() => { const n = prompt("New Hook:"); if (n) createTag('/api/hooks', n, setHooks, hooks, setSelectedHook); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
                                         </div>
                                     </div>
 
@@ -332,11 +333,11 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                     <div>
                                         <label className="block text-xs font-medium text-zinc-500 mb-1">Theme</label>
                                         <div className="flex gap-2">
-                                            <select value={selectedTheme || ""} onChange={e => setSelectedTheme(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                            <select value={selectedTheme || ""} onChange={e => setSelectedTheme(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
                                                 <option value="">Select Theme...</option>
                                                 {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                             </select>
-                                            <button onClick={() => { const n = prompt("New Theme:"); if (n) createTag('/api/themes', n, setThemes, themes, setSelectedTheme); }} className="px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <button onClick={() => { const n = prompt("New Theme:"); if (n) createTag('/api/themes', n, setThemes, themes, setSelectedTheme); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
                                         </div>
                                     </div>
 
@@ -344,11 +345,11 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                     <div>
                                         <label className="block text-xs font-medium text-zinc-500 mb-1">Angle</label>
                                         <div className="flex gap-2">
-                                            <select value={selectedAngle || ""} onChange={e => setSelectedAngle(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                            <select value={selectedAngle || ""} onChange={e => setSelectedAngle(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
                                                 <option value="">Select Angle...</option>
                                                 {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                             </select>
-                                            <button onClick={() => { const n = prompt("New Angle:"); if (n) createTag('/api/angles', n, setAngles, angles, setSelectedAngle); }} className="px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <button onClick={() => { const n = prompt("New Angle:"); if (n) createTag('/api/angles', n, setAngles, angles, setSelectedAngle); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
                                         </div>
                                     </div>
 
@@ -356,7 +357,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                     <div className="col-span-1 md:col-span-2">
                                         <label className="block text-xs font-medium text-zinc-500 mb-1">Awareness Level</label>
                                         <div className="flex gap-2">
-                                            <select value={selectedAwareness || ""} onChange={e => setSelectedAwareness(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                            <select value={selectedAwareness || ""} onChange={e => setSelectedAwareness(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
                                                 <option value="">Select Awareness...</option>
                                                 {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                             </select>
@@ -442,12 +443,13 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                 {/* Main Messaging */}
                                 <div>
                                     <label className="block text-xs font-medium text-zinc-500 mb-1">Main Messaging</label>
-                                    <textarea
-                                        value={mainMessaging}
-                                        onChange={e => setMainMessaging(e.target.value)}
-                                        className="w-full h-32 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-                                        placeholder="What does my customer care about? Why should it interest the customer?"
-                                    />
+                                    <div className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                                        <MessagingAnalysisToolbox
+                                            value={mainMessaging}
+                                            onChange={(val) => setMainMessaging(val)}
+                                            className="border-0 shadow-none bg-transparent"
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Why it works */}
