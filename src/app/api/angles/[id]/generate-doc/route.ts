@@ -104,7 +104,7 @@ Awareness Level: ${angle.awarenessLevel?.name || "Unknown"}
         const updatedAngle = await prisma.adAngle.findUnique({
             where: { id },
             include: {
-                angle: true,
+                desire: true,
                 theme: true,
                 demographic: true,
                 awarenessLevel: true,

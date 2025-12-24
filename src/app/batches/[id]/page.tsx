@@ -810,6 +810,8 @@ export default function BatchDetailPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mainMessaging })
             });
+            // Optimistic update for consistency across sections
+            setBatch(prev => prev ? { ...prev, mainMessaging } : null);
         } catch (error) { console.error(error); }
         finally { if (isMounted.current) setIsSavingMainMessaging(false); }
     };
@@ -1220,8 +1222,8 @@ export default function BatchDetailPage() {
                                 {/* Main Messaging Analysis - Editable in Briefing */}
                                 <div className="mb-6">
                                     <MessagingAnalysisToolbox
-                                        value={batch.mainMessaging}
-                                        onChange={(val) => updateBatch({ mainMessaging: val })}
+                                        value={mainMessaging}
+                                        onChange={(val) => setMainMessaging(val)}
                                         className="transition-shadow hover:shadow-md"
                                     />
                                 </div>
@@ -1277,6 +1279,13 @@ export default function BatchDetailPage() {
 
 
 
+                            {/* Reference Ad Integration - MOVED TO TOP for Full Width */}
+                            {batch.referenceAd && (
+                                <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <ReferenceAdIntegration ad={batch.referenceAd as any} />
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                                 {/* LEFT: Brief & Context */}
                                 <div className="space-y-6">
@@ -1297,19 +1306,16 @@ export default function BatchDetailPage() {
                                         </div>
                                     )}
 
-                                    {/* Main Messaging - NEW FIELD */}
-                                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800 shadow-sm">
-                                        <label className="block text-sm font-bold text-indigo-900 dark:text-indigo-200 mb-2 flex items-center gap-2">
-                                            <span>🎯</span> Main Messaging
-                                        </label>
-                                        <textarea
+                                    {/* Main Messaging - REPLACED with Toolbox */}
+                                    <div>
+                                        <MessagingAnalysisToolbox
                                             value={mainMessaging}
-                                            onChange={(e) => setMainMessaging(e.target.value)}
-                                            className="w-full h-24 bg-white dark:bg-zinc-800 border-indigo-200 dark:border-indigo-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 resize-none font-medium text-zinc-800 dark:text-zinc-200"
-                                            placeholder="What does my customer care about? Why should it interest the customer?"
-                                            disabled={batch.status !== "EDITOR_BRIEFING" && batch.status !== "LEARNING"}
+                                            onChange={(val) => setMainMessaging(val)}
+                                            className="transition-shadow hover:shadow-md"
+                                            readOnly={batch.status !== "EDITOR_BRIEFING" && batch.status !== "LEARNING"}
                                         />
                                     </div>
+
                                     <div>
                                         <label className="block text-sm font-bold text-zinc-900 dark:text-white mb-2">Editor Brief</label>
                                         <textarea
@@ -1320,13 +1326,6 @@ export default function BatchDetailPage() {
                                             disabled={batch.status !== "EDITOR_BRIEFING"}
                                         />
                                     </div>
-
-                                    {/* Reference Ad Integration */}
-                                    {batch.referenceAd && (
-                                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                            <ReferenceAdIntegration ad={batch.referenceAd as any} />
-                                        </div>
-                                    )}
                                 </div>
 
                                 {/* RIGHT: Variation Planning (Hooks & Scripts) */}

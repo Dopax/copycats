@@ -63,3 +63,4 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
         return NextResponse.json({ success: true });
     } catch (error) {
     }
+}

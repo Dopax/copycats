@@ -27,7 +27,7 @@ interface AdAngleData {
     demographic: Demographic;
     awarenessLevel?: { id: string; name: string; };
     batches: { id: number; name: string; status: string; }[];
-    angleDoc?: string;
+    conceptDoc?: string;
     personaScenarios?: string;
 }
 
@@ -519,11 +519,11 @@ export default function AnglesPage() {
                                             <div className="flex items-center gap-4">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Persona</span>
-                                                    {angle.angleDoc ? (
+                                                    {angle.conceptDoc ? (
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                                             <button
-                                                                onClick={() => setViewingDoc({ title: "Buyer Persona", content: angle.angleDoc!, angleId: angle.id, type: 'persona' })}
+                                                                onClick={() => setViewingDoc({ title: "Buyer Persona", content: angle.conceptDoc!, angleId: angle.id, type: 'persona' })}
                                                                 className="text-xs text-indigo-600 hover:text-indigo-900 underline font-medium"
                                                             >
                                                                 View
@@ -621,7 +621,7 @@ export default function AnglesPage() {
                             try {
                                 const body: any = {};
                                 // Set the specific field to null
-                                if (viewingDoc.type === 'persona') body.angleDoc = null;
+                                if (viewingDoc.type === 'persona') body.conceptDoc = null;
                                 if (viewingDoc.type === 'scenarios') body.personaScenarios = null;
 
                                 const res = await fetch(`/api/angles/${viewingDoc.angleId}/update-doc`, {

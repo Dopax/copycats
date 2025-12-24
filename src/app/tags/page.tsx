@@ -37,6 +37,8 @@ interface Hook extends Tag {
     thumbnailUrl?: string;
     brand?: { name: string } | null;
     _count?: { ads: number; batchItems: number; }; // Usage counts
+    ads?: { id: string; postId: string; headline: string | null; thumbnailUrl: string | null }[];
+    batchItems?: { id: string; batch: { id: number; name: string; status: string } }[];
 }
 
 interface ThemeTag extends Tag {
@@ -209,8 +211,38 @@ function HookCard({ hook, onEdit, onDelete }: { hook: Hook, onEdit: (h: Hook) =>
                 )}
             </div>
 
+            {/* Linked Items */}
+            <div className="space-y-2 mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                {/* Batches */}
+                {hook.batchItems && hook.batchItems.length > 0 && (
+                    <div>
+                        <span className="text-zinc-400 font-bold mb-1 block uppercase text-[9px]">Used in Batches:</span>
+                        <div className="flex flex-wrap gap-1">
+                            {hook.batchItems.slice(0, 3).map(item => (
+                                <a key={item.id} href={`/batches/${item.batch.id}`} className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-[10px] text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300">
+                                    BATCH{item.batch.id}
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {/* Ads */}
+                {hook.ads && hook.ads.length > 0 && (
+                    <div>
+                        <span className="text-zinc-400 font-bold mb-1 block uppercase text-[9px]">Found in Ads:</span>
+                        <div className="flex flex-wrap gap-1">
+                            {hook.ads.slice(0, 3).map(ad => (
+                                <a key={ad.id} href={`/ads/${ad.postId}`} className="px-1.5 py-0.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded text-[10px] text-purple-700 dark:text-purple-300 hover:bg-purple-100 truncate max-w-[150px]">
+                                    {ad.headline ? (ad.headline.length > 15 ? ad.headline.substring(0, 15) + '...' : ad.headline) : ad.postId}
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* Actions */}
-            <div className="flex justify-end gap-2 mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
                 <button
                     onClick={() => onEdit(hook)}
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-700 px-2 py-1"

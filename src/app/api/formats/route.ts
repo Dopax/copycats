@@ -34,13 +34,14 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, description, brandId } = body;
+        const { name, description, brandId, audioChoice } = body;
 
         const format = await prisma.adFormat.create({
             data: {
                 name,
                 description,
-                brandId
+                brandId,
+                audioChoice
             }
         });
 

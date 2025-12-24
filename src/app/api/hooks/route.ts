@@ -18,6 +18,28 @@ export async function GET(request: Request) {
                 brand: true,
                 _count: {
                     select: { ads: true, batchItems: true }
+                },
+                ads: {
+                    select: {
+                        id: true,
+                        postId: true,
+                        headline: true,
+                        thumbnailUrl: true
+                    },
+                    take: 5
+                },
+                batchItems: {
+                    select: {
+                        id: true,
+                        batch: {
+                            select: {
+                                id: true,
+                                name: true,
+                                status: true
+                            }
+                        }
+                    },
+                    take: 5
                 }
             }
         });
