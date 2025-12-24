@@ -45,6 +45,7 @@ export default function AdsPage() {
     const [dateFilter, setDateFilter] = useState("all"); // all, week, month, 3months, year, custom
     const [customStartDate, setCustomStartDate] = useState("");
     const [customEndDate, setCustomEndDate] = useState("");
+    const [filterAwareness, setFilterAwareness] = useState("");
 
     useEffect(() => {
         const fetchData = async () => {
@@ -89,6 +90,7 @@ export default function AdsPage() {
         if (getVal("dateFilter")) setDateFilter(getVal("dateFilter"));
         if (getVal("customStartDate")) setCustomStartDate(getVal("customStartDate"));
         if (getVal("customEndDate")) setCustomEndDate(getVal("customEndDate"));
+        if (getVal("filterAwareness")) setFilterAwareness(getVal("filterAwareness"));
 
         setIsInitialized(true);
     }, []); // Removed selectedBrand dependency
@@ -105,7 +107,8 @@ export default function AdsPage() {
             showArchived,
             dateFilter,
             customStartDate,
-            customEndDate
+            customEndDate,
+            filterAwareness
         };
 
         localStorage.setItem("ads_filters", JSON.stringify(filters));
@@ -115,7 +118,7 @@ export default function AdsPage() {
             if (val && val !== "false") params.set(key, String(val));
         });
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [sortBy, filterBrand, filterPriority, filterBatch, showArchived, dateFilter, customStartDate, customEndDate, isInitialized, router]);
+    }, [sortBy, filterBrand, filterPriority, filterBatch, showArchived, dateFilter, customStartDate, customEndDate, filterAwareness, isInitialized, router]);
 
     // Scroll Persistence
     useEffect(() => {
@@ -174,6 +177,9 @@ export default function AdsPage() {
                     if (String(p) !== filterPriority) return false;
                 }
             }
+
+            // Awareness Logic
+            if (filterAwareness && ad.awarenessLevel?.id !== filterAwareness) return false;
 
             // Date Filter Logic
             if (dateFilter !== "all") {
@@ -244,6 +250,15 @@ export default function AdsPage() {
         .sort(([, a], [, b]) => b - a)
         .map(([brand]) => brand);
 
+    const awarenessLevels = Object.values(
+        ads.reduce((acc, ad) => {
+            if (ad.awarenessLevel) {
+                acc[ad.awarenessLevel.id] = ad.awarenessLevel;
+            }
+            return acc;
+        }, {} as Record<string, AdAwarenessLevel>)
+    ).sort((a, b) => a.name.localeCompare(b.name));
+
     if (loading) {
         return <div className="p-8 text-center">Loading...</div>;
     }
@@ -301,6 +316,18 @@ export default function AdsPage() {
                             <option value="">All Imports</option>
                             {batches.map(b => (
                                 <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </select>
+
+                        {/* Awareness Filter */}
+                        <select
+                            value={filterAwareness}
+                            onChange={(e) => setFilterAwareness(e.target.value)}
+                            className="rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm py-2 pl-3 pr-10 focus:ring-indigo-500 focus:border-indigo-500 max-w-[200px]"
+                        >
+                            <option value="">All Awareness Levels</option>
+                            {awarenessLevels.map(lvl => (
+                                <option key={lvl.id} value={lvl.id}>{lvl.name}</option>
                             ))}
                         </select>
 

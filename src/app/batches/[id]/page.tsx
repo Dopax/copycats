@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { DEFAULT_BRIEF_PROMPT } from "@/lib/constants/prompts";
 
 // Types
 interface Hook { id: string; name: string; videoUrl?: string; thumbnailUrl?: string; }
@@ -449,6 +450,11 @@ export default function BatchDetailPage() {
 
     // Modal State
     const [viewingDoc, setViewingDoc] = useState<string | null>(null);
+
+    // Auto-Brief State
+    const [isAutoBriefModalOpen, setIsAutoBriefModalOpen] = useState(false);
+    const [autoBriefPrompt, setAutoBriefPrompt] = useState(DEFAULT_BRIEF_PROMPT);
+    const [isGeneratingBrief, setIsGeneratingBrief] = useState(false);
     const [selectingHookForItem, setSelectingHookForItem] = useState<string | null>(null);
     const [reviewingItem, setReviewingItem] = useState<{ id: string; videoUrl: string; isReadOnly?: boolean } | null>(null);
 
@@ -569,9 +575,35 @@ export default function BatchDetailPage() {
     useAutoSave(mainMessaging, () => saveMainMessaging());
     useAutoSave(learnings, () => saveLearnings());
 
-    useEffect(() => {
-        if (id) fetchData();
-    }, [id]);
+
+
+    // --- HELPER: Auto-Serve Brief ---
+    const generateAutoBrief = async () => {
+        setIsGeneratingBrief(true);
+        try {
+            const res = await fetch(`/api/batches/${id}/generate-brief`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customPrompt: autoBriefPrompt })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            if (data.content) {
+                setCreatorBrief(data.content);
+                updateBatch({ creatorBrief: data.content });
+                setIsAutoBriefModalOpen(false);
+            }
+        } catch (err: any) {
+            alert("Failed to generate brief: " + err.message);
+        } finally {
+            setIsGeneratingBrief(false);
+        }
+    };
+
+    // --- HELPER: Fetch Data ---
+
+
+
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -598,28 +630,9 @@ export default function BatchDetailPage() {
                     videoPrompt: data.aiVideoPrompt || ""
                 });
 
-                // Initialize Stepper State
-                // Map status to section keys
-                const statusToStep: Record<string, string> = {
-                    "IDEATION": "IDEATION",
-                    "CREATOR_BRIEFING": "CREATOR_BRIEFING",
-                    "FILMING": "FILMING",
-                    "EDITOR_BRIEFING": "BRIEFING",
-                    "EDITING": "PRODUCTION",
-                    "REVIEW": "REVIEW",
-                    "AI_BOOST": "AI_BOOST",
-                    "LEARNING": "LEARNING",
-                    "ARCHIVED": "LEARNING"
-                };
-
-
-
                 // Initial Field Set
                 setMainMessaging(data.mainMessaging || "");
                 setLearnings(data.learnings || "");
-
-
-
             } else {
                 router.push('/batches');
             }
@@ -634,6 +647,10 @@ export default function BatchDetailPage() {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (id) fetchData();
+    }, [id]);
 
     const updateBatch = async (updates: Partial<Batch>) => {
         if (!batch) return;
@@ -937,17 +954,21 @@ export default function BatchDetailPage() {
                                 {batch.batchType.replace('_', ' ')}
                             </span>
                         </div>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-sm flex items-center gap-2">
-                            Angle: <span className="font-medium text-zinc-700 dark:text-zinc-300">{batch.angle.name}</span>
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm flex items-center gap-2 mt-1">
+                            <span className="font-bold text-zinc-400">Angle:</span>
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{batch.angle.name}</span>
                             {(batch.angle as any).conceptDoc && (
                                 <button
                                     onClick={() => setViewingDoc((batch.angle as any).conceptDoc)}
-                                    className="ml-2 text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                                    className="ml-2 text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors flex items-center gap-1"
                                 >
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                     View Persona
                                 </button>
                             )}
                         </p>
+
+
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -976,8 +997,104 @@ export default function BatchDetailPage() {
                     </div>
                 </div>
 
+                {/* Strategy Sentence - Global Context */}
+                <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm mb-6">
+                    {getStrategySentence(batch)}
+                </div>
 
+                {/* Concept Context Grid - Global Context with Hover Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
 
+                    {/* Angle Hover Card */}
+                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900">
+                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Angle</span>
+                        <span className="font-medium text-amber-600 dark:text-amber-400">{batch.angle.desire.name}</span>
+
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.angle.desire.name}</h4>
+                            {batch.angle.desire.description && <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-2">{batch.angle.desire.description}</p>}
+                            {batch.angle.desire.brainClicks && (
+                                <div className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2 rounded border border-amber-100 dark:border-amber-900/50">
+                                    <span className="font-bold">Original: </span>{batch.angle.desire.brainClicks}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Theme Hover Card */}
+                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-pink-200 dark:hover:border-pink-900">
+                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Theme</span>
+                        <span className="font-medium text-pink-600 dark:text-pink-400">{batch.angle.theme.name}</span>
+
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.angle.theme.name}</h4>
+                            {batch.angle.theme.description ? (
+                                <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.angle.theme.description}</p>
+                            ) : (
+                                <p className="text-xs text-zinc-400 italic">No description available.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Demographic Hover Card */}
+                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-900">
+                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Demographic</span>
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{batch.angle.demographic.name}</span>
+
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-1">Target Audience</h4>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.angle.demographic.name}</p>
+                        </div>
+                    </div>
+
+                    {/* Awareness Level */}
+                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-cyan-200 dark:hover:border-cyan-900">
+                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Awareness</span>
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-cyan-600 dark:text-cyan-400 text-sm whitespace-nowrap">
+                                {batch.angle.awarenessLevel?.name || "Not set"}
+                            </span>
+                            {/* Battery Indicator */}
+                            <div className="flex gap-0.5 h-3 items-end">
+                                {[
+                                    'Problem Unaware',
+                                    'Problem Aware',
+                                    'Solution Aware',
+                                    'Product Aware',
+                                    'Most Aware'
+                                ].map((level, i) => {
+                                    const currentLevel = batch.angle.awarenessLevel?.name || '';
+                                    const levels = ['Problem Unaware', 'Problem Aware', 'Solution Aware', 'Product Aware', 'Most Aware'];
+                                    const currentIndex = levels.indexOf(currentLevel);
+                                    // Active if index >= i
+                                    const isActive = currentIndex >= 0 && currentIndex >= i;
+
+                                    // Height steps: 40%, 55%, 70%, 85%, 100%
+                                    const heightClass = ['h-[40%]', 'h-[55%]', 'h-[70%]', 'h-[85%]', 'h-[100%]'][i];
+
+                                    return (
+                                        <div
+                                            key={level}
+                                            className={`w-1.5 rounded-sm transition-all ${isActive ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'bg-zinc-200 dark:bg-zinc-700'} ${heightClass}`}
+                                            title={level}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">Awareness Context</h4>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                                <strong>{batch.angle.awarenessLevel?.name || "Unaware"}</strong> of their desire/problem to <strong>{batch.angle.desire.name}</strong>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* --- ACCORDION SECTIONS --- */}
@@ -1039,48 +1156,7 @@ export default function BatchDetailPage() {
                 {activeStep === "IDEATION" && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                            <div className="mb-6">
-                                {/* Strategy Sentence */}
-                                <div className="bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm mb-6">
-                                    {getStrategySentence(batch)}
-                                </div>
-
-                                {/* Concept Context Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                                    {/* Angle Hover Card */}
-                                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
-                                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Angle</span>
-                                        <span className="font-medium text-amber-600 dark:text-amber-400">{batch.angle.desire.name}</span>
-                                        {/* Tooltip */}
-                                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none z-50">
-                                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.angle.desire.name}</h4>
-                                            {batch.angle.desire.description && <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-2">{batch.angle.desire.description}</p>}
-                                        </div>
-                                    </div>
-                                    {/* Theme Hover Card */}
-                                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
-                                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Theme</span>
-                                        <span className="font-medium text-pink-600 dark:text-pink-400">{batch.angle.theme.name}</span>
-                                        {/* Tooltip */}
-                                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none z-50">
-                                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.angle.theme.name}</h4>
-                                            {batch.angle.theme.description && <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.angle.theme.description}</p>}
-                                        </div>
-                                    </div>
-                                    {/* Demographic Hover Card */}
-                                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
-                                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Demographic</span>
-                                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{batch.angle.demographic.name}</span>
-                                    </div>
-                                    {/* Awareness Level */}
-                                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help">
-                                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Awareness</span>
-                                        <span className="font-medium text-cyan-600 dark:text-cyan-400 text-sm">{batch.angle.awarenessLevel?.name || "Not set"}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between mb-4 mt-6">
+                            <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Ideation Phase</h3>
                                 <span className={`text-xs font-mono transition-colors ${isSavingIdea ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
                                     {isSavingIdea ? "Saving..." : "Saved"}
@@ -1122,6 +1198,16 @@ export default function BatchDetailPage() {
                                             {t.charAt(0) + t.slice(1).toLowerCase()} Template
                                         </button>
                                     ))}
+                                </div>
+
+                                {/* Auto-Draft Button */}
+                                <div className="mb-4">
+                                    <button
+                                        onClick={() => setIsAutoBriefModalOpen(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-bold text-sm hover:opacity-90 transition-opacity shadow-sm"
+                                    >
+                                        <span>✨</span> Auto-Draft Brief (AI)
+                                    </button>
                                 </div>
 
                                 {/* Reference Ad Integration - Show in Copycat Batches */}
@@ -1852,7 +1938,107 @@ export default function BatchDetailPage() {
                         />
                     )
                 }
-            </div >
-        </div >
+
+
+                {/* Auto-Brief Modal */}
+                {
+                    isAutoBriefModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800">
+                                <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                            <span>✨</span> Auto-Draft Brief
+                                        </h3>
+                                        <div className="flex flex-wrap gap-1 mt-2 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-100 dark:border-zinc-700">
+                                            <span className="text-xs text-zinc-500 w-full mb-1 font-semibold uppercase tracking-wider">Click to Insert Variable:</span>
+                                            {[
+                                                "[BRAND NAME]", "[OFFER BRIEF]", "[BRAND DESCRIPTION]",
+                                                "[AUDIENCE]", "[DESIRE]", "[DESIRE DESCRIPTION]",
+                                                "[AWARENESS]", "[THEME]", "[THEME DESCRIPTION]",
+                                                "[MAIN MESSAGING]", "[IDEA]"
+                                            ].map(variable => (
+                                                <button
+                                                    key={variable}
+                                                    onClick={() => {
+                                                        const textarea = document.getElementById('autoBriefTextarea') as HTMLTextAreaElement;
+                                                        if (textarea) {
+                                                            const start = textarea.selectionStart;
+                                                            const end = textarea.selectionEnd;
+                                                            const text = autoBriefPrompt;
+                                                            const newText = text.substring(0, start) + variable + text.substring(end);
+                                                            setAutoBriefPrompt(newText);
+                                                            // Request animation frame to restore focus and position
+                                                            requestAnimationFrame(() => {
+                                                                textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+                                                                textarea.focus();
+                                                            });
+                                                        } else {
+                                                            setAutoBriefPrompt(prev => prev + variable);
+                                                        }
+                                                    }}
+                                                    className="px-2 py-1 bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded text-[10px] font-mono hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 dark:text-zinc-300 dark:hover:bg-zinc-600 transition-all shadow-sm"
+                                                >
+                                                    {variable}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsAutoBriefModalOpen(false)}
+                                        className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors self-start"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 p-0 overflow-hidden relative">
+                                    <textarea
+                                        id="autoBriefTextarea"
+                                        value={autoBriefPrompt}
+                                        onChange={(e) => setAutoBriefPrompt(e.target.value)}
+                                        className="w-full h-full p-6 resize-none focus:outline-none bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 font-mono text-sm leading-relaxed"
+                                        placeholder="Edit the prompt here..."
+                                    />
+                                </div>
+
+                                <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                                    <span className="text-xs text-zinc-500">
+                                        This will overwrite existing brief content.
+                                    </span>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setIsAutoBriefModalOpen(false)}
+                                            className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={generateAutoBrief}
+                                            disabled={isGeneratingBrief}
+                                            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-bold text-sm hover:opacity-90 transition-opacity shadow-md disabled:opacity-70 flex items-center gap-2"
+                                        >
+                                            {isGeneratingBrief ? (
+                                                <>
+                                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Generating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span>⚡</span> Generate Brief
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+            </div>
+        </div>
     );
 }
