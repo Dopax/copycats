@@ -7,13 +7,13 @@ const prisma = new PrismaClient();
 export async function POST(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-        const { formatId, hookId, themeId, angleId, awarenessLevelId, demographicId } = await request.json();
+        const { formatId, hookId, themeId, desireId, awarenessLevelId, demographicId } = await request.json();
 
         const data: any = {};
         if (formatId !== undefined) data.formatId = formatId;
         if (hookId !== undefined) data.hookId = hookId;
         if (themeId !== undefined) data.themeId = themeId;
-        if (angleId !== undefined) data.angleId = angleId;
+        if (desireId !== undefined) data.desireId = desireId;
         if (awarenessLevelId !== undefined) data.awarenessLevelId = awarenessLevelId;
         if (demographicId !== undefined) data.demographicId = demographicId;
 
@@ -24,7 +24,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
                 format: true,
                 hook: true,
                 theme: true,
-                angle: true,
+                desire: true,
                 awarenessLevel: true,
                 demographic: true
             }

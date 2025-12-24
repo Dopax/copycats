@@ -21,33 +21,36 @@ export async function GET(req: NextRequest) {
                 facebookAds: { some: {} } // Only batches that have linked ads
             },
             include: {
-                concept: {
+                angle: {
                     include: {
-                        angle: true,
+                        desire: true,
                         // theme: true,
                     }
                 },
-                format: true,
-                facebookAds: true
+                facebookAds: {
+                    where: {
+                        status: 'ACTIVE'
+                    }
+                }
             }
         });
 
-        // Matrix Structure: Map<FormatName, Map<AngleName, Stats>>
-        // We want X-Axis = Format, Y-Axis = Angle
+        // Matrix Structure: Map<FormatName, Map<DesireName, Stats>>
+        // We want X-Axis = Format, Y-Axis = Desire
         const matrix = new Map<string, Map<string, { spend: number, revenue: number, roas: number, count: number }>>();
 
         // Helper to init/get stats
-        const getStats = (format: string, angle: string) => {
+        const getStats = (format: string, desire: string) => {
             if (!matrix.has(format)) matrix.set(format, new Map());
             const col = matrix.get(format)!;
-            if (!col.has(angle)) col.set(angle, { spend: 0, revenue: 0, roas: 0, count: 0 });
-            return col.get(angle)!;
+            if (!col.has(desire)) col.set(desire, { spend: 0, revenue: 0, roas: 0, count: 0 });
+            return col.get(desire)!;
         };
 
         batches.forEach(batch => {
             // Dimensions
             const formatName = batch.format?.name || "Unknown Format";
-            const angleName = batch.concept?.angle?.name || "Unknown Angle";
+            const desireName = batch.angle?.desire?.name || "Unknown Desire";
 
             // Aggregated Stats from linked Facebook Ads
             let batchSpend = 0;
@@ -59,7 +62,7 @@ export async function GET(req: NextRequest) {
             });
 
             if (batchSpend > 0) {
-                const stats = getStats(formatName, angleName);
+                const stats = getStats(formatName, desireName);
                 stats.spend += batchSpend;
                 stats.revenue += batchRevenue;
                 stats.count += 1;
@@ -70,11 +73,11 @@ export async function GET(req: NextRequest) {
         // { x: Format, y: Angle, spend, roas }
         const result: any[] = [];
 
-        matrix.forEach((angles, format) => {
-            angles.forEach((stats, angle) => {
+        matrix.forEach((desires, format) => {
+            desires.forEach((stats, desire) => {
                 result.push({
                     x: format,
-                    y: angle,
+                    y: desire,
                     spend: stats.spend,
                     roas: stats.spend > 0 ? stats.revenue / stats.spend : 0,
                     count: stats.count

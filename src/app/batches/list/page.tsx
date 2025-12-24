@@ -11,7 +11,7 @@ interface Batch {
     status: string;
     batchType: string;
     priority: string;
-    concept: { name: string };
+    angle: { name: string };
     format?: { name: string };
     assignee?: string;
     createdtAt: string; // Typo in original fetch? Schema says createdAt.
@@ -74,7 +74,7 @@ function BatchesListContent() {
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Batches List</h1>
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Detailed view of all creative batches.</p>
                 </div>
-                 <Link
+                <Link
                     href="/batches"
                     className="bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 >
@@ -90,11 +90,11 @@ function BatchesListContent() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Batch ID</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Concept</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Angle</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Type</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Priority</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Updated</th>
-                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Metrics (Future)</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Metrics (Future)</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -112,17 +112,16 @@ function BatchesListContent() {
                                     {getStatusBadge(batch.status)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500 dark:text-zinc-400">
-                                    {batch.concept.name}
+                                    {batch.angle?.name}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500 dark:text-zinc-400">
                                     {batch.batchType.replace("NET_NEW", "✨ Net New").replace("COPYCAT", "🐱 Copycat").replace("ITERATION", "🔄 Iteration")}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                        batch.priority === 'HIGH' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
-                                        batch.priority === 'LOW' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                                        'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                                    }`}>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${batch.priority === 'HIGH' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                            batch.priority === 'LOW' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                                'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                        }`}>
                                         {batch.priority}
                                     </span>
                                 </td>

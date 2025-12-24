@@ -9,7 +9,7 @@ import { Ad, AdSnapshot } from "@prisma/client";
 interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
 interface AdTheme { id: string; name: string; }
-interface AdAngle { id: string; name: string; }
+interface AdDesire { id: string; name: string; }
 interface AdAwarenessLevel { id: string; name: string; }
 
 // Extend the Prisma Ad type with relations
@@ -18,7 +18,7 @@ interface AdWithSnapshots extends Ad {
     format?: AdFormat | null;
     hook?: AdHook | null;
     theme?: AdTheme | null;
-    angle?: AdAngle | null;
+    desire?: AdDesire | null;
     awarenessLevel?: AdAwarenessLevel | null;
 }
 

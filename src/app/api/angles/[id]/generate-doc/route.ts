@@ -13,10 +13,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
             return NextResponse.json({ error: "OpenAI API Key not configured" }, { status: 500 });
         }
 
-        const concept = await prisma.creativeConcept.findUnique({
+        const angle = await prisma.adAngle.findUnique({
             where: { id },
             include: {
-                angle: true,
+                desire: true,
                 theme: true,
                 demographic: true,
                 awarenessLevel: true,
@@ -24,28 +24,28 @@ export async function POST(request: Request, { params }: { params: { id: string 
             }
         });
 
-        if (!concept) {
-            return NextResponse.json({ error: "Concept not found" }, { status: 404 });
+        if (!angle) {
+            return NextResponse.json({ error: "Angle not found" }, { status: 404 });
         }
 
-        const brandInfo = (concept.brand as any)?.brandDescription || concept.brand?.offerBrief || "No brand description found.";
+        const brandInfo = (angle.brand as any)?.brandDescription || angle.brand?.offerBrief || "No brand description found.";
 
         const context = `
 INFORMATION ABOUT THE BRAND:
 ${brandInfo}
 
 CONCEPT CONTEXT:
-Concept Name: ${concept.name}
-Angle: ${concept.angle.name} (${(concept.angle as any).description || "No description"})
-Theme: ${concept.theme.name} (${(concept.theme as any).description || "No description"})
-Demographic: ${concept.demographic.name}
-Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
+Concept Name: ${angle.name}
+Angle: ${angle.desire?.name || "Unknown"} (${angle.desire?.description || "No description"})
+Theme: ${angle.theme.name} (${(angle.theme as any).description || "No description"})
+Demographic: ${angle.demographic.name}
+Awareness Level: ${angle.awarenessLevel?.name || "Unknown"}
 `;
 
-        let finalSystemPrompt = (concept.brand as any)?.personaPrompt || DEFAULT_PERSONA_PROMPT;
+        let finalSystemPrompt = (angle.brand as any)?.personaPrompt || DEFAULT_PERSONA_PROMPT;
 
         // Dynamic Placeholder Replacement
-        const demoName = concept.demographic.name || "";
+        const demoName = angle.demographic.name || "";
         // Simple heuristic: assume demographic is something like "Male 25-34"
         const gender = demoName.split(' ')[0] || "Unknown";
         const ageRange = demoName.replace(gender, '').trim() || "Unknown";
@@ -53,13 +53,13 @@ Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
         const replacements: Record<string, string> = {
             "\\[GENDER\\]": gender,
             "\\[AGE RANGE\\]": ageRange,
-            "\\[AWARENESS STAGE\\]": concept.awarenessLevel?.name || "Unknown",
-            "\\[ANGLE\\]": concept.angle.name,
-            "\\[THEME\\]": concept.theme.name,
-            "\\[BRAND DESCRIPTION\\]": (concept.brand as any)?.brandDescription || "No description",
-            "\\[OFFER BRIEF\\]": concept.brand?.offerBrief || "No offer brief",
-            "\\[ANGLE DESCRIPTION\\]": (concept.angle as any).description || (concept.angle as any).notes || "No description",
-            "\\[THEME DESCRIPTION\\]": (concept.theme as any).description || "No description"
+            "\\[AWARENESS STAGE\\]": angle.awarenessLevel?.name || "Unknown",
+            "\\[ANGLE\\]": angle.name, // The concept name is now the angle name
+            "\\[THEME\\]": angle.theme.name,
+            "\\[BRAND DESCRIPTION\\]": (angle.brand as any)?.brandDescription || "No description",
+            "\\[OFFER BRIEF\\]": angle.brand?.offerBrief || "No offer brief",
+            "\\[ANGLE DESCRIPTION\\]": (angle.desire as any)?.description || "No description", // Fallback to desire description
+            "\\[THEME DESCRIPTION\\]": (angle.theme as any).description || "No description"
         };
 
         Object.entries(replacements).forEach(([placeholder, value]) => {
@@ -98,10 +98,10 @@ Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
         }
 
         // Save to DB using raw SQL to bypass stale Prisma Client interface (Windows file lock issue)
-        await prisma.$executeRaw`UPDATE CreativeConcept SET conceptDoc = ${content} WHERE id = ${id} `;
+        await prisma.$executeRaw`UPDATE AdAngle SET conceptDoc = ${content} WHERE id = ${id} `;
 
         // Fetch the updated record to return it (optional but good for UI update)
-        const updatedConcept = await prisma.creativeConcept.findUnique({
+        const updatedAngle = await prisma.adAngle.findUnique({
             where: { id },
             include: {
                 angle: true,
@@ -113,11 +113,11 @@ Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
         });
 
         // Manually attach the conceptDoc since the stale client might not return it
-        if (updatedConcept) {
-            (updatedConcept as any).conceptDoc = content;
+        if (updatedAngle) {
+            (updatedAngle as any).conceptDoc = content;
         }
 
-        return NextResponse.json(updatedConcept);
+        return NextResponse.json(updatedAngle);
 
     } catch (error: any) {
         console.error("Generate doc error:", error);

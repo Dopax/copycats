@@ -24,10 +24,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
             return NextResponse.json({ error: "OpenAI API Key not configured" }, { status: 500 });
         }
 
-        const concept = await prisma.creativeConcept.findUnique({
+        const angle = await prisma.adAngle.findUnique({
             where: { id },
             include: {
-                angle: true,
+                desire: true,
                 theme: true,
                 demographic: true,
                 awarenessLevel: true,
@@ -35,27 +35,27 @@ export async function POST(request: Request, { params }: { params: { id: string 
             }
         });
 
-        if (!concept) {
-            return NextResponse.json({ error: "Concept not found" }, { status: 404 });
+        if (!angle) {
+            return NextResponse.json({ error: "Angle not found" }, { status: 404 });
         }
 
-        if (!concept.conceptDoc) {
+        if (!angle.conceptDoc) {
             return NextResponse.json({ error: "Buyer Persona must be generated first." }, { status: 400 });
         }
 
         const context = `
 BUYER PERSONA:
-${concept.conceptDoc}
+${angle.conceptDoc}
 
 CONCEPT CONTEXT:
-Concept Name: ${concept.name}
-Angle: ${concept.angle.name}
-Theme: ${concept.theme.name}
-Demographic: ${concept.demographic.name}
-Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
+Concept Name: ${angle.name}
+Desire: ${angle.desire.name}
+Theme: ${angle.theme.name}
+Demographic: ${angle.demographic.name}
+Awareness Level: ${angle.awarenessLevel?.name || "Unknown"}
         `;
 
-        const systemPrompt = (concept.brand as any)?.scenariosPrompt || DEFAULT_SCENARIOS_PROMPT;
+        const systemPrompt = (angle.brand as any)?.scenariosPrompt || DEFAULT_SCENARIOS_PROMPT;
         const fullPrompt = `${context}\n\n${systemPrompt}`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -86,17 +86,17 @@ Awareness Level: ${concept.awarenessLevel?.name || "Unknown"}
         }
 
         // Save to DB using raw SQL to bypass stale Prisma Client interface
-        await prisma.$executeRaw`UPDATE CreativeConcept SET personaScenarios = ${content} WHERE id = ${id}`;
+        await prisma.$executeRaw`UPDATE AdAngle SET personaScenarios = ${content} WHERE id = ${id}`;
 
-        const updatedConcept = await prisma.creativeConcept.findUnique({ where: { id } });
+        const updatedAngle = await prisma.adAngle.findUnique({ where: { id } });
 
-        if (updatedConcept) {
-            (updatedConcept as any).personaScenarios = content;
+        if (updatedAngle) {
+            (updatedAngle as any).personaScenarios = content;
             // Ensure we also return the conceptDoc since the client might need it
-            (updatedConcept as any).conceptDoc = concept.conceptDoc;
+            (updatedAngle as any).conceptDoc = angle.conceptDoc;
         }
 
-        return NextResponse.json(updatedConcept);
+        return NextResponse.json(updatedAngle);
 
     } catch (error: any) {
         console.error("Generate scenarios error:", error);

@@ -32,12 +32,12 @@ export async function GET(request: Request) {
             avgVelocityDays = Math.round(avgDurationMs / (1000 * 60 * 60 * 24));
         }
 
-        // 3. Distribution Stats (Angles, Themes, Demographics, Awareness)
-        // We need to join with CreativeConcept to get these IDs
-        const concepts = await prisma.creativeConcept.findMany({
+        // 3. Distribution Stats (Desires, Themes, Demographics, Awareness)
+        // We need to join with AdAngle to get these IDs
+        const angles = await prisma.adAngle.findMany({
             where: brandId ? { brandId } : undefined,
             include: {
-                angle: true,
+                desire: true,
                 theme: true,
                 demographic: true,
                 awarenessLevel: true,
@@ -46,9 +46,9 @@ export async function GET(request: Request) {
         });
 
         // Helper to aggregate stats
-        const aggregate = (key: 'angle' | 'theme' | 'demographic' | 'awarenessLevel') => {
+        const aggregate = (key: 'desire' | 'theme' | 'demographic' | 'awarenessLevel') => {
             const map = new Map<string, number>();
-            concepts.forEach(c => {
+            angles.forEach(c => {
                 if (!c[key]) return;
                 const name = c[key]!.name;
                 const count = c.batches.length; // Count Batches using this element
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
                 .slice(0, 5); // Top 5
         };
 
-        const topAngles = aggregate('angle');
+        const topDesires = aggregate('desire');
         const topThemes = aggregate('theme');
         const topDemographics = aggregate('demographic');
         const topAwareness = aggregate('awarenessLevel');
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
                 avgVelocityDays
             },
             distributions: {
-                topAngles,
+                topDesires,
                 topThemes,
                 topDemographics,
                 topAwareness

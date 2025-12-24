@@ -16,11 +16,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
             return NextResponse.json({ error: "No update data provided" }, { status: 400 });
         }
 
-        const concept = await prisma.creativeConcept.update({
+        const angle = await prisma.adAngle.update({
             where: { id },
             data: updateData,
             include: {
-                angle: true,
+                desire: true,
                 theme: true,
                 demographic: true,
                 awarenessLevel: true,
@@ -28,9 +28,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
             }
         });
 
-        return NextResponse.json(concept);
+        return NextResponse.json(angle);
     } catch (error) {
-        console.error("Failed to update concept", error);
-        return NextResponse.json({ error: "Failed to update concept" }, { status: 500 });
+        console.error("Failed to update angle", error);
+        return NextResponse.json({ error: "Failed to update angle" }, { status: 500 });
     }
 }

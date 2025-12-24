@@ -3,14 +3,14 @@ import { useState } from "react";
 export interface AdFormat { id: string; name: string; }
 export interface AdHook { id: string; name: string; }
 export interface AdTheme { id: string; name: string; }
-export interface AdAngle { id: string; name: string; }
+export interface AdDesire { id: string; name: string; }
 export interface AdAwarenessLevel { id: string; name: string; }
 
 export function useAdTags() {
     const [formats, setFormats] = useState<AdFormat[]>([]);
     const [hooks, setHooks] = useState<AdHook[]>([]);
     const [themes, setThemes] = useState<AdTheme[]>([]);
-    const [angles, setAngles] = useState<AdAngle[]>([]);
+    const [desires, setDesires] = useState<AdDesire[]>([]);
     const [awarenessLevels, setAwarenessLevels] = useState<AdAwarenessLevel[]>([]);
 
     const [isExtractingHook, setIsExtractingHook] = useState(false);
@@ -21,13 +21,13 @@ export function useAdTags() {
                 fetch('/api/formats'),
                 fetch('/api/hooks'),
                 fetch('/api/themes'),
-                fetch('/api/angles'),
+                fetch('/api/desires'),
                 fetch('/api/awareness-levels')
             ]);
             setFormats(await formatsRes.json());
             setHooks(await hooksRes.json());
             setThemes(await themesRes.json());
-            setAngles(await anglesRes.json());
+            setDesires(await anglesRes.json());
             setAwarenessLevels(await awarenessRes.json());
         } catch (e) {
             console.error("Failed to load tags", e);
@@ -108,17 +108,17 @@ export function useAdTags() {
         }
     };
 
-    const createAngle = async (name: string) => {
+    const createDesire = async (name: string) => {
         try {
-            const res = await fetch('/api/angles', {
+            const res = await fetch('/api/desires', {
                 method: 'POST',
                 body: JSON.stringify({ name })
             });
-            const newAngle = await res.json();
-            setAngles(prev => [...prev, newAngle]);
-            return newAngle;
+            const newDesire = await res.json();
+            setDesires(prev => [...prev, newDesire]);
+            return newDesire;
         } catch (e) {
-            console.error("Failed to create angle", e);
+            console.error("Failed to create desire", e);
             return null;
         }
     };
@@ -142,7 +142,7 @@ export function useAdTags() {
         formats,
         hooks,
         themes,
-        angles,
+        desires,
         awarenessLevels,
         loadTags,
         createFormat,
@@ -150,7 +150,7 @@ export function useAdTags() {
         extractHook,
         isExtractingHook,
         createTheme,
-        createAngle,
+        createDesire,
         createAwarenessLevel
     };
 }

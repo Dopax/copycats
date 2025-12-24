@@ -6,8 +6,8 @@ Gender: [GENDER]
 Age range: [AGE RANGE]
 Awareness stage: [AWARENESS STAGE]
 
-Angle
-They buy because of: [ANGLE, for example connecting to identity, self care, productivity, gifting, mastery]
+Desire
+They buy because of: [DESIRE, for example connecting to identity, self care, productivity, gifting, mastery]
 
 Theme / Aesthetic World
 Core theme: [THEME]

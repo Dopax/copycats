@@ -341,7 +341,7 @@ export default function BrandSettingsPage() {
                             <div className="mb-3">
                                 <span className="text-xs font-medium text-zinc-500 block mb-1">Available Placeholders (Click to Copy):</span>
                                 <div className="flex flex-wrap gap-2">
-                                    {["[GENDER]", "[AGE RANGE]", "[AWARENESS STAGE]", "[ANGLE]", "[THEME]", "[BRAND DESCRIPTION]", "[OFFER BRIEF]", "[ANGLE DESCRIPTION]", "[THEME DESCRIPTION]", "[BRAIN CLICKS]"].map(tag => (
+                                    {["[GENDER]", "[AGE RANGE]", "[AWARENESS STAGE]", "[DESIRE]", "[THEME]", "[BRAND DESCRIPTION]", "[OFFER BRIEF]", "[DESIRE DESCRIPTION]", "[THEME DESCRIPTION]", "[BRAIN CLICKS]"].map(tag => (
                                         <button
                                             key={tag}
                                             type="button"

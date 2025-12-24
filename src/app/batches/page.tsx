@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useBrand } from "@/context/BrandContext";
-import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
+
 
 // Types
 interface Batch {
@@ -13,7 +13,7 @@ interface Batch {
     status: string;
     batchType: string;
     priority: string;
-    concept: { name: string };
+    angle: { name: string };
     format?: { name: string };
     assignee?: string;
     updatedAt: string;
@@ -21,16 +21,16 @@ interface Batch {
     _count?: { items: number };
 }
 
-interface Concept {
+interface AdAngle {
     id: string;
     name: string;
-    angleId: string;
+    desireId: string;
     themeId: string;
     demographicId: string;
     awarenessLevelId?: string;
 }
 interface Format { id: string; name: string; }
-interface Angle { id: string; name: string; }
+interface Desire { id: string; name: string; }
 interface Theme { id: string; name: string; }
 interface Demographic { id: string; name: string; }
 interface AwarenessLevel { id: string; name: string; }
@@ -44,15 +44,14 @@ const STATUS_COLUMNS = [
     { key: "EDITING", label: "Editing", color: "bg-amber-50 dark:bg-amber-900/10" },
     { key: "REVIEW", label: "Review", color: "bg-purple-50 dark:bg-purple-900/10" },
     { key: "AI_BOOST", label: "AI Boost", color: "bg-indigo-50 dark:bg-indigo-900/10" },
-    { key: "LAUNCHED", label: "Launched", color: "bg-green-50 dark:bg-green-900/10" },
     { key: "LEARNING", label: "Learning", color: "bg-emerald-50 dark:bg-emerald-900/10" },
 ];
 
 function BatchesContent() {
     const [batches, setBatches] = useState<Batch[]>([]);
-    const [concepts, setConcepts] = useState<Concept[]>([]);
+    const [angles, setAngles] = useState<AdAngle[]>([]);
     const [formats, setFormats] = useState<Format[]>([]);
-    const [angles, setAngles] = useState<Angle[]>([]);
+    const [desires, setDesires] = useState<Desire[]>([]);
     const [themes, setThemes] = useState<Theme[]>([]);
     const [demographics, setDemographics] = useState<Demographic[]>([]);
     const [awarenessLevels, setAwarenessLevels] = useState<AwarenessLevel[]>([]);
@@ -68,7 +67,7 @@ function BatchesContent() {
     const [newBatchName, setNewBatchName] = useState("");
     const [newBatchType, setNewBatchType] = useState("NET_NEW");
     const [newBatchPriority, setNewBatchPriority] = useState("MEDIUM");
-    const [newBatchConcept, setNewBatchConcept] = useState("");
+    const [newBatchAngle, setNewBatchAngle] = useState("");
     const [newBatchFormat, setNewBatchFormat] = useState("");
     const [newBatchEditor, setNewBatchEditor] = useState("");
     const [newBatchStrategist, setNewBatchStrategist] = useState("");
@@ -92,9 +91,9 @@ function BatchesContent() {
     const [isCreatingFormat, setIsCreatingFormat] = useState(false);
     const [newFormatName, setNewFormatName] = useState("");
 
-    const [isCreatingConcept, setIsCreatingConcept] = useState(false);
-    const [newConceptForm, setNewConceptForm] = useState({
-        angleId: "",
+    const [isCreatingAngle, setIsCreatingAngle] = useState(false);
+    const [newAngleForm, setNewAngleForm] = useState({
+        desireId: "",
         themeId: "",
         demographicId: "",
         awarenessLevelId: ""
@@ -144,23 +143,23 @@ function BatchesContent() {
                         setNewBatchFormat(ad.formatId);
                     }
 
-                    // 3. Auto-Concept Logic
-                    if (ad.angleId && ad.themeId && ad.demographicId) {
-                        // Check if a concept with these exact tags already exists
-                        const existingConcept = concepts.find(c =>
-                            c.angleId === ad.angleId &&
-                            c.themeId === ad.themeId &&
-                            c.demographicId === ad.demographicId &&
-                            (ad.awarenessLevelId ? c.awarenessLevelId === ad.awarenessLevelId : true)
+                    // 3. Auto-Angle Logic
+                    if (ad.desireId && ad.themeId && ad.demographicId) {
+                        // Check if an angle with these exact tags already exists
+                        const existingAngle = angles.find(a =>
+                            a.desireId === ad.desireId &&
+                            a.themeId === ad.themeId &&
+                            a.demographicId === ad.demographicId &&
+                            (ad.awarenessLevelId ? a.awarenessLevelId === ad.awarenessLevelId : true)
                         );
 
-                        if (existingConcept) {
-                            setNewBatchConcept(existingConcept.id);
+                        if (existingAngle) {
+                            setNewBatchAngle(existingAngle.id);
                         } else {
                             // Pre-fill creation form and open it
-                            setIsCreatingConcept(true);
-                            setNewConceptForm({
-                                angleId: ad.angleId,
+                            setIsCreatingAngle(true);
+                            setNewAngleForm({
+                                desireId: ad.desireId,
                                 themeId: ad.themeId,
                                 demographicId: ad.demographicId,
                                 awarenessLevelId: ad.awarenessLevelId || ""
@@ -202,11 +201,11 @@ function BatchesContent() {
         setIsLoading(true);
         try {
             const query = selectedBrand ? `?brandId=${selectedBrand.id}` : '';
-            const [batchesRes, conceptsRes, formatsRes, anglesRes, themesRes, demosRes, awareRes, usersRes] = await Promise.all([
+            const [batchesRes, anglesRes, formatsRes, desiresRes, themesRes, demosRes, awareRes, usersRes] = await Promise.all([
                 fetch(`/api/batches${query}`),
-                fetch(`/api/concepts${query}`),
+                fetch(`/api/angles${query}`),
                 fetch('/api/formats'),
-                fetch('/api/angles'),
+                fetch('/api/desires'),
                 fetch('/api/themes'),
                 fetch('/api/demographics'),
                 fetch('/api/awareness-levels'),
@@ -214,9 +213,9 @@ function BatchesContent() {
             ]);
 
             if (batchesRes.ok) setBatches(await batchesRes.json());
-            if (conceptsRes.ok) setConcepts(await conceptsRes.json());
-            if (formatsRes.ok) setFormats(await formatsRes.json());
             if (anglesRes.ok) setAngles(await anglesRes.json());
+            if (formatsRes.ok) setFormats(await formatsRes.json());
+            if (desiresRes.ok) setDesires(await desiresRes.json());
             if (themesRes.ok) setThemes(await themesRes.json());
             if (demosRes.ok) setDemographics(await demosRes.json());
             if (awareRes.ok) setAwarenessLevels(await awareRes.json());
@@ -232,8 +231,8 @@ function BatchesContent() {
     const handleCreateBatch = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!newBatchConcept) {
-            alert("Please select a Creative Concept.");
+        if (!newBatchAngle) {
+            alert("Please select an Angle.");
             return;
         }
 
@@ -246,7 +245,7 @@ function BatchesContent() {
                     name: newBatchName,
                     batchType: newBatchType,
                     priority: newBatchPriority,
-                    conceptId: newBatchConcept,
+                    angleId: newBatchAngle,
                     formatId: newBatchFormat || null,
                     referenceAdId: (newBatchType === 'COPYCAT') ? referenceAdId : null,
                     referenceBatchId: (newBatchType === 'ITERATION') ? referenceBatchId : null,
@@ -300,29 +299,29 @@ function BatchesContent() {
         }
     };
 
-    const handleCreateConcept = async () => {
-        if (!newConceptForm.angleId || !newConceptForm.themeId || !newConceptForm.demographicId) {
-            alert("Please select Angle, Theme, and Demographic.");
+    const handleCreateAngle = async () => {
+        if (!newAngleForm.desireId || !newAngleForm.themeId || !newAngleForm.demographicId) {
+            alert("Please select Desire, Theme, and Demographic.");
             return;
         }
         try {
-            const res = await fetch('/api/concepts', {
+            const res = await fetch('/api/angles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     brandId: selectedBrand?.id,
-                    ...newConceptForm
+                    ...newAngleForm
                 })
             });
             if (res.ok) {
-                const concept = await res.json();
-                setConcepts([...concepts, concept]);
-                setNewBatchConcept(concept.id);
-                setIsCreatingConcept(false);
-                setNewConceptForm({ angleId: "", themeId: "", demographicId: "", awarenessLevelId: "" });
+                const angle = await res.json();
+                setAngles([...angles, angle]);
+                setNewBatchAngle(angle.id);
+                setIsCreatingAngle(false);
+                setNewAngleForm({ desireId: "", themeId: "", demographicId: "", awarenessLevelId: "" });
             }
         } catch (e) {
-            console.error("Failed to create concept", e);
+            console.error("Failed to create angle", e);
         }
     };
 
@@ -330,7 +329,7 @@ function BatchesContent() {
         setNewBatchName("");
         setNewBatchType("NET_NEW");
         setNewBatchPriority("MEDIUM");
-        setNewBatchConcept("");
+        setNewBatchAngle("");
         setNewBatchFormat("");
         setReferenceAdId(null);
         setReferenceAdPostId(null);
@@ -573,10 +572,10 @@ function BatchesContent() {
 
                                                     {/* Meta Info */}
                                                     <div className="space-y-1.5 mt-3">
-                                                        {/* Concept */}
+                                                        {/* Angle */}
                                                         <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                                                             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                                                            <span className="truncate">{batch.concept?.name}</span>
+                                                            <span className="truncate">{batch.angle?.name}</span>
                                                         </div>
 
                                                         {/* Format (if assigned) */}
@@ -716,19 +715,7 @@ function BatchesContent() {
                                     </div>
                                 </div>
 
-                                {/* Main Messaging - NEW FIELD in Creation */}
-                                <div>
-                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                        Main Messaging <span className="text-zinc-400 font-normal">(Optional)</span>
-                                    </label>
-                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                        <MessagingAnalysisToolbox
-                                            value={newBatchMainMessaging}
-                                            onChange={(val) => setNewBatchMainMessaging(val)}
-                                            className="border-0 shadow-none rounded-lg bg-transparent"
-                                        />
-                                    </div>
-                                </div>
+
 
                                 {/* Iteration Linking */}
                                 {newBatchType === "ITERATION" && (
@@ -744,7 +731,7 @@ function BatchesContent() {
                                             <option value="">Select Original Batch...</option>
                                             {eligibleBatches.map(b => (
                                                 <option key={b.id} value={b.id}>
-                                                    {b.name} ({b.concept.name})
+                                                    {b.name} ({b.angle.name})
                                                 </option>
                                             ))}
                                         </select>
@@ -754,31 +741,31 @@ function BatchesContent() {
                                     </div>
                                 )}
 
-                                {/* Concept (Required) */}
-                                {/* Concept (Required) */}
+                                {/* Angle (Required) */}
+                                {/* Angle (Required) */}
                                 <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Concept</label>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Angle</label>
 
-                                    {!isCreatingConcept ? (
+                                    {!isCreatingAngle ? (
                                         <div className="flex gap-2">
                                             <select
                                                 required
-                                                value={newBatchConcept}
-                                                onChange={(e) => setNewBatchConcept(e.target.value)}
+                                                value={newBatchAngle}
+                                                onChange={(e) => setNewBatchAngle(e.target.value)}
                                                 className="flex-1 w-0 min-w-0 rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 truncate pr-8"
                                             >
-                                                <option value="">Select a Creative Concept...</option>
-                                                {concepts.map(c => (
-                                                    <option key={c.id} value={c.id} className="truncate max-w-[300px]">
-                                                        {c.name}
+                                                <option value="">Select an Angle...</option>
+                                                {angles.map(a => (
+                                                    <option key={a.id} value={a.id} className="truncate max-w-[300px]">
+                                                        {a.name}
                                                     </option>
                                                 ))}
                                             </select>
                                             <button
                                                 type="button"
-                                                onClick={() => setIsCreatingConcept(true)}
+                                                onClick={() => setIsCreatingAngle(true)}
                                                 className="px-3 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 rounded-lg text-zinc-600 dark:text-zinc-300 font-bold"
-                                                title="Create New Concept"
+                                                title="Create New Angle"
                                             >
                                                 +
                                             </button>
@@ -786,54 +773,56 @@ function BatchesContent() {
                                     ) : (
                                         <div className="space-y-3 animate-in slide-in-from-top-2">
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="text-xs font-bold text-indigo-600 uppercase">New Concept</span>
-                                                <button type="button" onClick={() => setIsCreatingConcept(false)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
+                                                <span className="text-xs font-bold text-indigo-600 uppercase">New Angle</span>
+                                                <button type="button" onClick={() => setIsCreatingAngle(false)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <select
                                                     className="w-full rounded text-xs p-2 border-zinc-200"
-                                                    value={newConceptForm.angleId}
-                                                    onChange={e => setNewConceptForm(prev => ({ ...prev, angleId: e.target.value }))}
+                                                    value={newAngleForm.desireId}
+                                                    onChange={e => setNewAngleForm(prev => ({ ...prev, desireId: e.target.value }))}
                                                 >
-                                                    <option value="">Angle...</option>
-                                                    {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                                    <option value="">Desire...</option>
+                                                    {desires.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                                 </select>
                                                 <select
                                                     className="w-full rounded text-xs p-2 border-zinc-200"
-                                                    value={newConceptForm.themeId}
-                                                    onChange={e => setNewConceptForm(prev => ({ ...prev, themeId: e.target.value }))}
+                                                    value={newAngleForm.themeId}
+                                                    onChange={e => setNewAngleForm(prev => ({ ...prev, themeId: e.target.value }))}
                                                 >
                                                     <option value="">Theme...</option>
                                                     {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                 </select>
                                                 <select
                                                     className="w-full rounded text-xs p-2 border-zinc-200"
-                                                    value={newConceptForm.demographicId}
-                                                    onChange={e => setNewConceptForm(prev => ({ ...prev, demographicId: e.target.value }))}
+                                                    value={newAngleForm.demographicId}
+                                                    onChange={e => setNewAngleForm(prev => ({ ...prev, demographicId: e.target.value }))}
                                                 >
                                                     <option value="">Demographic...</option>
                                                     {demographics.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                                 </select>
                                                 <select
                                                     className="w-full rounded text-xs p-2 border-zinc-200"
-                                                    value={newConceptForm.awarenessLevelId}
-                                                    onChange={e => setNewConceptForm(prev => ({ ...prev, awarenessLevelId: e.target.value }))}
+                                                    value={newAngleForm.awarenessLevelId}
+                                                    onChange={e => setNewAngleForm(prev => ({ ...prev, awarenessLevelId: e.target.value }))}
                                                 >
-                                                    <option value="">Awareness (Opt)...</option>
+                                                    <option value="">Awareness...</option>
                                                     {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                                 </select>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={handleCreateConcept}
-                                                className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded"
-                                            >
-                                                Create Concept
-                                            </button>
+                                            <div className="flex justify-end">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCreateAngle}
+                                                    className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700"
+                                                >
+                                                    Create & Select
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
-                                    {concepts.length === 0 && !isCreatingConcept && (
-                                        <p className="text-xs text-amber-600 mt-1">No concepts found. Click + to create one.</p>
+                                    {angles.length === 0 && !isCreatingAngle && (
+                                        <p className="text-xs text-amber-600 mt-1">No angles found. Click + to create one.</p>
                                     )}
                                 </div>
 

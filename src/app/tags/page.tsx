@@ -43,7 +43,7 @@ interface ThemeTag extends Tag {
     description?: string;
 }
 
-interface AngleTag extends Tag {
+interface DesireTag extends Tag {
     category?: string;
     description?: string;
     brainClicks?: string;
@@ -256,46 +256,46 @@ function ThemeCard({ theme, onEdit, onDelete }: { theme: ThemeTag, onEdit: (t: T
     );
 }
 
-function AngleCard({ angle, onEdit, onDelete }: { angle: AngleTag, onEdit: (a: AngleTag) => void, onDelete: (id: string) => void }) {
+function DesireCard({ desire, onEdit, onDelete }: { desire: DesireTag, onEdit: (a: DesireTag) => void, onDelete: (id: string) => void }) {
     return (
         <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col gap-2 relative group hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start">
-                <h3 className="font-bold text-zinc-900 dark:text-white">{angle.name}</h3>
-                {angle.category && (
+                <h3 className="font-bold text-zinc-900 dark:text-white">{desire.name}</h3>
+                {desire.category && (
                     <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                        {angle.category}
+                        {desire.category}
                     </span>
                 )}
             </div>
 
-            {angle.brainClicks && (
+            {desire.brainClicks && (
                 <div className="text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 p-2 rounded border border-indigo-100 dark:border-indigo-800">
-                    <span className="mr-1">🧠</span> {angle.brainClicks}
+                    <span className="mr-1">🧠</span> {desire.brainClicks}
                 </div>
             )}
 
-            {angle.description ? (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3">{angle.description}</p>
+            {desire.description ? (
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3">{desire.description}</p>
             ) : (
                 <p className="text-sm text-zinc-400 italic">No description</p>
             )}
 
-            {angle.notes && (
+            {desire.notes && (
                 <div className="mt-2 text-xs bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-800 text-amber-800 dark:text-amber-200">
                     <span className="font-semibold block mb-0.5">Strategy Notes:</span>
-                    {angle.notes}
+                    {desire.notes}
                 </div>
             )}
 
             <div className="flex justify-end gap-2 mt-auto pt-2 border-t border-zinc-100 dark:border-zinc-800 opacity-60 group-hover:opacity-100 transition-opacity">
                 <button
-                    onClick={() => onEdit(angle)}
+                    onClick={() => onEdit(desire)}
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-700 px-2 py-1"
                 >
                     Edit
                 </button>
                 <button
-                    onClick={() => onDelete(angle.id)}
+                    onClick={() => onDelete(desire.id)}
                     className="text-xs font-medium text-red-600 hover:text-red-700 px-2 py-1"
                 >
                     Delete
@@ -306,8 +306,8 @@ function AngleCard({ angle, onEdit, onDelete }: { angle: AngleTag, onEdit: (a: A
 }
 
 export default function TagsPage() {
-    const [activeTab, setActiveTab] = useState<"formats" | "hooks" | "themes" | "angles" | "demographics" | "awareness-levels">("formats");
-    const [tags, setTags] = useState<Tag[] | Hook[] | ThemeTag[] | AngleTag[]>([]);
+    const [activeTab, setActiveTab] = useState<"formats" | "hooks" | "themes" | "desires" | "demographics" | "awareness-levels">("formats");
+    const [tags, setTags] = useState<Tag[] | Hook[] | ThemeTag[] | DesireTag[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     // Simple Tag Edit State
@@ -329,10 +329,10 @@ export default function TagsPage() {
     const [editingTheme, setEditingTheme] = useState<ThemeTag | null>(null);
     const [themeForm, setThemeForm] = useState<Partial<ThemeTag>>({ name: '', description: '' });
 
-    // Angle Modal State
-    const [isAngleModalOpen, setIsAngleModalOpen] = useState(false);
-    const [editingAngle, setEditingAngle] = useState<AngleTag | null>(null);
-    const [angleForm, setAngleForm] = useState<Partial<AngleTag>>({ name: '', category: '', description: '', brainClicks: '', notes: '' });
+    // Desire Modal State
+    const [isDesireModalOpen, setIsDesireModalOpen] = useState(false);
+    const [editingDesire, setEditingDesire] = useState<DesireTag | null>(null);
+    const [desireForm, setDesireForm] = useState<Partial<DesireTag>>({ name: '', category: '', description: '', brainClicks: '', notes: '' });
 
 
     const { selectedBrand, isLoading: isBrandLoading } = useBrand();
@@ -511,40 +511,40 @@ export default function TagsPage() {
         }
     };
 
-    const openAngleModal = (angle?: AngleTag) => {
-        if (angle) {
-            setEditingAngle(angle);
-            setAngleForm({ ...angle });
+    const openDesireModal = (desire?: DesireTag) => {
+        if (desire) {
+            setEditingDesire(desire);
+            setDesireForm({ ...desire });
         } else {
-            setEditingAngle(null);
-            setAngleForm({ name: '', category: '', description: '', brainClicks: '', notes: '' });
+            setEditingDesire(null);
+            setDesireForm({ name: '', category: '', description: '', brainClicks: '', notes: '' });
         }
-        setIsAngleModalOpen(true);
+        setIsDesireModalOpen(true);
     };
 
-    const saveAngle = async (e: React.FormEvent) => {
+    const saveDesire = async (e: React.FormEvent) => {
         e.preventDefault();
-        const method = editingAngle ? 'PUT' : 'POST';
-        const url = editingAngle ? `/api/angles/${editingAngle.id}` : '/api/angles';
+        const method = editingDesire ? 'PUT' : 'POST';
+        const url = editingDesire ? `/api/desires/${editingDesire.id}` : '/api/desires';
 
         try {
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...angleForm, brandId: selectedBrand?.id }),
+                body: JSON.stringify({ ...desireForm, brandId: selectedBrand?.id }),
             });
 
             if (res.ok) {
                 const saved = await res.json();
-                if (editingAngle) {
+                if (editingDesire) {
                     setTags((prev: any[]) => prev.map(t => t.id === saved.id ? saved : t));
                 } else {
                     setTags((prev: any[]) => [saved, ...prev]);
                 }
-                setIsAngleModalOpen(false);
+                setIsDesireModalOpen(false);
             }
         } catch (error) {
-            console.error("Failed to save angle", error);
+            console.error("Failed to save desire", error);
         }
     };
 
@@ -554,7 +554,7 @@ export default function TagsPage() {
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Manage Tags</h1>
 
             <div className="flex space-x-1 rounded-xl bg-zinc-100 dark:bg-zinc-800 p-1 overflow-x-auto">
-                {(["formats", "hooks", "themes", "angles", "demographics", "awareness-levels"] as const).map((tab) => (
+                {(["formats", "hooks", "themes", "desires", "demographics", "awareness-levels"] as const).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -693,19 +693,19 @@ export default function TagsPage() {
                         </div>
                     )}
                 </div>
-            ) : activeTab === 'angles' ? (
-                // -- Rich Angles UI (Table View) --
+            ) : activeTab === 'desires' ? (
+                // -- Rich Desires UI (Table View) --
                 <div>
                     <div className="flex justify-end mb-4">
                         <button
-                            onClick={() => openAngleModal()}
+                            onClick={() => openDesireModal()}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
                         >
-                            + New Angle
+                            + New Desire
                         </button>
                     </div>
 
-                    {isLoading ? <div className="p-8 text-center">Loading Angles...</div> : (
+                    {isLoading ? <div className="p-8 text-center">Loading Desires...</div> : (
                         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                                 <thead className="bg-zinc-50 dark:bg-zinc-800/50">
@@ -718,39 +718,39 @@ export default function TagsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {(tags as AngleTag[]).map((angle) => (
-                                        <tr key={angle.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
+                                    {(tags as DesireTag[]).map((desire) => (
+                                        <tr key={desire.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-white align-top">
-                                                {angle.name}
+                                                {desire.name}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500 dark:text-zinc-400 align-top">
-                                                {angle.category ? (
+                                                {desire.category ? (
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
-                                                        {angle.category}
+                                                        {desire.category}
                                                     </span>
                                                 ) : <span className="text-zinc-300">-</span>}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400 align-top">
-                                                {angle.brainClicks ? (
+                                                {desire.brainClicks ? (
                                                     <div className="flex items-start gap-1">
                                                         <span className="text-indigo-500 mt-0.5">🧠</span>
-                                                        <span>{angle.brainClicks}</span>
+                                                        <span>{desire.brainClicks}</span>
                                                     </div>
                                                 ) : <span className="text-zinc-300">-</span>}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400 align-top">
-                                                {angle.description || <span className="italic text-zinc-400">No description</span>}
+                                                {desire.description || <span className="italic text-zinc-400">No description</span>}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium align-top">
                                                 <div className="flex justify-end gap-3">
                                                     <button
-                                                        onClick={() => openAngleModal(angle)}
+                                                        onClick={() => openDesireModal(desire)}
                                                         className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDelete(angle.id)}
+                                                        onClick={() => handleDelete(desire.id)}
                                                         className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                                                     >
                                                         Delete
@@ -762,7 +762,7 @@ export default function TagsPage() {
                                     {tags.length === 0 && (
                                         <tr>
                                             <td colSpan={5} className="px-6 py-8 text-center text-zinc-500 text-sm">
-                                                No angles found.
+                                                No desires found.
                                             </td>
                                         </tr>
                                     )}
@@ -1051,22 +1051,22 @@ export default function TagsPage() {
                 )
             }
 
-            {/* Angle Modal */}
+            {/* Desire Modal */}
             {
-                isAngleModalOpen && (
-                    <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setIsAngleModalOpen(false); }}>
+                isDesireModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setIsDesireModalOpen(false); }}>
                         <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-lg w-full p-6 border border-zinc-200 dark:border-zinc-700">
                             <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">
-                                {editingAngle ? "Edit Angle" : "Create New Angle"}
+                                {editingDesire ? "Edit Desire" : "Create New Desire"}
                             </h3>
-                            <form onSubmit={saveAngle} className="space-y-4">
+                            <form onSubmit={saveDesire} className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Name</label>
                                     <input
                                         type="text"
                                         required
-                                        value={angleForm.name}
-                                        onChange={(e) => setAngleForm({ ...angleForm, name: e.target.value })}
+                                        value={desireForm.name}
+                                        onChange={(e) => setDesireForm({ ...desireForm, name: e.target.value })}
                                         className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
                                         placeholder="e.g. Fear of Missing Out"
                                     />
@@ -1075,8 +1075,8 @@ export default function TagsPage() {
                                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Category</label>
                                     <input
                                         type="text"
-                                        value={angleForm.category || ''}
-                                        onChange={(e) => setAngleForm({ ...angleForm, category: e.target.value })}
+                                        value={desireForm.category || ''}
+                                        onChange={(e) => setDesireForm({ ...desireForm, category: e.target.value })}
                                         className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
                                         placeholder="e.g. Emotional"
                                     />
@@ -1085,8 +1085,8 @@ export default function TagsPage() {
                                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Brain Clicks</label>
                                     <input
                                         type="text"
-                                        value={angleForm.brainClicks || ''}
-                                        onChange={(e) => setAngleForm({ ...angleForm, brainClicks: e.target.value })}
+                                        value={desireForm.brainClicks || ''}
+                                        onChange={(e) => setDesireForm({ ...desireForm, brainClicks: e.target.value })}
                                         className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5"
                                         placeholder="e.g. Scarcity, Urgency"
                                     />
@@ -1094,16 +1094,16 @@ export default function TagsPage() {
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
                                     <textarea
-                                        value={angleForm.description || ''}
-                                        onChange={(e) => setAngleForm({ ...angleForm, description: e.target.value })}
+                                        value={desireForm.description || ''}
+                                        onChange={(e) => setDesireForm({ ...desireForm, description: e.target.value })}
                                         className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm p-2.5 min-h-[100px]"
-                                        placeholder="Describe the angle..."
+                                        placeholder="Describe the desire..."
                                     />
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-700">
                                     <button
                                         type="button"
-                                        onClick={() => setIsAngleModalOpen(false)}
+                                        onClick={() => setIsDesireModalOpen(false)}
                                         className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
                                     >
                                         Cancel
@@ -1112,7 +1112,7 @@ export default function TagsPage() {
                                         type="submit"
                                         className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
                                     >
-                                        Save Angle
+                                        Save Desire
                                     </button>
                                 </div>
                             </form>

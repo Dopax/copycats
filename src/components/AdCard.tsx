@@ -6,7 +6,7 @@ import { useAdTags } from "../hooks/useAdTags";
 interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
 interface AdTheme { id: string; name: string; }
-interface AdAngle { id: string; name: string; }
+interface AdDesire { id: string; name: string; }
 interface AdAwarenessLevel { id: string; name: string; }
 
 interface AdWithSnapshots extends Ad {
@@ -14,7 +14,7 @@ interface AdWithSnapshots extends Ad {
     format?: AdFormat | null;
     hook?: AdHook | null;
     theme?: AdTheme | null;
-    angle?: AdAngle | null;
+    desire?: AdDesire | null;
     awarenessLevel?: AdAwarenessLevel | null;
     referencedInBatches?: { id: number; name: string; status: string }[];
 }
@@ -33,13 +33,13 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
 
     // Tags State (Managed by Hook)
     const {
-        formats, hooks, themes, angles, awarenessLevels,
+        formats, hooks, themes, desires, awarenessLevels,
         loadTags,
         createFormat: createFormatApi,
         createHook: createHookApi,
         extractHook: extractHookApi,
         createTheme: createThemeApi,
-        createAngle: createAngleApi,
+        createDesire: createDesireApi,
         createAwarenessLevel: createAwarenessLevelApi,
         isExtractingHook
     } = useAdTags();
@@ -47,7 +47,7 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
     const [selectedFormat, setSelectedFormat] = useState<string | null>(ad.format?.id || null);
     const [selectedHook, setSelectedHook] = useState<string | null>(ad.hook?.id || null);
     const [selectedTheme, setSelectedTheme] = useState<string | null>(ad.theme?.id || null);
-    const [selectedAngle, setSelectedAngle] = useState<string | null>(ad.angle?.id || null);
+    const [selectedDesire, setSelectedDesire] = useState<string | null>(ad.desire?.id || null);
     const [selectedAwareness, setSelectedAwareness] = useState<string | null>(ad.awarenessLevel?.id || null);
 
     const toggleArchive = async (e: React.MouseEvent) => {
@@ -168,9 +168,9 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
         if (newTheme) setSelectedTheme(newTheme.id);
     };
 
-    const createAngle = async (name: string) => {
-        const newAngle = await createAngleApi(name);
-        if (newAngle) setSelectedAngle(newAngle.id);
+    const createDesire = async (name: string) => {
+        const newDesire = await createDesireApi(name);
+        if (newDesire) setSelectedDesire(newDesire.id);
     };
 
     const createAwarenessLevel = async (name: string) => {
@@ -196,7 +196,7 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                     formatId: selectedFormat,
                     hookId: selectedHook,
                     themeId: selectedTheme,
-                    angleId: selectedAngle,
+                    desireId: selectedDesire,
                     awarenessLevelId: selectedAwareness
                 }),
             });
@@ -377,8 +377,8 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                                 onClick={(e) => { e.preventDefault(); if (ad.videoUrl) extractHook(); }}
                                 disabled={isExtractingHook || !ad.videoUrl}
                                 className={`flex-shrink-0 px-3 py-2 rounded-lg border transition-colors ${!ad.videoUrl
-                                        ? "bg-zinc-100 text-zinc-300 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-600 cursor-not-allowed"
-                                        : "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100"
+                                    ? "bg-zinc-100 text-zinc-300 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-600 cursor-not-allowed"
+                                    : "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100"
                                     }`}
                                 title={!ad.videoUrl ? "No video available to extract hook" : "Extract First 3.5s as Video Hook"}
                             >
@@ -423,23 +423,23 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-xs font-medium text-zinc-500 mb-1">Angle</label>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Desire</label>
                         <div className="flex gap-2">
                             <select
-                                value={selectedAngle || ""}
-                                onChange={(e) => setSelectedAngle(e.target.value || null)}
+                                value={selectedDesire || ""}
+                                onChange={(e) => setSelectedDesire(e.target.value || null)}
                                 className="flex-1 min-w-0 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <option value="">Select Angle...</option>
-                                {angles.map(a => (
+                                <option value="">Select Desire...</option>
+                                {desires.map(a => (
                                     <option key={a.id} value={a.id}>{a.name}</option>
                                 ))}
                             </select>
                             <button
-                                onClick={(e) => { e.preventDefault(); const name = prompt("New Angle Name:"); if (name) createAngle(name); }}
+                                onClick={(e) => { e.preventDefault(); const name = prompt("New Desire Name:"); if (name) createDesire(name); }}
                                 className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"
-                                title="Add New Angle"
+                                title="Add New Desire"
                             >
                                 +
                             </button>
@@ -586,9 +586,9 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                                         {ad.theme.name}
                                     </span>
                                 )}
-                                {ad.angle && (
+                                {ad.desire && (
                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800">
-                                        {ad.angle.name}
+                                        {ad.desire.name}
                                     </span>
                                 )}
                                 {ad.awarenessLevel && (

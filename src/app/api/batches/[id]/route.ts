@@ -9,9 +9,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
         const batch = await prisma.adBatch.findUnique({
             where: { id },
             include: {
-                concept: {
+                angle: {
                     include: {
-                        angle: true,
+                        desire: true,
                         theme: true,
                         demographic: true,
                         awarenessLevel: true
@@ -42,9 +42,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
         // WORKAROUND: Manually fetch conceptDoc for the related concept
         try {
-            const raw = await prisma.$queryRaw`SELECT conceptDoc FROM CreativeConcept WHERE id = ${batch.conceptId}`;
+            const raw = await prisma.$queryRaw`SELECT conceptDoc FROM AdAngle WHERE id = ${batch.angleId}`;
             if (Array.isArray(raw) && raw.length > 0) {
-                (batch.concept as any).conceptDoc = (raw[0] as any).conceptDoc;
+                (batch.angle as any).conceptDoc = (raw[0] as any).conceptDoc;
             }
         } catch (e) {
             console.warn("Failed to patch conceptDoc", e);
@@ -91,7 +91,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 assignee: data.assignee,
                 brief: data.brief,
                 formatId: data.formatId,
-                conceptId: data.conceptId,
+                angleId: data.angleId,
                 referenceAdId: data.referenceAdId,
                 referenceBatchId: data.referenceBatchId,
                 aiAdCopy: data.aiAdCopy,

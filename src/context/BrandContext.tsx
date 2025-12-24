@@ -66,8 +66,10 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (!isLoading) {
-            // Strict Protection: Redirect to Home (Login) if no brand selected
-            if (!selectedBrand && pathname !== '/') {
+            // Strict Protection: Redirect to Home if no brand selected, unless on public paths
+            const isPublic = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/portal');
+
+            if (!selectedBrand && !isPublic) {
                 router.push('/');
             }
         }

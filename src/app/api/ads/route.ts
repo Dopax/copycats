@@ -14,7 +14,7 @@ export async function GET() {
                 format: true,
                 hook: true,
                 theme: true,
-                angle: true,
+                desire: true,
                 awarenessLevel: true,
                 demographic: true,
                 referencedInBatches: {

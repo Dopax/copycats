@@ -43,8 +43,8 @@ model Ad {
   themeId         String?
   theme           AdTheme?     @relation(fields: [themeId], references: [id])
 
-  angleId         String?
-  angle           AdAngle?     @relation(fields: [angleId], references: [id])
+  desireId        String?
+  desire          AdDesire?    @relation(fields: [desireId], references: [id])
 
   awarenessLevelId String?
   awarenessLevel   AdAwarenessLevel? @relation(fields: [awarenessLevelId], references: [id])
@@ -90,12 +90,12 @@ model AdTheme {
   name     String @unique
   description String?
   ads      Ad[]
-  concepts CreativeConcept[]
+  angles   AdAngle[]
   brandId  String?
   brand    Brand?   @relation(fields: [brandId], references: [id])
 }
 
-model AdAngle {
+model AdDesire {
   id       String @id @default(uuid())
   name     String @unique
   category String?
@@ -103,7 +103,7 @@ model AdAngle {
   brainClicks String?
   notes    String?
   ads      Ad[]
-  concepts CreativeConcept[]
+  angles   AdAngle[]
   brandId  String?
   brand    Brand?   @relation(fields: [brandId], references: [id])
 }
@@ -113,7 +113,7 @@ model AdDemographic {
   name     String @unique
   ads      Ad[]
   creators Creator[]
-  concepts CreativeConcept[]
+  angles   AdAngle[]
   brandId  String?
   brand    Brand?   @relation(fields: [brandId], references: [id])
 }
@@ -123,17 +123,17 @@ model AdAwarenessLevel {
   id       String @id @default(uuid())
   name     String @unique
   ads      Ad[]
-  concepts CreativeConcept[]
+  angles   AdAngle[]
   brandId  String?
   brand    Brand?   @relation(fields: [brandId], references: [id])
 }
 
-model CreativeConcept {
+model AdAngle {
   id            String @id @default(uuid())
   name          String
   
-  angleId       String
-  angle         AdAngle @relation(fields: [angleId], references: [id])
+  desireId      String
+  desire        AdDesire @relation(fields: [desireId], references: [id])
   
   themeId       String
   theme         AdTheme @relation(fields: [themeId], references: [id])
@@ -152,6 +152,7 @@ model CreativeConcept {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
+  // These might be renamed to avoid confusion, but keeping field names for now unless user wants "angleDoc"
   conceptDoc    String?
   personaScenarios String?
 }
@@ -169,7 +170,7 @@ model Brand {
   breakEvenRoas Float?  @default(1.0)
   
   batches   AdBatch[]
-  concepts  CreativeConcept[]
+  angles    AdAngle[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -182,7 +183,7 @@ model Brand {
   formats   AdFormat[]
   hooks     AdHook[]
   themes    AdTheme[]
-  angles    AdAngle[]
+  desires   AdDesire[]
   demographics AdDemographic[]
   awarenessLevels AdAwarenessLevel[]
 
@@ -348,8 +349,8 @@ model AdBatch {
   batchType   String   // COPYCAT, NET_NEW, ITERATION
   priority    String?  // HIGH, MEDIUM, LOW
 
-  conceptId   String
-  concept     CreativeConcept @relation(fields: [conceptId], references: [id])
+  angleId     String
+  angle       AdAngle @relation(fields: [angleId], references: [id])
   
   brandId     String?
   brand       Brand?          @relation(fields: [brandId], references: [id])

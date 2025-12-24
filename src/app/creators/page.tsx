@@ -253,9 +253,14 @@ export default function CreatorsPage() {
                     setIsApproveModalOpen(false);
                     setEditingCreator(null);
                 }
+            } else {
+                const err = await res.json();
+                console.error("Approval failed:", err);
+                alert(`Error: ${err.error || 'Failed to send offer'}`);
             }
         } catch (error) {
             console.error(error);
+            alert("An unexpected error occurred.");
         }
     };
 

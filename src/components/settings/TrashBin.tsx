@@ -7,7 +7,7 @@ interface TrashedBatch {
     id: number;
     name: string;
     batchType: string;
-    concept: { name: string };
+    angle: { name: string };
     updatedAt: string;
 }
 
@@ -77,7 +77,7 @@ export default function TrashBin() {
                     <thead className="text-xs text-zinc-500 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
                             <th className="px-6 py-3">Batch Name</th>
-                            <th className="px-6 py-3">Concept</th>
+                            <th className="px-6 py-3">Angle</th>
                             <th className="px-6 py-3">Deleted Date</th>
                             <th className="px-6 py-3 text-right">Actions</th>
                         </tr>
@@ -91,7 +91,7 @@ export default function TrashBin() {
                                         {batch.batchType}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 text-zinc-500">{batch.concept?.name}</td>
+                                <td className="px-6 py-4 text-zinc-500">{batch.angle?.name}</td>
                                 <td className="px-6 py-4 text-zinc-500">
                                     {new Date(batch.updatedAt).toLocaleDateString()}
                                 </td>

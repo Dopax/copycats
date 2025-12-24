@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useBrand } from "@/context/BrandContext";
 
-interface Angle {
+interface Desire {
     id: string;
     name: string;
     category?: string;
@@ -19,15 +19,15 @@ interface Theme {
 
 interface Demographic { id: string; name: string; }
 
-interface CreativeConcept {
+interface AdAngleData {
     id: string;
     name: string;
-    angle: Angle;
+    desire: Desire;
     theme: Theme;
     demographic: Demographic;
     awarenessLevel?: { id: string; name: string; };
     batches: { id: number; name: string; status: string; }[];
-    conceptDoc?: string;
+    angleDoc?: string;
     personaScenarios?: string;
 }
 
@@ -79,12 +79,12 @@ function ViewDocModal({ title, content, onClose, onDelete }: { title: string, co
     );
 }
 
-export default function ConceptsPage() {
+export default function AnglesPage() {
     const { selectedBrand, isLoading: isBrandLoading } = useBrand();
-    const [concepts, setConcepts] = useState<CreativeConcept[]>([]);
+    const [angles, setAngles] = useState<AdAngleData[]>([]);
 
     // Dropdown Data
-    const [angles, setAngles] = useState<Angle[]>([]);
+    const [desires, setDesires] = useState<Desire[]>([]);
     const [themes, setThemes] = useState<Theme[]>([]);
     const [demographics, setDemographics] = useState<Demographic[]>([]);
     const [awarenessLevels, setAwarenessLevels] = useState<{ id: string; name: string; }[]>([]);
@@ -97,65 +97,67 @@ export default function ConceptsPage() {
     const [generatingScenarioIds, setGeneratingScenarioIds] = useState<Set<string>>(new Set());
 
     // Doc View State
-    const [viewingDoc, setViewingDoc] = useState<{ title: string; content: string; conceptId?: string; type?: 'persona' | 'scenarios' } | null>(null);
+    const [viewingDoc, setViewingDoc] = useState<{ title: string; content: string; angleId?: string; type?: 'persona' | 'scenarios' } | null>(null);
 
     // Form State
-    const [selectedAngle, setSelectedAngle] = useState<string>("");
+    const [selectedDesire, setSelectedDesire] = useState<string>("");
     const [selectedTheme, setSelectedTheme] = useState<string>("");
     // const [selectedDemographic, setSelectedDemographic] = useState<string>(""); // Removed direct ID selection
     const [selectedGender, setSelectedGender] = useState<string>("");
     const [selectedAge, setSelectedAge] = useState<string>("");
     const [selectedAwarenessLevel, setSelectedAwarenessLevel] = useState<string>("");
-    const [editingConceptId, setEditingConceptId] = useState<string | null>(null);
+    const [editingAngleId, setEditingAngleId] = useState<string | null>(null);
 
     const resetForm = () => {
-        setSelectedAngle("");
+        setSelectedDesire("");
         setSelectedTheme("");
         setSelectedGender("");
         setSelectedAge("");
         setSelectedAwarenessLevel("");
-        setEditingConceptId(null);
+        setEditingAngleId(null);
     };
 
-    const startEditing = (concept: any) => {
-        setEditingConceptId(concept.id);
-        setSelectedAngle(concept.angleId);
-        setSelectedTheme(concept.themeId);
-        if (concept.demographic?.name) {
-            // Heuristic to split "Female 18-24" -> Gender="Female", Age="18-24"
-            // Assumes format "[Gender] [Age]"
-            const parts = concept.demographic.name.trim().split(' ');
-            if (parts.length >= 2) {
-                setSelectedGender(parts[0]);
-                setSelectedAge(parts.slice(1).join(' '));
-            } else {
-                setSelectedGender("");
-                setSelectedAge("");
+    const startEditing = (angle: AdAngleData) => {
+        setEditingAngleId(angle.id);
+        if (angle.desire) { // Check if desire exists
+            setSelectedDesire(angle.desire.id);
+            setSelectedTheme(angle.theme.id);
+            if (angle.demographic?.name) {
+                // Heuristic to split "Female 18-24" -> Gender="Female", Age="18-24"
+                // Assumes format "[Gender] [Age]"
+                const parts = angle.demographic.name.trim().split(' ');
+                if (parts.length >= 2) {
+                    setSelectedGender(parts[0]);
+                    setSelectedAge(parts.slice(1).join(' '));
+                } else {
+                    setSelectedGender("");
+                    setSelectedAge("");
+                }
             }
+            setSelectedAwarenessLevel(angle.awarenessLevel?.id || "");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        setSelectedAwarenessLevel(concept.awarenessLevelId || "");
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     // Modal States
     const [showThemeModal, setShowThemeModal] = useState(false);
-    const [showAngleModal, setShowAngleModal] = useState(false);
+    const [showDesireModal, setShowDesireModal] = useState(false);
 
     // New Item Form Data
     const [newThemeData, setNewThemeData] = useState({ name: "", description: "" });
-    const [newAngleData, setNewAngleData] = useState({ name: "", category: "", description: "", brainClicks: "" });
+    const [newDesireData, setNewDesireData] = useState({ name: "", category: "", description: "", brainClicks: "" });
 
     const handleGenerateDoc = async (id: string, type: 'persona' | 'scenarios') => {
         if (type === 'persona') setGeneratingIds(prev => new Set(prev).add(id));
         else setGeneratingScenarioIds(prev => new Set(prev).add(id));
 
-        const endpoint = type === 'persona' ? `/api/concepts/${id}/generate-doc` : `/api/concepts/${id}/generate-scenarios`;
+        const endpoint = type === 'persona' ? `/api/angles/${id}/generate-doc` : `/api/angles/${id}/generate-scenarios`;
 
         try {
             const res = await fetch(endpoint, { method: 'POST' });
             if (res.ok) {
                 const updated = await res.json();
-                setConcepts(prev => prev.map(c => c.id === id ? updated : c));
+                setAngles((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
             } else {
                 const err = await res.json();
                 console.error("Geneartion error response:", err);
@@ -191,19 +193,19 @@ export default function ConceptsPage() {
         setIsLoading(true);
         try {
             const query = selectedBrand ? `?brandId=${selectedBrand.id}` : '';
-            const [anglesRes, themesRes, demographicsRes, awarenessRes, conceptsRes] = await Promise.all([
-                fetch('/api/angles'),
+            const [desiresRes, themesRes, demographicsRes, awarenessRes, anglesRes] = await Promise.all([
+                fetch('/api/desires'),
                 fetch('/api/themes'),
                 fetch('/api/demographics'),
                 fetch('/api/awareness-levels'),
-                fetch(`/api/concepts${query}`)
+                fetch(`/api/angles${query}`)
             ]);
 
-            if (anglesRes.ok) setAngles(await anglesRes.json());
+            if (desiresRes.ok) setDesires(await desiresRes.json());
             if (themesRes.ok) setThemes(await themesRes.json());
             if (demographicsRes.ok) setDemographics(await demographicsRes.json());
             if (awarenessRes.ok) setAwarenessLevels(await awarenessRes.json());
-            if (conceptsRes.ok) setConcepts(await conceptsRes.json());
+            if (anglesRes.ok) setAngles(await anglesRes.json());
         } catch (error) {
             console.error("Failed to load data", error);
         } finally {
@@ -257,54 +259,54 @@ export default function ConceptsPage() {
         }
     };
 
-    const submitNewAngle = async (e: React.FormEvent) => {
+    const submitNewDesire = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/angles', {
+            const res = await fetch('/api/desires', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: newAngleData.name,
-                    category: newAngleData.category,
-                    description: newAngleData.description,
-                    brainClicks: newAngleData.brainClicks,
+                    name: newDesireData.name,
+                    category: newDesireData.category,
+                    description: newDesireData.description,
+                    brainClicks: newDesireData.brainClicks,
                     brandId: selectedBrand?.id
                 })
             });
             if (res.ok) {
-                const newAngle = await res.json();
-                setAngles([...angles, newAngle]);
-                setSelectedAngle(newAngle.id);
-                setShowAngleModal(false);
-                setNewAngleData({ name: "", category: "", description: "", brainClicks: "" });
+                const newDesire = await res.json();
+                setDesires([...desires, newDesire]);
+                setSelectedDesire(newDesire.id);
+                setShowDesireModal(false);
+                setNewDesireData({ name: "", category: "", description: "", brainClicks: "" });
             }
         } catch (error) {
-            console.error("Failed to create angle", error);
+            console.error("Failed to create desire", error);
         }
     };
 
-    const handleSubmitConcept = async (e: React.FormEvent) => {
+    const handleSubmitAngle = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Resolve Demographic ID
         const demoName = (selectedGender && selectedAge) ? `${selectedGender} ${selectedAge}` : null;
         const selectedDemographicId = demoName ? demographics.find(d => d.name === demoName)?.id : null;
 
-        if (!selectedAngle || !selectedTheme || !selectedDemographicId) {
-            alert("Please select all three components (Angle, Theme, Demographic).");
+        if (!selectedDesire || !selectedTheme || !selectedDemographicId) {
+            alert("Please select all three components (Desire, Theme, Demographic).");
             return;
         }
 
         setIsCreating(true);
         try {
-            const endpoint = editingConceptId ? `/api/concepts/${editingConceptId}` : '/api/concepts';
-            const method = editingConceptId ? 'PUT' : 'POST';
+            const endpoint = editingAngleId ? `/api/angles/${editingAngleId}` : '/api/angles';
+            const method = editingAngleId ? 'PUT' : 'POST';
 
             const res = await fetch(endpoint, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    angleId: selectedAngle,
+                    desireId: selectedDesire,
                     themeId: selectedTheme,
                     demographicId: selectedDemographicId,
                     awarenessLevelId: selectedAwarenessLevel || undefined,
@@ -313,26 +315,26 @@ export default function ConceptsPage() {
             });
 
             if (res.ok) {
-                // Re-fetch all concepts to ensure data consistency and order
+                // Re-fetch all angles to ensure data consistency and order
                 await fetchData();
                 resetForm();
             } else {
-                alert(`Failed to ${editingConceptId ? 'update' : 'create'} concept.`);
+                alert(`Failed to ${editingAngleId ? 'update' : 'create'} angle.`);
             }
         } catch (error) {
-            console.error(`Error ${editingConceptId ? 'updating' : 'creating'} concept:`, error);
+            console.error(`Error ${editingAngleId ? 'updating' : 'creating'} angle:`, error);
         } finally {
             setIsCreating(false);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this concept?")) return;
+        if (!confirm("Are you sure you want to delete this angle?")) return;
 
         try {
-            const res = await fetch(`/api/concepts/${id}`, { method: 'DELETE' });
+            const res = await fetch(`/api/angles/${id}`, { method: 'DELETE' });
             if (res.ok) {
-                setConcepts(concepts.filter(c => c.id !== id));
+                setAngles(angles.filter(a => a.id !== id));
             }
         } catch (error) {
             console.error("Error deleting concept:", error);
@@ -342,37 +344,37 @@ export default function ConceptsPage() {
     return (
         <div className="max-w-6xl mx-auto space-y-8 relative">
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Creative Concepts</h1>
+                <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Angles</h1>
                 <p className="text-zinc-500 dark:text-zinc-400">
-                    Define your winning concepts by combining an Angle, a Theme, and a Demographic.
+                    Define your winning angles by combining a Desire, a Theme, and a Demographic.
                 </p>
             </div>
 
-            {/* Concept Creator Card */}
+            {/* Angle Creator Card */}
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{editingConceptId ? "Edit Concept" : "New Concept Matrix"}</h2>
-                <form onSubmit={handleSubmitConcept} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{editingAngleId ? "Edit Angle" : "New Angle Matrix"}</h2>
+                <form onSubmit={handleSubmitAngle} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
 
 
                     {/* Angle */}
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
-                            Angle
+                            Desire
                             <button
                                 type="button"
-                                onClick={() => setShowAngleModal(true)}
+                                onClick={() => setShowDesireModal(true)}
                                 className="text-indigo-600 hover:text-indigo-500 text-[10px]"
                             >
                                 + New
                             </button>
                         </label>
                         <select
-                            value={selectedAngle}
-                            onChange={(e) => setSelectedAngle(e.target.value)}
+                            value={selectedDesire}
+                            onChange={(e) => setSelectedDesire(e.target.value)}
                             className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
                         >
-                            <option value="">Select Angle...</option>
-                            {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                            <option value="">Select Desire...</option>
+                            {desires.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                         </select>
                     </div>
 
@@ -446,9 +448,9 @@ export default function ConceptsPage() {
                             disabled={isCreating}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition-colors disabled:opacity-50 w-full"
                         >
-                            {editingConceptId ? "Update Concept" : (isCreating ? "Generating..." : "Generate Concept")}
+                            {editingAngleId ? "Update Angle" : (isCreating ? "Generating..." : "Generate Angle")}
                         </button>
-                        {editingConceptId && (
+                        {editingAngleId && (
                             <button
                                 type="button"
                                 onClick={resetForm}
@@ -464,7 +466,7 @@ export default function ConceptsPage() {
             {/* Concepts Table */}
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
                 <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
-                    <h3 className="font-semibold text-zinc-900 dark:text-white">Active Concepts</h3>
+                    <h3 className="font-semibold text-zinc-900 dark:text-white">Active Angles</h3>
                 </div>
                 {isLoading ? (
                     <div className="p-8 text-center text-zinc-500">Loading concepts...</div>
@@ -481,33 +483,33 @@ export default function ConceptsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                {concepts.map((concept) => (
-                                    <tr key={concept.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                                {angles.map((angle) => (
+                                    <tr key={angle.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="text-sm font-semibold text-zinc-900 dark:text-white">{concept.name}</div>
-                                            <div className="text-xs text-zinc-400 font-mono mt-0.5">{concept.id.split('-')[0]}...</div>
+                                            <div className="text-sm font-semibold text-zinc-900 dark:text-white">{angle.name}</div>
+                                            <div className="text-xs text-zinc-400 font-mono mt-0.5">{angle.id.split('-')[0]}...</div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">
                                             <div className="flex flex-wrap gap-2">
                                                 <div className="flex flex-col gap-1 items-start">
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800" title="Angle">
-                                                        Angle: {concept.angle?.name || "N/A"}
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-100 dark:border-amber-800" title="Desire">
+                                                        Desire: {angle.desire?.name || "N/A"}
                                                     </span>
-                                                    {concept.angle?.brainClicks && <span className="text-[10px] text-zinc-400">🧠 {concept.angle.brainClicks}</span>}
+                                                    {angle.desire?.brainClicks && <span className="text-[10px] text-zinc-400">🧠 {angle.desire.brainClicks}</span>}
                                                 </div>
                                                 <div className="flex flex-col gap-1 items-start">
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 border border-pink-100 dark:border-pink-800" title="Theme">
-                                                        Theme: {concept.theme?.name || "N/A"}
+                                                        Theme: {angle.theme?.name || "N/A"}
                                                     </span>
-                                                    {concept.theme?.description && <span className="text-[10px] text-zinc-400 italic max-w-[150px] truncate">{concept.theme.description}</span>}
+                                                    {angle.theme?.description && <span className="text-[10px] text-zinc-400 italic max-w-[150px] truncate">{angle.theme.description}</span>}
                                                 </div>
 
                                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800" title="Demographic">
-                                                    {concept.demographic?.name || "N/A"}
+                                                    {angle.demographic?.name || "N/A"}
                                                 </span>
-                                                {concept.awarenessLevel && (
+                                                {angle.awarenessLevel && (
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-100 dark:border-violet-800" title="Awareness Level">
-                                                        {concept.awarenessLevel?.name}
+                                                        {angle.awarenessLevel?.name}
                                                     </span>
                                                 )}
                                             </div>
@@ -517,11 +519,11 @@ export default function ConceptsPage() {
                                             <div className="flex items-center gap-4">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Persona</span>
-                                                    {concept.conceptDoc ? (
+                                                    {angle.angleDoc ? (
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                                             <button
-                                                                onClick={() => setViewingDoc({ title: "Buyer Persona", content: concept.conceptDoc!, conceptId: concept.id, type: 'persona' })}
+                                                                onClick={() => setViewingDoc({ title: "Buyer Persona", content: angle.angleDoc!, angleId: angle.id, type: 'persona' })}
                                                                 className="text-xs text-indigo-600 hover:text-indigo-900 underline font-medium"
                                                             >
                                                                 View
@@ -529,23 +531,23 @@ export default function ConceptsPage() {
                                                         </div>
                                                     ) : (
                                                         <button
-                                                            onClick={() => handleGenerateDoc(concept.id, 'persona')}
-                                                            disabled={generatingIds.has(concept.id)}
+                                                            onClick={() => handleGenerateDoc(angle.id, 'persona')}
+                                                            disabled={generatingIds.has(angle.id)}
                                                             className="text-[10px] text-zinc-500 bg-zinc-100 hover:bg-zinc-200 px-2 py-1 rounded border border-zinc-200"
                                                         >
-                                                            {generatingIds.has(concept.id) ? "Generating..." : "Generate Persona"}
+                                                            {generatingIds.has(angle.id) ? "Generating..." : "Generate"}
                                                         </button>
                                                     )}
                                                 </div>
 
                                                 {/* Scenarios */}
-                                                <div className="flex flex-col gap-1 border-l border-zinc-200 dark:border-zinc-700 pl-4">
+                                                <div className="flex flex-col gap-1">
                                                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Scenarios</span>
-                                                    {concept.personaScenarios ? (
+                                                    {angle.personaScenarios ? (
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                                             <button
-                                                                onClick={() => setViewingDoc({ title: "Persona Scenarios", content: concept.personaScenarios!, conceptId: concept.id, type: 'scenarios' })}
+                                                                onClick={() => setViewingDoc({ title: "Persona Scenarios", content: angle.personaScenarios!, angleId: angle.id, type: 'scenarios' })}
                                                                 className="text-xs text-indigo-600 hover:text-indigo-900 underline font-medium"
                                                             >
                                                                 View
@@ -553,12 +555,11 @@ export default function ConceptsPage() {
                                                         </div>
                                                     ) : (
                                                         <button
-                                                            onClick={() => handleGenerateDoc(concept.id, 'scenarios')}
-                                                            disabled={!concept.conceptDoc || generatingScenarioIds.has(concept.id)}
-                                                            className="text-[10px] text-zinc-500 bg-zinc-100 hover:bg-zinc-200 px-2 py-1 rounded border border-zinc-200 disabled:opacity-50"
-                                                            title={!concept.conceptDoc ? "Generate Persona first" : ""}
+                                                            onClick={() => handleGenerateDoc(angle.id, 'scenarios')}
+                                                            disabled={generatingIds.has(angle.id)}
+                                                            className="text-[10px] text-zinc-500 bg-zinc-100 hover:bg-zinc-200 px-2 py-1 rounded border border-zinc-200"
                                                         >
-                                                            {generatingScenarioIds.has(concept.id) ? "Generating..." : "Generate Scenarios"}
+                                                            {generatingIds.has(angle.id) ? "Generating..." : "Generate"}
                                                         </button>
                                                     )}
                                                 </div>
@@ -566,8 +567,8 @@ export default function ConceptsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1.5">
-                                                {concept.batches && concept.batches.length > 0 ? (
-                                                    concept.batches.map(batch => (
+                                                {angle.batches && angle.batches.length > 0 ? (
+                                                    angle.batches.map(batch => (
                                                         <a key={batch.id} href={`/batches/${batch.id}`} className="text-xs flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 hover:underline">
                                                             <span className="font-mono bg-indigo-50 dark:bg-indigo-900/30 px-1 rounded text-[10px] text-indigo-700 dark:text-indigo-300">BATCH{batch.id}</span>
                                                             <span className="truncate max-w-[150px]">{batch.name}</span>
@@ -581,13 +582,13 @@ export default function ConceptsPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                                             <div className="flex justify-end gap-3">
                                                 <button
-                                                    onClick={() => startEditing(concept)}
+                                                    onClick={() => startEditing(angle)}
                                                     className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
                                                 >
                                                     Edit
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(concept.id)}
+                                                    onClick={() => handleDelete(angle.id)}
                                                     className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                                                 >
                                                     Delete
@@ -596,10 +597,10 @@ export default function ConceptsPage() {
                                         </td>
                                     </tr>
                                 ))}
-                                {concepts.length === 0 && (
+                                {angles.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 text-sm">
-                                            No concepts defined yet. Use the matrix above to create your first concept.
+                                        <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 text-sm">
+                                            No angles defined yet. Use the matrix above to create your first angle.
                                         </td>
                                     </tr>
                                 )}
@@ -616,14 +617,14 @@ export default function ConceptsPage() {
                     content={viewingDoc.content}
                     onClose={() => setViewingDoc(null)}
                     onDelete={async () => {
-                        if (viewingDoc.conceptId) {
+                        if (viewingDoc.angleId) {
                             try {
                                 const body: any = {};
                                 // Set the specific field to null
-                                if (viewingDoc.type === 'persona') body.conceptDoc = null;
+                                if (viewingDoc.type === 'persona') body.angleDoc = null;
                                 if (viewingDoc.type === 'scenarios') body.personaScenarios = null;
 
-                                const res = await fetch(`/api/concepts/${viewingDoc.conceptId}/update-doc`, {
+                                const res = await fetch(`/api/angles/${viewingDoc.angleId}/update-doc`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify(body)
@@ -631,14 +632,14 @@ export default function ConceptsPage() {
 
                                 if (res.ok) {
                                     const updated = await res.json();
-                                    setConcepts(prev => prev.map(c => c.id === viewingDoc.conceptId ? updated : c));
-                                    setViewingDoc(null); // Close modal
+                                    setAngles(prev => prev.map(a => a.id === viewingDoc.angleId ? updated : a));
+                                    setViewingDoc(null);
                                 } else {
                                     alert("Failed to delete document.");
                                 }
-                            } catch (e) {
-                                console.error("Delete doc error", e);
-                                alert("Error deleting document.");
+                            } catch (error) {
+                                console.error("Failed to delete/update doc:", error);
+                                alert("An error occurred.");
                             }
                         }
                     }}
@@ -648,114 +649,91 @@ export default function ConceptsPage() {
             {/* Theme Modal */}
             {showThemeModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-xl w-full max-w-md border border-zinc-200 dark:border-zinc-800">
-                        <h2 className="text-xl font-bold mb-4 dark:text-white">Create New Theme</h2>
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-md w-full p-6 shadow-xl border border-zinc-200 dark:border-zinc-800">
+                        <h3 className="text-lg font-bold mb-4 dark:text-white">Create New Theme</h3>
                         <form onSubmit={submitNewTheme} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Theme Name</label>
+                                <label className="block text-sm font-medium mb-1 dark:text-zinc-300">Theme Name</label>
                                 <input
                                     type="text"
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
                                     value={newThemeData.name}
                                     onChange={e => setNewThemeData({ ...newThemeData, name: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent p-2 dark:text-white"
                                     required
-                                    autoFocus
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
+                                <label className="block text-sm font-medium mb-1 dark:text-zinc-300">Description</label>
                                 <textarea
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
-                                    rows={3}
                                     value={newThemeData.description}
                                     onChange={e => setNewThemeData({ ...newThemeData, description: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent p-2 dark:text-white"
+                                    rows={3}
                                 />
                             </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowThemeModal(false)}
-                                    className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
-                                >
-                                    Create Theme
-                                </button>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button type="button" onClick={() => setShowThemeModal(false)} className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Cancel</button>
+                                <button type="submit" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Create</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            {/* Angle Modal */}
-            {showAngleModal && (
+            {/* Desire Modal */}
+            {showDesireModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-xl w-full max-w-md border border-zinc-200 dark:border-zinc-800">
-                        <h2 className="text-xl font-bold mb-4 dark:text-white">Create New Angle</h2>
-                        <form onSubmit={submitNewAngle} className="space-y-4">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-md w-full p-6 shadow-xl border border-zinc-200 dark:border-zinc-800">
+                        <h3 className="text-lg font-bold mb-4 dark:text-white">Create New Desire</h3>
+                        <form onSubmit={submitNewDesire} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Angle Name</label>
+                                <label className="block text-sm font-medium mb-1 dark:text-zinc-300">Desire Name</label>
                                 <input
                                     type="text"
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
-                                    value={newAngleData.name}
-                                    onChange={e => setNewAngleData({ ...newAngleData, name: e.target.value })}
+                                    value={newDesireData.name}
+                                    onChange={e => setNewDesireData({ ...newDesireData, name: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent p-2 dark:text-white"
                                     required
-                                    autoFocus
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Category</label>
+                                <label className="block text-sm font-medium mb-1 dark:text-zinc-300">Category</label>
                                 <input
                                     type="text"
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
-                                    placeholder="e.g. Benefit, Fear, Logic..."
-                                    value={newAngleData.category}
-                                    onChange={e => setNewAngleData({ ...newAngleData, category: e.target.value })}
+                                    value={newDesireData.category}
+                                    onChange={e => setNewDesireData({ ...newDesireData, category: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent p-2 dark:text-white"
+                                    placeholder="e.g. Benefit, Fear..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
+                                <label className="block text-sm font-medium mb-1 dark:text-zinc-300">Description</label>
                                 <textarea
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
-                                    rows={3}
-                                    value={newAngleData.description}
-                                    onChange={e => setNewAngleData({ ...newAngleData, description: e.target.value })}
+                                    value={newDesireData.description}
+                                    onChange={e => setNewDesireData({ ...newDesireData, description: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent p-2 dark:text-white"
+                                    rows={2}
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Brain Clicks</label>
+                                <label className="block text-sm font-medium mb-1 dark:text-zinc-300">Brain Clicks</label>
                                 <input
                                     type="text"
-                                    className="w-full rounded-lg border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 p-2.5 text-sm"
-                                    placeholder="What psychological trigger does this hit?"
-                                    value={newAngleData.brainClicks}
-                                    onChange={e => setNewAngleData({ ...newAngleData, brainClicks: e.target.value })}
+                                    value={newDesireData.brainClicks}
+                                    onChange={e => setNewDesireData({ ...newDesireData, brainClicks: e.target.value })}
+                                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent p-2 dark:text-white"
+                                    placeholder="e.g. 'Status, money'"
                                 />
                             </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAngleModal(false)}
-                                    className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
-                                >
-                                    Create Angle
-                                </button>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button type="button" onClick={() => setShowDesireModal(false)} className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900">Cancel</button>
+                                <button type="submit" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Create</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
         </div>
+
     );
 }

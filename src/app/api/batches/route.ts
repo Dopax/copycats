@@ -17,9 +17,9 @@ export async function GET(request: Request) {
         const batches = await prisma.adBatch.findMany({
             where,
             include: {
-                concept: {
+                angle: {
                     include: {
-                        angle: true,
+                        desire: true,
                         theme: true,
                         demographic: true
                     }
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         const data = await request.json();
 
         // Basic validation
-        if (!data.name || !data.conceptId || !data.batchType) {
+        if (!data.name || !data.angleId || !data.batchType) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
                 status: data.batchType === "COPYCAT" ? "CREATOR_BRIEFING" : "IDEATION",
                 batchType: data.batchType,
                 priority: data.priority,
-                conceptId: data.conceptId,
+                angleId: data.angleId,
                 formatId: data.formatId,
                 assignee: data.assignee, // Legacy/Fallback
                 editorId: data.editorId || null,
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
                 mainMessaging: data.mainMessaging,
             },
             include: {
-                concept: true,
+                angle: true,
                 editor: true,
                 strategist: true
             }

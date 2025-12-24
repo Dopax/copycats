@@ -15,7 +15,7 @@ interface Stats {
         avgVelocityDays: number;
     };
     distributions: {
-        topAngles: Distribution[];
+        topDesires: Distribution[];
         topThemes: Distribution[];
         topDemographics: Distribution[];
         topAwareness: Distribution[];
@@ -114,18 +114,18 @@ export default function DashboardPage() {
                 />
                 <StatCard
                     title="Active Concepts"
-                    value={stats.distributions.topAngles.length + stats.distributions.topThemes.length} // Rough proxy or get real count
-                    subtext="Unique angles & themes tested"
+                    value={stats.distributions.topDesires.length + stats.distributions.topThemes.length} // Rough proxy or get real count
+                    subtext="Unique desires & themes tested"
                 />
                 <StatCard
-                    title="Top Performing Angle"
-                    value={stats.distributions.topAngles[0]?.name || "N/A"}
-                    subtext={stats.distributions.topAngles[0] ? `${stats.distributions.topAngles[0].count} batches` : "No data"}
+                    title="Top Performing Desire"
+                    value={stats.distributions.topDesires[0]?.name || "N/A"}
+                    subtext={stats.distributions.topDesires[0] ? `${stats.distributions.topDesires[0].count} batches` : "No data"}
                 />
                 <StatCard
-                    title="Top Performing Angle"
-                    value={stats.distributions.topAngles[0]?.name || "N/A"}
-                    subtext={stats.distributions.topAngles[0] ? `${stats.distributions.topAngles[0].count} batches` : "No data"}
+                    title="Top Performing Desire"
+                    value={stats.distributions.topDesires[0]?.name || "N/A"}
+                    subtext={stats.distributions.topDesires[0] ? `${stats.distributions.topDesires[0].count} batches` : "No data"}
                 />
             </div>
 
@@ -133,7 +133,7 @@ export default function DashboardPage() {
             <div className="h-[500px]">
                 <HeatmapGrid
                     title="Creative Performance Matrix"
-                    description="Performance heatmap of Ad Angles vs Ad Formats. Color indicates ROAS efficiency."
+                    description="Performance heatmap of Ad Desires vs Ad Formats. Color indicates ROAS efficiency."
                     data={heatmapData}
                     breakEvenRoas={selectedBrand?.breakEvenRoas || 1.5}
                 />
@@ -142,8 +142,8 @@ export default function DashboardPage() {
             {/* Distribution Charts */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <DistributionList
-                    title="Top Angles Used"
-                    data={stats.distributions.topAngles}
+                    title="Top Desires Used"
+                    data={stats.distributions.topDesires}
                     colorClass="bg-amber-500"
                 />
                 <DistributionList

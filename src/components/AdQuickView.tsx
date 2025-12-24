@@ -6,7 +6,7 @@ import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
 interface AdTheme { id: string; name: string; }
-interface AdAngle { id: string; name: string; }
+interface AdDesire { id: string; name: string; }
 interface AdAwarenessLevel { id: string; name: string; }
 interface AdDemographic { id: string; name: string; }
 
@@ -15,7 +15,7 @@ export interface AdWithSnapshots extends Ad {
     format?: AdFormat | null;
     hook?: AdHook | null;
     theme?: AdTheme | null;
-    angle?: AdAngle | null;
+    desire?: AdDesire | null;
     awarenessLevel?: AdAwarenessLevel | null;
     demographic?: AdDemographic | null;
 
@@ -39,14 +39,14 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
     const [formats, setFormats] = useState<AdFormat[]>([]);
     const [hooks, setHooks] = useState<AdHook[]>([]);
     const [themes, setThemes] = useState<AdTheme[]>([]);
-    const [angles, setAngles] = useState<AdAngle[]>([]);
+    const [desires, setDesires] = useState<AdDesire[]>([]);
     const [awarenessLevels, setAwarenessLevels] = useState<AdAwarenessLevel[]>([]);
     const [demographics, setDemographics] = useState<AdDemographic[]>([]);
 
     const [selectedFormat, setSelectedFormat] = useState<string | null>(ad.format?.id || null);
     const [selectedHook, setSelectedHook] = useState<string | null>(ad.hook?.id || null);
     const [selectedTheme, setSelectedTheme] = useState<string | null>(ad.theme?.id || null);
-    const [selectedAngle, setSelectedAngle] = useState<string | null>(ad.angle?.id || null);
+    const [selectedDesire, setSelectedDesire] = useState<string | null>(ad.desire?.id || null);
     const [selectedAwareness, setSelectedAwareness] = useState<string | null>(ad.awarenessLevel?.id || null);
 
     // Demographic State (Split for UI)
@@ -66,7 +66,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
         setSelectedFormat(ad.format?.id || null);
         setSelectedHook(ad.hook?.id || null);
         setSelectedTheme(ad.theme?.id || null);
-        setSelectedAngle(ad.angle?.id || null);
+        setSelectedDesire(ad.desire?.id || null);
         setSelectedAwareness(ad.awarenessLevel?.id || null);
 
         // Parse Demographic
@@ -102,14 +102,14 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                 fetch('/api/formats'),
                 fetch('/api/hooks'),
                 fetch('/api/themes'),
-                fetch('/api/angles'),
+                fetch('/api/desires'),
                 fetch('/api/awareness-levels'),
                 fetch('/api/demographics')
             ]);
             setFormats(await formatsRes.json());
             setHooks(await hooksRes.json());
             setThemes(await themesRes.json());
-            setAngles(await anglesRes.json());
+            setDesires(await anglesRes.json());
             setAwarenessLevels(await awarenessRes.json());
             setDemographics(await demosRes.json());
         } catch (e) {
@@ -163,7 +163,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                     formatId: selectedFormat,
                     hookId: selectedHook,
                     themeId: selectedTheme,
-                    angleId: selectedAngle,
+                    desireId: selectedDesire,
                     awarenessLevelId: selectedAwareness,
                     demographicId
                 }),
@@ -180,7 +180,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                     format: formats.find(f => f.id === selectedFormat) || null,
                     hook: hooks.find(h => h.id === selectedHook) || null,
                     theme: themes.find(t => t.id === selectedTheme) || null,
-                    angle: angles.find(a => a.id === selectedAngle) || null,
+                    desire: desires.find(a => a.id === selectedDesire) || null,
                     awarenessLevel: awarenessLevels.find(a => a.id === selectedAwareness) || null,
                     demographic: (selectedGender && selectedAge) ? { id: 'temp', name: `${selectedGender} ${selectedAge}` } : null, // Optimistic update
                 } as any);
@@ -341,15 +341,15 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                         </div>
                                     </div>
 
-                                    {/* Angle */}
+                                    {/* Desire */}
                                     <div>
-                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Angle</label>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Desire</label>
                                         <div className="flex gap-2">
-                                            <select value={selectedAngle || ""} onChange={e => setSelectedAngle(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
-                                                <option value="">Select Angle...</option>
-                                                {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                            <select value={selectedDesire || ""} onChange={e => setSelectedDesire(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
+                                                <option value="">Select Desire...</option>
+                                                {desires.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                             </select>
-                                            <button onClick={() => { const n = prompt("New Angle:"); if (n) createTag('/api/angles', n, setAngles, angles, setSelectedAngle); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <button onClick={() => { const n = prompt("New Desire:"); if (n) createTag('/api/desires', n, setDesires, desires, setSelectedDesire); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
                                         </div>
                                     </div>
 
