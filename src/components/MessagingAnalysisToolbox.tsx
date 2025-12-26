@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export interface MessagingAnalysis {
     layer1: {
@@ -30,9 +30,10 @@ interface MessagingAnalysisToolboxProps {
     onChange?: (value: string) => void;
     readOnly?: boolean;
     className?: string;
+    variant?: 'default' | 'exploded';
 }
 
-export default function MessagingAnalysisToolbox({ value, onChange, readOnly = false, className = "" }: MessagingAnalysisToolboxProps) {
+export default function MessagingAnalysisToolbox({ value, onChange, readOnly = false, className = "", variant = 'default' }: MessagingAnalysisToolboxProps) {
     const [data, setData] = useState<MessagingAnalysis>(EMPTY_ANALYSIS);
     const [isParsing, setIsParsing] = useState(true);
 
@@ -82,6 +83,78 @@ export default function MessagingAnalysisToolbox({ value, onChange, readOnly = f
         if (typeof val === 'object' && val.text) return val.text.trim().length > 0 ? 'filled' : 'empty';
         return val && val.trim().length > 0 ? 'filled' : 'empty';
     };
+
+    if (variant === 'exploded') {
+        const hasLayer2 = data.layer2.emotionalReframe || data.layer2.objectionNeutralizer || data.layer2.timeContext;
+        const hasLayer3 = data.layer3.weight !== 'NOT_PRESENT';
+
+        return (
+            <div className="space-y-6">
+                {/* 1. Main Strategy Card (Summary) */}
+                <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-900/20 dark:to-zinc-900 rounded-xl border border-indigo-100 dark:border-indigo-900/50 p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xl">🎯</span>
+                        <h4 className="font-bold text-zinc-900 dark:text-white">Main Strategy</h4>
+                    </div>
+                    <InputBlock
+                        label="One-Sentence Summary"
+                        prompt="A product that helps ___ get ___ without ___."
+                        value={data.layer1.summary}
+                        onChange={(v: string) => handleChange('layer1', 'summary', v)}
+                        readOnly={true} // Always read-only in this view as requested
+                        highlight
+                        noLabel
+                    />
+                </div>
+
+                {/* 2. Mechanics Grid */}
+                <div className="grid grid-cols-1 gap-4">
+                    {/* Core Logic */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+                        <h5 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                            Core Logic
+                        </h5>
+                        <div className="space-y-4">
+                            <InputBlock label="Core Promise" prompt="If you ___, you will get ___." value={data.layer1.corePromise} onChange={(v: string) => handleChange('layer1', 'corePromise', v)} readOnly={readOnly} />
+                            <InputBlock label="Problem / Desire" prompt="This is for people who ___." value={data.layer1.problemDesire} onChange={(v: string) => handleChange('layer1', 'problemDesire', v)} readOnly={readOnly} />
+                            <InputBlock label="Mechanism" prompt="This works because ___." value={data.layer1.mechanism} onChange={(v: string) => handleChange('layer1', 'mechanism', v)} readOnly={readOnly} />
+                        </div>
+                    </div>
+
+                    {/* Triggers (Only if present or editable) */}
+                    {(hasLayer2 || !readOnly) && (
+                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+                            <h5 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+                                Psychological Triggers
+                            </h5>
+                            <div className="space-y-4">
+                                <InputBlock label="Emotional Reframe" prompt="Instead of feeling ___, you get to feel ___." value={data.layer2.emotionalReframe} onChange={(v: string) => handleChange('layer2', 'emotionalReframe', v)} readOnly={readOnly} />
+                                <InputBlock label="Objection Neutralizer" prompt="You might think ___, but actually ___." value={data.layer2.objectionNeutralizer} onChange={(v: string) => handleChange('layer2', 'objectionNeutralizer', v)} readOnly={readOnly} />
+                                <InputBlock label="Time / Context" prompt="This is especially relevant when ___." value={data.layer2.timeContext} onChange={(v: string) => handleChange('layer2', 'timeContext', v)} readOnly={readOnly} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Identity (Only if present or editable) */}
+                    {(hasLayer3 || !readOnly) && (
+                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+                            <h5 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                                Identity
+                            </h5>
+                            {data.layer3.weight !== 'NOT_PRESENT' ? (
+                                <InputBlock label="Identity Hook" prompt="This is made for people who see themselves as ___." value={data.layer3.identityHook} onChange={(v: string) => handleChange('layer3', 'identityHook', v)} readOnly={readOnly} />
+                            ) : (
+                                <p className="text-xs text-zinc-400 italic pl-1">No identity hook identified.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={`flex flex-col gap-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm ${className}`}>
@@ -349,13 +422,10 @@ function InputBlock({ label, prompt, value, onChange, readOnly, required, highli
                         <span key={i} className="inline tracking-auto text-zinc-600 dark:text-zinc-400 select-none">
                             {seg}
                             {i < numHoles && (
-                                <input
-                                    type="text"
+                                <AutoResizeTextArea
                                     value={currentInputs[i] || ""}
-                                    onChange={(e) => updateInput(i, e.target.value)}
+                                    onChange={(val: string) => updateInput(i, val)}
                                     placeholder="..."
-                                    className="inline-block mx-1 min-w-[80px] bg-transparent border-b-2 border-zinc-300 dark:border-zinc-600 focus:border-indigo-500 text-center font-bold text-zinc-900 dark:text-zinc-100 outline-none px-1 placeholder:font-normal placeholder:text-zinc-300 transition-all focus:bg-indigo-50/50 dark:focus:bg-indigo-900/20 rounded-t-sm"
-                                    style={{ width: `${Math.max(80, (currentInputs[i] || "").length * 9)}px` }}
                                 />
                             )}
                         </span>
@@ -363,5 +433,40 @@ function InputBlock({ label, prompt, value, onChange, readOnly, required, highli
                 </div>
             )}
         </div>
+    );
+}
+
+interface AutoResizeTextAreaProps {
+    value: string;
+    onChange: (val: string) => void;
+    placeholder?: string;
+    minWidth?: number;
+}
+
+function AutoResizeTextArea({ value, onChange, placeholder, minWidth = 80 }: AutoResizeTextAreaProps) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        const el = textareaRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+    }, [value]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            rows={1}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="inline-block mx-1 bg-transparent border-b-2 border-zinc-300 dark:border-zinc-600 focus:border-indigo-500 font-bold text-zinc-900 dark:text-zinc-100 outline-none px-1 placeholder:font-normal placeholder:text-zinc-300 transition-all focus:bg-indigo-50/50 dark:focus:bg-indigo-900/20 rounded-t-sm resize-none overflow-hidden align-middle leading-normal"
+            style={{
+                width: `${Math.max(minWidth, Math.min(600, value.length * 9))}px`,
+                minWidth: `${minWidth}px`,
+                verticalAlign: 'baseline'
+            }}
+        />
     );
 }

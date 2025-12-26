@@ -30,109 +30,102 @@ interface ReferenceAdIntegrationProps {
 
 export default function ReferenceAdIntegration({ ad, className = "" }: ReferenceAdIntegrationProps) {
     const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
-
-    // Prefer videoUrl, fallback to first snapshot if video type? 
-    // Actually our Ad model has videoUrl directly.
+    const [isCopyOpen, setIsCopyOpen] = useState(false);
 
     return (
         <div className={`bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm ${className}`}>
-            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex justify-between items-center">
+
+            {/* 1. Header with Metadata */}
+            <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                    <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full border border-indigo-200">
-                        REFERENCE CONTENT
+                    <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full border border-indigo-200">
+                        REFERENCE
                     </span>
-                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">
-                        Competitor Ad Analysis
-                    </h3>
+                    {ad.facebookLink && (
+                        <a
+                            href={ad.facebookLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-zinc-500 hover:text-indigo-600 font-medium flex items-center gap-1 transition-colors"
+                        >
+                            View Original
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                        </a>
+                    )}
                 </div>
-                {ad.facebookLink && (
-                    <a
-                        href={ad.facebookLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
-                    >
-                        View Original
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                    </a>
+            </div>
+
+            {/* 2. Main Media (Video/Image) - Priority */}
+            <div className="bg-black relative group min-h-[400px] flex items-center justify-center">
+                {ad.videoUrl ? (
+                    <video
+                        src={ad.videoUrl}
+                        controls
+                        className="w-full max-h-[600px] object-contain"
+                        playsInline
+                        poster={ad.thumbnailUrl || undefined}
+                    />
+                ) : (
+                    <div className="text-zinc-500 text-sm flex flex-col items-center gap-2 py-20">
+                        <svg className="w-12 h-12 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span>No visual media available</span>
+                    </div>
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x border-zinc-200 dark:border-zinc-800">
-                {/* Media Column */}
-                <div className="p-4 bg-zinc-900 flex flex-col justify-center items-center min-h-[300px] lg:col-span-1">
-                    {ad.videoUrl ? (
-                        <video
-                            src={ad.videoUrl}
-                            controls
-                            className="max-h-[400px] w-full rounded-lg shadow-lg bg-black"
-                            playsInline
-                        />
-                    ) : (
-                        <div className="text-zinc-500 text-sm flex flex-col items-center gap-2">
-                            <svg className="w-8 h-8 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                            <span>No video available</span>
-                        </div>
-                    )}
-                </div>
+            {/* 3. Ad Copy & Context (Collapsible/Concise) */}
+            <div className="bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
 
-                {/* Analysis & Context Column */}
-                <div className="p-0 lg:col-span-2 flex flex-col h-full bg-zinc-50 dark:bg-zinc-800/50">
-                    <div className="flex-1 overflow-y-auto max-h-[500px]">
+                {/* Headline */}
+                {ad.headline && (
+                    <div className="p-3 bg-zinc-50 dark:bg-zinc-900/50">
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">Headline</span>
+                        <p className="text-sm font-bold text-zinc-900 dark:text-gray-100">{ad.headline}</p>
+                    </div>
+                )}
 
-                        {/* Main Messaging - Highlighted */}
-                        <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                            <MessagingAnalysisToolbox
-                                value={ad.mainMessaging}
-                                readOnly
-                                className="border-0 shadow-none rounded-none"
-                            />
+                {/* Primary Text (Collapsible) */}
+                {ad.description && (
+                    <div className="p-3">
+                        <div
+                            className="flex items-center justify-between cursor-pointer select-none"
+                            onClick={() => setIsCopyOpen(!isCopyOpen)}
+                        >
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Primary Text</span>
+                            <svg className={`w-4 h-4 text-zinc-400 transition-transform ${isCopyOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-zinc-200 dark:bg-zinc-800">
-
-                            {/* Why It Works */}
-                            <div className="p-5 bg-white dark:bg-zinc-900">
-                                <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase">Why It Works</label>
-                                <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                                    {ad.whyItWorks || "No analysis provided."}
-                                </p>
-                            </div>
-
-                            {/* Notes & Transcript Toggle */}
-                            <div className="p-5 bg-white dark:bg-zinc-900 flex flex-col">
-                                <label className="block text-xs font-semibold text-zinc-500 mb-2 uppercase">Notes</label>
-                                <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap mb-4 flex-1">
-                                    {ad.notes || "No notes available."}
-                                </p>
-
-                                {ad.transcript && (
-                                    <button
-                                        onClick={() => setIsTranscriptOpen(!isTranscriptOpen)}
-                                        className="mt-auto w-full flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors group"
-                                    >
-                                        <div className="flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                                            <svg className="w-4 h-4 text-zinc-400 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                            View Transcript
-                                        </div>
-                                        <svg className={`w-4 h-4 text-zinc-400 transition-transform ${isTranscriptOpen ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Transcript Drawer */}
-                        {isTranscriptOpen && ad.transcript && (
-                            <div className="border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-5 animate-in slide-in-from-top-2 duration-200">
-                                <h5 className="text-xs font-bold text-zinc-500 mb-3 uppercase">Transcript</h5>
-                                <div className="text-xs text-zinc-600 dark:text-zinc-400 font-mono whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto p-4 bg-white dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800">
-                                    {ad.transcript}
-                                </div>
+                        {(isCopyOpen || ad.description.length < 150) && (
+                            <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                                {ad.description}
                             </div>
                         )}
-
+                        {!isCopyOpen && ad.description.length >= 150 && (
+                            <p className="mt-1 text-sm text-zinc-500 line-clamp-2 leading-relaxed">
+                                {ad.description}
+                            </p>
+                        )}
                     </div>
-                </div>
+                )}
+
+                {/* Transcript (Collapsible) */}
+                {ad.transcript && (
+                    <div className="p-3">
+                        <div
+                            className="flex items-center justify-between cursor-pointer select-none"
+                            onClick={() => setIsTranscriptOpen(!isTranscriptOpen)}
+                        >
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Transcript</span>
+                            <svg className={`w-4 h-4 text-zinc-400 transition-transform ${isTranscriptOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+
+                        {isTranscriptOpen && (
+                            <div className="mt-2 p-3 bg-zinc-50 dark:bg-black/20 rounded border border-zinc-100 dark:border-zinc-800/50 text-xs font-mono text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                                {ad.transcript}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -23,7 +23,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
                     include: {
                         snapshots: true,
                         hook: true,
-                        format: true
+                        format: true,
+                        awarenessLevel: true // Include this
                     }
                 },
                 referenceBatch: {

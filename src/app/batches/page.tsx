@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useBrand } from "@/context/BrandContext";
+import SearchableSelect from "@/components/SearchableSelect";
+import AwarenessTooltip from "@/components/AwarenessTooltip";
 
 
 // Types
@@ -167,12 +169,16 @@ function BatchesContent() {
                         }
                     }
                 }).catch(err => console.error("Failed to fetch ad details", err));
-
-                // CHECK FOR DUPLICATES
-                checkForDuplicates(refId, refPostId || undefined);
             }
         }
-    }, [searchParams, batches]); // Add batches to dependency to check against loaded data
+    }, [searchParams]); // REMOVED batches dependency to prevent re-opening modal on save
+
+    // Separate effect for duplicate checking that depends on batches
+    useEffect(() => {
+        if (referenceAdId) {
+            checkForDuplicates(referenceAdId, referenceAdPostId || undefined);
+        }
+    }, [referenceAdId, referenceAdPostId, batches]);
 
     const checkForDuplicates = (refId: string, refPostId?: string) => {
         // Simple client-side check against loaded batches
@@ -319,9 +325,13 @@ function BatchesContent() {
                 setNewBatchAngle(angle.id);
                 setIsCreatingAngle(false);
                 setNewAngleForm({ desireId: "", themeId: "", demographicId: "", awarenessLevelId: "" });
+            } else {
+                const err = await res.json();
+                alert(`Failed to create angle: ${err.error || "Unknown error"}`);
             }
         } catch (e) {
             console.error("Failed to create angle", e);
+            alert("An unexpected error occurred while creating the angle.");
         }
     };
 
@@ -777,22 +787,22 @@ function BatchesContent() {
                                                 <button type="button" onClick={() => setIsCreatingAngle(false)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <select
-                                                    className="w-full rounded text-xs p-2 border-zinc-200"
-                                                    value={newAngleForm.desireId}
-                                                    onChange={e => setNewAngleForm(prev => ({ ...prev, desireId: e.target.value }))}
-                                                >
-                                                    <option value="">Desire...</option>
-                                                    {desires.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                                </select>
-                                                <select
-                                                    className="w-full rounded text-xs p-2 border-zinc-200"
-                                                    value={newAngleForm.themeId}
-                                                    onChange={e => setNewAngleForm(prev => ({ ...prev, themeId: e.target.value }))}
-                                                >
-                                                    <option value="">Theme...</option>
-                                                    {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                                </select>
+                                                <div className="min-w-0">
+                                                    <SearchableSelect
+                                                        options={desires}
+                                                        value={newAngleForm.desireId}
+                                                        onChange={(val) => setNewAngleForm(prev => ({ ...prev, desireId: val || "" }))}
+                                                        placeholder="Desire..."
+                                                    />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <SearchableSelect
+                                                        options={themes}
+                                                        value={newAngleForm.themeId}
+                                                        onChange={(val) => setNewAngleForm(prev => ({ ...prev, themeId: val || "" }))}
+                                                        placeholder="Theme..."
+                                                    />
+                                                </div>
                                                 <select
                                                     className="w-full rounded text-xs p-2 border-zinc-200"
                                                     value={newAngleForm.demographicId}
@@ -801,14 +811,19 @@ function BatchesContent() {
                                                     <option value="">Demographic...</option>
                                                     {demographics.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                                 </select>
-                                                <select
-                                                    className="w-full rounded text-xs p-2 border-zinc-200"
-                                                    value={newAngleForm.awarenessLevelId}
-                                                    onChange={e => setNewAngleForm(prev => ({ ...prev, awarenessLevelId: e.target.value }))}
-                                                >
-                                                    <option value="">Awareness...</option>
-                                                    {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                                </select>
+                                                <div className="relative">
+                                                    <select
+                                                        className="w-full rounded text-xs p-2 border-zinc-200"
+                                                        value={newAngleForm.awarenessLevelId}
+                                                        onChange={e => setNewAngleForm(prev => ({ ...prev, awarenessLevelId: e.target.value }))}
+                                                    >
+                                                        <option value="">Awareness...</option>
+                                                        {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                                    </select>
+                                                    <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                                                        <AwarenessTooltip />
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="flex justify-end">
                                                 <button

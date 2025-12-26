@@ -2,12 +2,16 @@ import { useState, useEffect } from "react";
 import { Ad, AdSnapshot } from "@prisma/client";
 import Link from "next/link";
 import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
+import QuickAddModal, { QuickAddType } from "./QuickAddModal";
+import SearchableSelect from "./SearchableSelect";
+import AwarenessTooltip from "./AwarenessTooltip";
 
 interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
 interface AdTheme { id: string; name: string; }
 interface AdDesire { id: string; name: string; }
 interface AdAwarenessLevel { id: string; name: string; }
+interface AdAngle { id: string; name: string; }
 interface AdDemographic { id: string; name: string; }
 
 export interface AdWithSnapshots extends Ad {
@@ -17,6 +21,7 @@ export interface AdWithSnapshots extends Ad {
     theme?: AdTheme | null;
     desire?: AdDesire | null;
     awarenessLevel?: AdAwarenessLevel | null;
+    angle?: AdAngle | null;
     demographic?: AdDemographic | null;
 
 }
@@ -34,12 +39,16 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
     const [mainMessaging, setMainMessaging] = useState((ad as any).mainMessaging || "");
     const [isSaving, setIsSaving] = useState(false);
     const [isExtractingHook, setIsExtractingHook] = useState(false);
+    const [activeQuickAdd, setActiveQuickAdd] = useState<QuickAddType | null>(null);
+    const [awarenessReason, setAwarenessReason] = useState((ad as any).awarenessLevelReason || "");
+    const [isGeneratingAwareness, setIsGeneratingAwareness] = useState(false);
 
     // Tags State
     const [formats, setFormats] = useState<AdFormat[]>([]);
     const [hooks, setHooks] = useState<AdHook[]>([]);
     const [themes, setThemes] = useState<AdTheme[]>([]);
     const [desires, setDesires] = useState<AdDesire[]>([]);
+    const [angles, setAngles] = useState<AdAngle[]>([]);
     const [awarenessLevels, setAwarenessLevels] = useState<AdAwarenessLevel[]>([]);
     const [demographics, setDemographics] = useState<AdDemographic[]>([]);
 
@@ -47,6 +56,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
     const [selectedHook, setSelectedHook] = useState<string | null>(ad.hook?.id || null);
     const [selectedTheme, setSelectedTheme] = useState<string | null>(ad.theme?.id || null);
     const [selectedDesire, setSelectedDesire] = useState<string | null>(ad.desire?.id || null);
+    const [selectedAngle, setSelectedAngle] = useState<string | null>(ad.angle?.id || null);
     const [selectedAwareness, setSelectedAwareness] = useState<string | null>(ad.awarenessLevel?.id || null);
 
     // Demographic State (Split for UI)
@@ -67,6 +77,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
         setSelectedHook(ad.hook?.id || null);
         setSelectedTheme(ad.theme?.id || null);
         setSelectedDesire(ad.desire?.id || null);
+        setSelectedAngle(ad.angle?.id || null);
         setSelectedAwareness(ad.awarenessLevel?.id || null);
 
         // Parse Demographic
@@ -98,18 +109,20 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
 
     const loadTags = async () => {
         try {
-            const [formatsRes, hooksRes, themesRes, anglesRes, awarenessRes, demosRes] = await Promise.all([
+            const [formatsRes, hooksRes, themesRes, desiresRes, anglesRes, awarenessRes, demosRes] = await Promise.all([
                 fetch('/api/formats'),
                 fetch('/api/hooks'),
                 fetch('/api/themes'),
                 fetch('/api/desires'),
+                fetch('/api/angles'),
                 fetch('/api/awareness-levels'),
                 fetch('/api/demographics')
             ]);
             setFormats(await formatsRes.json());
             setHooks(await hooksRes.json());
             setThemes(await themesRes.json());
-            setDesires(await anglesRes.json());
+            setDesires(await desiresRes.json());
+            setAngles(await anglesRes.json());
             setAwarenessLevels(await awarenessRes.json());
             setDemographics(await demosRes.json());
         } catch (e) {
@@ -164,7 +177,9 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                     hookId: selectedHook,
                     themeId: selectedTheme,
                     desireId: selectedDesire,
+                    angleId: selectedAngle,
                     awarenessLevelId: selectedAwareness,
+                    awarenessLevelReason: awarenessReason,
                     demographicId
                 }),
             });
@@ -181,7 +196,9 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                     hook: hooks.find(h => h.id === selectedHook) || null,
                     theme: themes.find(t => t.id === selectedTheme) || null,
                     desire: desires.find(a => a.id === selectedDesire) || null,
+                    angle: angles.find(a => a.id === selectedAngle) || null,
                     awarenessLevel: awarenessLevels.find(a => a.id === selectedAwareness) || null,
+                    awarenessLevelReason: awarenessReason,
                     demographic: (selectedGender && selectedAge) ? { id: 'temp', name: `${selectedGender} ${selectedAge}` } : null, // Optimistic update
                 } as any);
             }
@@ -194,11 +211,11 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
     };
 
     // Helper creators
-    const createTag = async (endpoint: string, name: string, setter: Function, currentList: any[], selector: Function) => {
+    const createTag = async (endpoint: string, data: any, setter: Function, currentList: any[], selector: Function) => {
         try {
             const res = await fetch(endpoint, {
                 method: 'POST',
-                body: JSON.stringify({ name })
+                body: JSON.stringify(data)
             });
             const newTag = await res.json();
             setter([...currentList, newTag]);
@@ -229,6 +246,31 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
             }
         } finally {
             setIsExtractingHook(false);
+        }
+    };
+
+    const generateAwarenessReason = async () => {
+        setIsGeneratingAwareness(true);
+        try {
+            const res = await fetch('/api/ai/awareness', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adId: ad.id })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to generate");
+            }
+
+            const data = await res.json();
+            if (data.awarenessLevelId) setSelectedAwareness(data.awarenessLevelId);
+            if (data.reason) setAwarenessReason(data.reason);
+
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            setIsGeneratingAwareness(false);
         }
     };
 
@@ -308,7 +350,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                                 <option value="">Select Format...</option>
                                                 {formats.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                             </select>
-                                            <button onClick={() => { const n = prompt("New Format:"); if (n) createTag('/api/formats', n, setFormats, formats, setSelectedFormat); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <button onClick={() => setActiveQuickAdd('formats')} className="flex-shrink-0 px-3 bg-zinc-100 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300 border border-zinc-200 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">+</button>
                                         </div>
                                     </div>
 
@@ -325,7 +367,7 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                                     {isExtractingHook ? '...' : 'Ext'}
                                                 </button>
                                             )}
-                                            <button onClick={() => { const n = prompt("New Hook:"); if (n) createTag('/api/hooks', n, setHooks, hooks, setSelectedHook); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <button onClick={() => setActiveQuickAdd('hooks')} className="flex-shrink-0 px-3 bg-zinc-100 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300 border border-zinc-200 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">+</button>
                                         </div>
                                     </div>
 
@@ -333,11 +375,15 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                     <div>
                                         <label className="block text-xs font-medium text-zinc-500 mb-1">Theme</label>
                                         <div className="flex gap-2">
-                                            <select value={selectedTheme || ""} onChange={e => setSelectedTheme(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
-                                                <option value="">Select Theme...</option>
-                                                {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                            </select>
-                                            <button onClick={() => { const n = prompt("New Theme:"); if (n) createTag('/api/themes', n, setThemes, themes, setSelectedTheme); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <div className="flex-1 min-w-0">
+                                                <SearchableSelect
+                                                    options={themes}
+                                                    value={selectedTheme}
+                                                    onChange={(val) => setSelectedTheme(val)}
+                                                    onAdd={() => setActiveQuickAdd('themes')}
+                                                    placeholder="Select Theme..."
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -345,22 +391,54 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
                                     <div>
                                         <label className="block text-xs font-medium text-zinc-500 mb-1">Desire</label>
                                         <div className="flex gap-2">
-                                            <select value={selectedDesire || ""} onChange={e => setSelectedDesire(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
-                                                <option value="">Select Desire...</option>
-                                                {desires.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                            </select>
-                                            <button onClick={() => { const n = prompt("New Desire:"); if (n) createTag('/api/desires', n, setDesires, desires, setSelectedDesire); }} className="flex-shrink-0 px-3 bg-zinc-100 rounded-lg hover:bg-zinc-200">+</button>
+                                            <div className="flex-1 min-w-0">
+                                                <SearchableSelect
+                                                    options={desires}
+                                                    value={selectedDesire}
+                                                    onChange={(val) => setSelectedDesire(val)}
+                                                    onAdd={() => setActiveQuickAdd('desires')}
+                                                    placeholder="Select Desire..."
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Awareness Level */}
+                                    {/* Awareness Level */}
                                     <div className="col-span-1 md:col-span-2">
-                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Awareness Level</label>
-                                        <div className="flex gap-2">
-                                            <select value={selectedAwareness || ""} onChange={e => setSelectedAwareness(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
-                                                <option value="">Select Awareness...</option>
-                                                {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                            </select>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1 flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                Awareness Level
+                                                <AwarenessTooltip />
+                                            </div>
+                                            <button
+                                                onClick={generateAwarenessReason}
+                                                disabled={isGeneratingAwareness}
+                                                className="flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                                                title="Generate based on transcript"
+                                            >
+                                                {isGeneratingAwareness ? (
+                                                    <span className="animate-spin">⏳</span>
+                                                ) : (
+                                                    <span>✨ AI Analyze</span>
+                                                )}
+                                            </button>
+                                        </label>
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex gap-2">
+                                                <select value={selectedAwareness || ""} onChange={e => setSelectedAwareness(e.target.value || null)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm min-w-0">
+                                                    <option value="">Select Awareness...</option>
+                                                    {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                                </select>
+                                                <button onClick={() => setActiveQuickAdd('awareness-levels')} className="flex-shrink-0 px-3 bg-zinc-100 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300 border border-zinc-200 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">+</button>
+                                            </div>
+
+                                            <textarea
+                                                value={awarenessReason}
+                                                onChange={(e) => setAwarenessReason(e.target.value)}
+                                                placeholder="Why this awareness level? (AI can generate this)"
+                                                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-xs h-16 resize-none focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                            />
                                         </div>
                                     </div>
 
@@ -516,6 +594,20 @@ export default function AdQuickView({ ad, isOpen, onClose, onUpdate }: AdQuickVi
 
                 </div>
             </div>
+
+            <QuickAddModal
+                type={activeQuickAdd}
+                isOpen={!!activeQuickAdd}
+                onClose={() => setActiveQuickAdd(null)}
+                onSave={async (data) => {
+                    if (activeQuickAdd === 'formats') await createTag('/api/formats', data, setFormats, formats, setSelectedFormat);
+                    else if (activeQuickAdd === 'hooks') await createTag('/api/hooks', data, setHooks, hooks, setSelectedHook);
+                    else if (activeQuickAdd === 'themes') await createTag('/api/themes', data, setThemes, themes, setSelectedTheme);
+                    else if (activeQuickAdd === 'desires') await createTag('/api/desires', data, setDesires, desires, setSelectedDesire);
+                    else if (activeQuickAdd === 'angles') await createTag('/api/angles', data, setAngles, angles, setSelectedAngle);
+                    else if (activeQuickAdd === 'awareness-levels') await createTag('/api/awareness-levels', data, setAwarenessLevels, awarenessLevels, setSelectedAwareness);
+                }}
+            />
         </div>
     );
 }

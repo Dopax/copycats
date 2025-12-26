@@ -8,13 +8,34 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
         const { hookId, notes, status } = await request.json();
 
+        // Calculate next variationIndex
+        const existingItems = await prisma.batchItem.findMany({
+            where: { batchId },
+            select: { variationIndex: true }
+        });
+
+        let nextIndex = 0;
+        if (existingItems.length > 0) {
+            const indices = existingItems
+                .map(item => item.variationIndex ? item.variationIndex.charCodeAt(0) - 65 : -1)
+                .filter(idx => idx >= 0);
+
+            if (indices.length > 0) {
+                nextIndex = Math.max(...indices) + 1;
+            } else {
+                nextIndex = existingItems.length; // Fallback if no indices are set yet
+            }
+        }
+        const variationIndex = String.fromCharCode(65 + nextIndex);
+
         // Create a new batch item
         const newItem = await prisma.batchItem.create({
             data: {
                 batchId,
                 hookId: hookId || null,
                 notes: notes || "",
-                status: status || "PENDING"
+                status: status || "PENDING",
+                variationIndex
             },
             include: { hook: true }
         });

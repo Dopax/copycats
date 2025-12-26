@@ -387,7 +387,6 @@ const getStrategySentence = (batch: Batch) => {
     const desire = <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.angle.desire.name}</span>;
     const theme = <span className="font-bold text-indigo-600 dark:text-indigo-400">{batch.angle.theme.name}</span>;
     const awareness = batch.angle.awarenessLevel?.name || "Unaware";
-    const awarenessSpan = <span className="font-bold text-indigo-600 dark:text-indigo-400">{awareness}</span>;
 
     const ThemeAddon = () => (
         <span className="text-zinc-400 border-l border-zinc-300 mx-2 pl-2">
@@ -397,45 +396,39 @@ const getStrategySentence = (batch: Batch) => {
 
     switch (awareness) {
         case "Problem Unaware":
-            // Schwartz: Echo the prospect's image/feelings. Avoid product/price.
             return (
                 <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed text-center">
-                    Targeting {demographic} who are completely {awarenessSpan} of the problem. We must echo their identity/feelings to capture attention, before introducing the need. <ThemeAddon />
+                    Targeting {demographic} who don’t yet see a problem. We connect first by reflecting their identity and emotions, then gradually reveal how {desire} can play a meaningful role in their life. <ThemeAddon />
                 </p>
             );
         case "Problem Aware":
-            // Schwartz: Dramatize the problem. Show you understand their pain.
             return (
                 <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed text-center">
-                    Speaking to {demographic} who feel the pain but don't know the fix. We must dramatize the problem and introduce {desire} as the new mechanism. <ThemeAddon />
+                    Speaking to {demographic} who clearly feel the frustration. We dramatize the problem, then position {desire} as the emotional outcome they are really searching for. <ThemeAddon />
                 </p>
             );
         case "Solution Aware":
-            // Schwartz: Knows the Category (e.g. Paint by Numbers), doesn't know YOU.
             return (
                 <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed text-center">
-                    For {demographic} who know the category but not our brand. We must prove why our mechanism ({desire}) is superior to the alternatives they've seen. <ThemeAddon />
+                    For {demographic} who know there are solutions out there. We show why our approach leads to {desire} more clearly, easily, and reliably than what they have tried or considered. <ThemeAddon />
                 </p>
             );
         case "Product Aware":
-            // Schwartz: Knows YOU (Brand), but not convinced.
             return (
                 <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed text-center">
-                    Addressing {demographic} who know our brand but aren't convinced. We must remove doubt using {desire} (proof/claims) to build conviction. <ThemeAddon />
+                    Addressing {demographic} who know our products but still hesitate. We remove doubt with specific proof that choosing us truly results in {desire}. <ThemeAddon />
                 </p>
             );
         case "Most Aware":
-            // Schwartz: The Headline is the Offer. Direct.
             return (
                 <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed text-center">
-                    Closing {demographic} who are {awarenessSpan} and ready. The focus is simply the Offer/Deal, using {desire} as the final nudge. <ThemeAddon />
+                    Closing {demographic} who already want what we offer. We focus on the offer itself, using {desire} as the final emotional reason to act now. <ThemeAddon />
                 </p>
             );
         default:
-            // Fallback
             return (
                 <p className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed text-center">
-                    This ad batch should talk to {demographic}, which are {awarenessSpan} of their desire to {desire}. <ThemeAddon />
+                    This ad batch should speak to {demographic}, connect directly to their interest in {desire}, and guide them smoothly toward choosing. <ThemeAddon />
                 </p>
             );
     }
@@ -1088,12 +1081,51 @@ export default function BatchDetailPage() {
                             </div>
                         </div>
 
-                        {/* Tooltip */}
-                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
-                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">Awareness Context</h4>
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                                <strong>{batch.angle.awarenessLevel?.name || "Unaware"}</strong> of their desire/problem to <strong>{batch.angle.desire.name}</strong>.
-                            </p>
+                        <div className="absolute top-full left-0 mt-2 w-80 p-4 bg-zinc-900 rounded-xl shadow-xl border border-zinc-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                            {(() => {
+                                const levelName = batch.angle.awarenessLevel?.name || "Problem Unaware";
+                                const desireName = batch.angle.desire.name || "the problem";
+
+                                const details: Record<string, { label: string; color: string; desc: React.ReactNode }> = {
+                                    "Problem Unaware": {
+                                        label: "1. Unaware",
+                                        color: "text-red-400",
+                                        desc: <>The customer is not really thinking much about <strong>{desireName}</strong>. Life feels normal, and they do not connect any frustration or missed opportunity with it yet.</>
+                                    },
+                                    "Problem Aware": {
+                                        label: "2. Problem Aware",
+                                        color: "text-orange-400",
+                                        desc: <>The customer starts to feel small annoyances or stress around <strong>{desireName}</strong>. They know something is not ideal, but they have not clearly recognized the specific cause.</>
+                                    },
+                                    "Solution Aware": {
+                                        label: "3. Solution Aware",
+                                        color: "text-amber-400",
+                                        desc: <>The customer realizes that improving how they approach <strong>{desireName}</strong> could make things easier or more enjoyable. They begin looking for solutions.</>
+                                    },
+                                    "Product Aware": {
+                                        label: "4. Product Aware",
+                                        color: "text-emerald-400",
+                                        desc: <>The customer understands that there are products and services designed to help with <strong>{desireName}</strong>. They compare options, reviews, price, and trust.</>
+                                    },
+                                    "Most Aware": {
+                                        label: "5. Most Aware",
+                                        color: "text-indigo-400",
+                                        desc: <>The customer already believes our product is a strong solution for <strong>{desireName}</strong>. They mainly need reassurance about results.</>
+                                    }
+                                };
+
+                                const active = details[levelName] || details["Problem Unaware"];
+
+                                return (
+                                    <>
+                                        <div className="font-bold text-zinc-100 mb-2 border-b border-zinc-700 pb-1">Awareness Stage</div>
+                                        <div className="text-zinc-300 leading-relaxed text-xs text-left">
+                                            <strong className={`${active.color} block mb-0.5`}>{active.label}</strong>
+                                            {active.desc}
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -1175,78 +1207,188 @@ export default function BatchDetailPage() {
                 )}
 
                 {/* 2. CREATOR BRIEFING */}
+                {/* 2. CREATOR BRIEFING */}
                 {activeStep === "CREATOR_BRIEFING" && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Creator Briefing</h3>
-                                <span className={`text-xs font-mono transition-colors ${isSavingCreatorBrief ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
-                                    {isSavingCreatorBrief ? "Saving..." : "Saved"}
-                                </span>
-                            </div>
-
-                            <div className="space-y-6">
-                                {/* Templates */}
-                                <div className="flex gap-2 mb-4">
-                                    {['GENERAL', 'SPECIFIC', 'COPYCAT'].map(t => (
-                                        <button
-                                            key={t}
-                                            onClick={() => applyBriefTemplate(t)}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${creatorBriefType === t
-                                                ? 'bg-indigo-100 border-indigo-200 text-indigo-700'
-                                                : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-                                                }`}
-                                        >
-                                            {t.charAt(0) + t.slice(1).toLowerCase()} Template
-                                        </button>
-                                    ))}
+                            {/* Header */}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                                <div>
+                                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                        <span>📹</span> Creator Briefing
+                                    </h3>
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                                        Define what the creator needs to say and do.
+                                    </p>
                                 </div>
+                                <div className="flex items-center gap-3">
+                                    <span className={`text-xs font-mono transition-colors ${isSavingCreatorBrief ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
+                                        {isSavingCreatorBrief ? "Saving..." : "Saved"}
+                                    </span>
 
-                                {/* Auto-Draft Button */}
-                                <div className="mb-4">
+                                    {/* Auto-Draft Button */}
                                     <button
                                         onClick={() => setIsAutoBriefModalOpen(true)}
-                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-bold text-sm hover:opacity-90 transition-opacity shadow-sm"
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
                                     >
-                                        <span>✨</span> Auto-Draft Brief (AI)
+                                        <span>✨</span> AI Draft
                                     </button>
                                 </div>
+                            </div>
 
-                                {/* Reference Ad Integration - Show in Copycat Batches */}
-                                {batch.referenceAd && (
-                                    <div className="mb-6">
-                                        <ReferenceAdIntegration ad={batch.referenceAd as any} />
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                                {/* LEFT COLUMN: Context & Visuals (4 cols) */}
+                                <div className="lg:col-span-4 space-y-6">
+                                    {/* 1. Visual Reference */}
+                                    <div className="sticky top-4">
+                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                            <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 flex justify-between items-center">
+                                                <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Visual Reference</h4>
+                                            </div>
+                                            <div className="p-4">
+                                                {batch.referenceAd ? (
+                                                    <ReferenceAdIntegration ad={batch.referenceAd as any} />
+                                                ) : (
+                                                    <div className="text-center py-8 text-zinc-400 text-sm italic">
+                                                        No reference ad linked.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
-
-                                {/* Main Messaging Analysis - Editable in Briefing */}
-                                <div className="mb-6">
-                                    <MessagingAnalysisToolbox
-                                        value={mainMessaging}
-                                        onChange={(val) => setMainMessaging(val)}
-                                        className="transition-shadow hover:shadow-md"
-                                    />
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Instructions / Brief</label>
-                                        <textarea
-                                            className="w-full h-64 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-y"
-                                            placeholder="Instructions for the creator..."
-                                            value={creatorBrief}
-                                            onChange={(e) => setCreatorBrief(e.target.value)}
-                                        />
+                                {/* RIGHT COLUMN: Input Forms & Analysis (8 cols) */}
+                                <div className="lg:col-span-8 space-y-8">
+
+                                    {/* 1. INPUTS SECTION */}
+                                    <div className="space-y-6">
+                                        {/* Templates Toolbar */}
+                                        <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800 overflow-x-auto">
+                                            <span className="text-xs font-bold text-zinc-400 px-2 uppercase tracking-wider">Templates:</span>
+                                            {['GENERAL', 'SPECIFIC', 'COPYCAT'].map(t => (
+                                                <button
+                                                    key={t}
+                                                    onClick={() => applyBriefTemplate(t)}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors whitespace-nowrap ${creatorBriefType === t
+                                                        ? 'bg-white dark:bg-zinc-800 border-indigo-200 text-indigo-700 dark:text-indigo-400 shadow-sm'
+                                                        : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-zinc-700'
+                                                        }`}
+                                                >
+                                                    {t.charAt(0) + t.slice(1).toLowerCase()}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Brief Instructions */}
+                                        <div>
+                                            <label className="flex items-center justify-between mb-2">
+                                                <span className="text-sm font-bold text-zinc-900 dark:text-white">Brief & Instructions</span>
+                                            </label>
+                                            <div className="relative">
+                                                <textarea
+                                                    className="w-full h-[300px] p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-none font-sans leading-relaxed text-sm"
+                                                    placeholder="Hello! We'd love for you to create a video that..."
+                                                    value={creatorBrief}
+                                                    onChange={(e) => setCreatorBrief(e.target.value)}
+                                                />
+                                                <div className="absolute top-2 right-2">
+                                                    <button
+                                                        onClick={() => navigator.clipboard.writeText(creatorBrief)}
+                                                        className="p-2 text-zinc-400 hover:text-indigo-500 bg-white/50 dark:bg-black/20 rounded-lg hover:bg-white dark:hover:bg-zinc-700 transition-colors"
+                                                        title="Copy Brief"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Shotlist */}
+                                        <div>
+                                            <label className="flex items-center justify-between mb-2">
+                                                <span className="text-sm font-bold text-zinc-900 dark:text-white">Shotlist / Scene Breakdown</span>
+                                                <span className="text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">Optional</span>
+                                            </label>
+                                            <textarea
+                                                className="w-full h-40 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-y font-mono text-sm leading-relaxed"
+                                                placeholder="- 0:00-0:03: Hook (Face to camera)&#10;- 0:03-0:10: Problem agitator (B-roll of issue)&#10;- 0:10-0:25: Solution demo (Product in hand)"
+                                                value={shotlist}
+                                                onChange={(e) => setShotlist(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Shotlist (Optional)</label>
-                                        <textarea
-                                            className="w-full h-64 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-y font-mono text-sm"
-                                            placeholder="- SCENE 1: ...\n- SCENE 2: ..."
-                                            value={shotlist}
-                                            onChange={(e) => setShotlist(e.target.value)}
-                                        />
-                                    </div>
+
+                                    {/* 2. COPYCAT SOURCE ANALYSIS (Display only for Copycat) */}
+                                    {batch.batchType === 'COPYCAT' && batch.referenceAd && (
+                                        <div className="border-t-2 border-dashed border-zinc-200 dark:border-zinc-700/50 pt-8 mt-4">
+                                            <div className="flex items-center gap-2 mb-6">
+                                                <span className="text-xl">🦁</span>
+                                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Competitor Source Breakdown</h3>
+                                            </div>
+
+                                            {/* Awareness & Reason */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Target Awareness Level</label>
+                                                    <div className="font-bold text-indigo-600 dark:text-indigo-400">
+                                                        {(batch.referenceAd as any).awarenessLevel?.name || "Not specified"}
+                                                    </div>
+                                                </div>
+                                                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Reason</label>
+                                                    <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                                                        {(batch.referenceAd as any).awarenessLevelReason || "No reasoning provided."}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Why It Works & Notes */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Why It Works</label>
+                                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
+                                                        {(batch.referenceAd as any).whyItWorks || "No analysis available."}
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">General Notes</label>
+                                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
+                                                        {(batch.referenceAd as any).notes || "No notes available."}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Core Messaging Analysis */}
+                                            <div>
+                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-4">Core Messaging</label>
+                                                <MessagingAnalysisToolbox
+                                                    value={mainMessaging}
+                                                    onChange={(val) => setMainMessaging(val)}
+                                                    className="border-none shadow-none bg-transparent p-0"
+                                                    variant="exploded"
+                                                    readOnly={true}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Standard Messaging for Non-Copycat */}
+                                    {batch.batchType !== 'COPYCAT' && (
+                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                            <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800">
+                                                <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Core Messaging Strategy</h4>
+                                            </div>
+                                            <div className="p-0">
+                                                <MessagingAnalysisToolbox
+                                                    value={mainMessaging}
+                                                    onChange={(val) => setMainMessaging(val)}
+                                                    className="border-none shadow-none bg-transparent"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
                                 </div>
                             </div>
                         </div>

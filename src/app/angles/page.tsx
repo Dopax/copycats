@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useBrand } from "@/context/BrandContext";
+import SearchableSelect from "@/components/SearchableSelect";
+import AwarenessTooltip from "@/components/AwarenessTooltip";
 
 interface Desire {
     id: string;
@@ -368,14 +370,13 @@ export default function AnglesPage() {
                                 + New
                             </button>
                         </label>
-                        <select
+                        <SearchableSelect
+                            options={desires}
                             value={selectedDesire}
-                            onChange={(e) => setSelectedDesire(e.target.value)}
-                            className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="">Select Desire...</option>
-                            {desires.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                        </select>
+                            onChange={(val) => setSelectedDesire(val || "")}
+                            onAdd={() => setShowDesireModal(true)}
+                            placeholder="Select Desire..."
+                        />
                     </div>
 
                     {/* Demographic */}
@@ -416,20 +417,20 @@ export default function AnglesPage() {
                                 + New
                             </button>
                         </label>
-                        <select
+                        <SearchableSelect
+                            options={themes}
                             value={selectedTheme}
-                            onChange={(e) => setSelectedTheme(e.target.value)}
-                            className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="">Select Theme...</option>
-                            {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
+                            onChange={(val) => setSelectedTheme(val || "")}
+                            onAdd={() => setShowThemeModal(true)}
+                            placeholder="Select Theme..."
+                        />
                     </div>
 
                     {/* Awareness Level */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex justify-between">
+                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                             Awareness
+                            <AwarenessTooltip />
                         </label>
                         <select
                             value={selectedAwarenessLevel}

@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const { name, brandId, description } = await request.json();
+        const { name, brandId, description, category } = await request.json();
 
         if (!name) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -33,6 +33,7 @@ export async function POST(request: Request) {
             data: {
                 name,
                 description,
+                category,
                 brandId: brandId || null
             }
         });

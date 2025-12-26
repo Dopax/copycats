@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { format } from "date-fns";
+import QuickAddModal, { QuickAddType } from "@/components/QuickAddModal";
+import SearchableSelect from "@/components/SearchableSelect";
+import AwarenessTooltip from "@/components/AwarenessTooltip";
 import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 import {
     LineChart,
@@ -27,6 +30,8 @@ interface AdSnapshot {
 interface AdFormat { id: string; name: string; }
 interface AdHook { id: string; name: string; }
 interface AdTheme { id: string; name: string; }
+interface AdDesire { id: string; name: string; }
+interface AdDemographic { id: string; name: string; }
 interface AdAngle { id: string; name: string; }
 interface AdAwarenessLevel { id: string; name: string; }
 
@@ -51,8 +56,10 @@ interface Ad {
     format?: AdFormat | null;
     hook?: AdHook | null;
     theme?: AdTheme | null;
+    desire?: AdDesire | null;
     angle?: AdAngle | null;
     awarenessLevel?: AdAwarenessLevel | null;
+    awarenessLevelReason?: string | null;
 }
 
 export default function AdDetailPage() {
@@ -66,38 +73,50 @@ export default function AdDetailPage() {
     const [notes, setNotes] = useState("");
     const [whyItWorks, setWhyItWorks] = useState("");
     const [mainMessaging, setMainMessaging] = useState("");
+    const [awarenessReason, setAwarenessReason] = useState("");
+    const [isGeneratingAwareness, setIsGeneratingAwareness] = useState(false);
     const [showNotesField, setShowNotesField] = useState(false);
     const [isSavingNotes, setIsSavingNotes] = useState(false);
     const [isExtractingHook, setIsExtractingHook] = useState(false);
+    const [activeQuickAdd, setActiveQuickAdd] = useState<QuickAddType | null>(null);
 
     // Tags Lists
     const [formats, setFormats] = useState<AdFormat[]>([]);
     const [hooks, setHooks] = useState<AdHook[]>([]);
     const [themes, setThemes] = useState<AdTheme[]>([]);
+    const [desires, setDesires] = useState<AdDesire[]>([]);
     const [angles, setAngles] = useState<AdAngle[]>([]);
+    const [demographics, setDemographics] = useState<AdDemographic[]>([]);
     const [awarenessLevels, setAwarenessLevels] = useState<AdAwarenessLevel[]>([]);
 
     // Selected Tags
     const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
     const [selectedHook, setSelectedHook] = useState<string | null>(null);
     const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+    const [selectedDesire, setSelectedDesire] = useState<string | null>(null);
     const [selectedAngle, setSelectedAngle] = useState<string | null>(null);
     const [selectedAwareness, setSelectedAwareness] = useState<string | null>(null);
+    const [selectedGender, setSelectedGender] = useState<string>("");
+    const [selectedAge, setSelectedAge] = useState<string>("");
 
     // Load available tags
     const loadTags = async () => {
         try {
-            const [formatsRes, hooksRes, themesRes, anglesRes, awarenessRes] = await Promise.all([
+            const [formatsRes, hooksRes, themesRes, desiresRes, anglesRes, demographicsRes, awarenessRes] = await Promise.all([
                 fetch('/api/formats'),
                 fetch('/api/hooks'),
                 fetch('/api/themes'),
+                fetch('/api/desires'),
                 fetch('/api/angles'),
+                fetch('/api/demographics'),
                 fetch('/api/awareness-levels')
             ]);
             setFormats(await formatsRes.json());
             setHooks(await hooksRes.json());
             setThemes(await themesRes.json());
+            setDesires(await desiresRes.json());
             setAngles(await anglesRes.json());
+            setDemographics(await demographicsRes.json());
             setAwarenessLevels(await awarenessRes.json());
         } catch (e) {
             console.error("Failed to load tags", e);
@@ -105,9 +124,9 @@ export default function AdDetailPage() {
     };
 
     // Tag Creation Helpers
-    const createTag = async (type: 'formats' | 'hooks' | 'themes' | 'angles' | 'awareness-levels', name: string, setter: any, list: any[]) => {
+    const createTag = async (type: 'formats' | 'hooks' | 'themes' | 'desires' | 'angles' | 'awareness-levels', data: any, setter: any, list: any[]) => {
         try {
-            const res = await fetch(`/api/${type}`, { method: 'POST', body: JSON.stringify({ name }) });
+            const res = await fetch(`/api/${type}`, { method: 'POST', body: JSON.stringify(data) });
             const newItem = await res.json();
             setter([...list, newItem]);
             return newItem.id;
@@ -156,6 +175,31 @@ export default function AdDetailPage() {
         }
     };
 
+    const generateAwarenessReason = async () => {
+        setIsGeneratingAwareness(true);
+        try {
+            const res = await fetch('/api/ai/awareness', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adId: ad?.id })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to generate");
+            }
+
+            const data = await res.json();
+            if (data.awarenessLevelId) setSelectedAwareness(data.awarenessLevelId);
+            if (data.reason) setAwarenessReason(data.reason);
+
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            setIsGeneratingAwareness(false);
+        }
+    };
+
     const saveDetails = async () => {
         if (!ad) return;
         setIsSavingNotes(true);
@@ -168,6 +212,11 @@ export default function AdDetailPage() {
             });
 
             // Save Tags
+            // Calculate Demographic ID (Assuming logic exists)
+            // Note: AdDetailPage needs selectedGender and selectedAge state
+            const demoName = (selectedGender && selectedAge) ? `${selectedGender} ${selectedAge}` : null;
+            const selectedDemographic = demoName ? demographics.find(d => d.name === demoName)?.id : null;
+
             await fetch(`/api/ads/${ad.id}/tags`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -175,8 +224,11 @@ export default function AdDetailPage() {
                     formatId: selectedFormat,
                     hookId: selectedHook,
                     themeId: selectedTheme,
+                    desireId: selectedDesire,
                     angleId: selectedAngle,
-                    awarenessLevelId: selectedAwareness
+                    awarenessLevelId: selectedAwareness,
+                    awarenessLevelReason: awarenessReason,
+                    demographicId: selectedDemographic
                 }),
             });
             alert("Details saved successfully!");
@@ -206,8 +258,18 @@ export default function AdDetailPage() {
                 setSelectedFormat(data.format?.id || null);
                 setSelectedHook(data.hook?.id || null);
                 setSelectedTheme(data.theme?.id || null);
+                setSelectedDesire(data.desire?.id || null);
                 setSelectedAngle(data.angle?.id || null);
                 setSelectedAwareness(data.awarenessLevel?.id || null);
+                if (data.awarenessLevelReason) setAwarenessReason(data.awarenessLevelReason);
+
+                if (data.demographic?.name) {
+                    const parts = data.demographic.name.split(' ');
+                    if (parts.length >= 2) {
+                        setSelectedGender(parts[0]);
+                        setSelectedAge(parts[1]);
+                    }
+                }
 
                 // Load available tags
                 loadTags();
@@ -407,8 +469,8 @@ export default function AdDetailPage() {
                                     {formats.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                 </select>
                                 <button
-                                    onClick={() => { const name = prompt("New Format Name:"); if (name) createTag('formats', name, setFormats, formats).then(id => id && setSelectedFormat(id)); }}
-                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
+                                    onClick={() => setActiveQuickAdd('formats')}
+                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors dark:text-zinc-300"
                                 >+</button>
                             </div>
                         </div>
@@ -441,8 +503,8 @@ export default function AdDetailPage() {
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => { const name = prompt("New Hook Name:"); if (name) createTag('hooks', name, setHooks, hooks).then(id => id && setSelectedHook(id)); }}
-                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
+                                    onClick={() => setActiveQuickAdd('hooks')}
+                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors dark:text-zinc-300"
                                 >+</button>
                             </div>
                         </div>
@@ -450,20 +512,25 @@ export default function AdDetailPage() {
                         {/* Theme Selector */}
                         <div>
                             <label className="block text-xs font-medium text-zinc-500 mb-1">Theme</label>
-                            <div className="flex gap-2">
-                                <select
-                                    value={selectedTheme || ""}
-                                    onChange={(e) => setSelectedTheme(e.target.value || null)}
-                                    className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
-                                >
-                                    <option value="">Select Theme...</option>
-                                    {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
-                                <button
-                                    onClick={() => { const name = prompt("New Theme Name:"); if (name) createTag('themes', name, setThemes, themes).then(id => id && setSelectedTheme(id)); }}
-                                    className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
-                                >+</button>
-                            </div>
+                            <SearchableSelect
+                                options={themes}
+                                value={selectedTheme}
+                                onChange={(val) => setSelectedTheme(val)}
+                                onAdd={() => setActiveQuickAdd('themes')}
+                                placeholder="Select Theme..."
+                            />
+                        </div>
+
+                        {/* Desire Selector */}
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Desire</label>
+                            <SearchableSelect
+                                options={desires}
+                                value={selectedDesire}
+                                onChange={(val) => setSelectedDesire(val)}
+                                onAdd={() => setActiveQuickAdd('desires')}
+                                placeholder="Select Desire..."
+                            />
                         </div>
 
                         {/* Angle Selector */}
@@ -479,7 +546,7 @@ export default function AdDetailPage() {
                                     {angles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                 </select>
                                 <button
-                                    onClick={() => { const name = prompt("New Angle Name:"); if (name) createTag('angles', name, setAngles, angles).then(id => id && setSelectedAngle(id)); }}
+                                    onClick={() => setActiveQuickAdd('angles')}
                                     className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
                                 >+</button>
                             </div>
@@ -487,7 +554,24 @@ export default function AdDetailPage() {
 
                         {/* Awareness Level Selector */}
                         <div>
-                            <label className="block text-xs font-medium text-zinc-500 mb-1">Awareness Level</label>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1 flex items-center justify-between">
+                                <div className="flex items-center">
+                                    Awareness Level
+                                    <AwarenessTooltip />
+                                </div>
+                                <button
+                                    onClick={generateAwarenessReason}
+                                    disabled={isGeneratingAwareness}
+                                    className="flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                                    title="Generate based on transcript"
+                                >
+                                    {isGeneratingAwareness ? (
+                                        <span className="animate-spin">⏳</span>
+                                    ) : (
+                                        <span>✨ AI Analyze</span>
+                                    )}
+                                </button>
+                            </label>
                             <div className="flex gap-2">
                                 <select
                                     value={selectedAwareness || ""}
@@ -498,123 +582,171 @@ export default function AdDetailPage() {
                                     {awarenessLevels.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                 </select>
                                 <button
-                                    onClick={() => { const name = prompt("New Awareness Level Name:"); if (name) createTag('awareness-levels', name, setAwarenessLevels, awarenessLevels).then(id => id && setSelectedAwareness(id)); }}
+                                    onClick={() => setActiveQuickAdd('awareness-levels')}
                                     className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border hover:bg-zinc-200"
                                 >+</button>
                             </div>
                         </div>
 
+                    </div>
 
-                        {/* Main Messaging */}
-                        <div className="mb-2">
-                            <MessagingAnalysisToolbox
-                                value={mainMessaging}
-                                onChange={setMainMessaging}
-                            />
-                        </div>
-
-                        {/* Why it works */}
+                    {/* Demographic (Gender & Age) */}
+                    <div className="grid grid-cols-2 gap-4 bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800">
                         <div>
-                            <label className="block text-xs font-medium text-zinc-500 mb-1">Why do you think this ad works?</label>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Gender</label>
+                            <select value={selectedGender} onChange={e => setSelectedGender(e.target.value)} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                <option value="">Select...</option>
+                                {["Male", "Female"].map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 mb-1">Age Group</label>
+                            <select value={selectedAge} onChange={e => setSelectedAge(e.target.value)} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm">
+                                <option value="">Select...</option>
+                                {['18-24', '25-34', '35-44', '45-54', '55-64', '65+'].map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Render Modal */}
+                    <QuickAddModal
+                        type={activeQuickAdd}
+                        isOpen={!!activeQuickAdd}
+                        onClose={() => setActiveQuickAdd(null)}
+                        onSave={async (data) => {
+                            let id;
+                            if (activeQuickAdd === 'formats') id = await createTag('formats', data, setFormats, formats);
+                            else if (activeQuickAdd === 'hooks') id = await createTag('hooks', data, setHooks, hooks);
+                            else if (activeQuickAdd === 'themes') id = await createTag('themes', data, setThemes, themes);
+                            else if (activeQuickAdd === 'desires') id = await createTag('desires', data, setDesires, desires);
+                            else if (activeQuickAdd === 'angles') id = await createTag('angles', data, setAngles, angles);
+                            else if (activeQuickAdd === 'awareness-levels') id = await createTag('awareness-levels', data, setAwarenessLevels, awarenessLevels);
+
+                            if (id) {
+                                if (activeQuickAdd === 'formats') setSelectedFormat(id);
+                                else if (activeQuickAdd === 'hooks') setSelectedHook(id);
+                                else if (activeQuickAdd === 'themes') setSelectedTheme(id);
+                                else if (activeQuickAdd === 'desires') setSelectedDesire(id);
+                                else if (activeQuickAdd === 'angles') setSelectedAngle(id);
+                                else if (activeQuickAdd === 'awareness-levels') setSelectedAwareness(id);
+                            }
+                        }}
+                        themes={themes}
+                        desires={desires}
+                        demographics={demographics}
+                        awarenessLevels={awarenessLevels}
+                    />
+
+
+                    {/* Main Messaging */}
+                    <div className="mb-2">
+                        <MessagingAnalysisToolbox
+                            value={mainMessaging}
+                            onChange={setMainMessaging}
+                        />
+                    </div>
+
+                    {/* Why it works */}
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Why do you think this ad works?</label>
+                        <textarea
+                            value={whyItWorks}
+                            onChange={(e) => setWhyItWorks(e.target.value)}
+                            placeholder="Explain your thoughts..."
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
+                        />
+                    </div>
+
+                    {/* Other Notes */}
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <input
+                                type="checkbox"
+                                id="showNotesDetails"
+                                checked={showNotesField}
+                                onChange={(e) => setShowNotesField(e.target.checked)}
+                                className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <label htmlFor="showNotesDetails" className="text-xs font-medium text-zinc-500 select-none cursor-pointer">
+                                Other Notes
+                            </label>
+                        </div>
+                        {showNotesField && (
                             <textarea
-                                value={whyItWorks}
-                                onChange={(e) => setWhyItWorks(e.target.value)}
-                                placeholder="Explain your thoughts..."
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                placeholder="Add your notes here..."
                                 className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
                             />
-                        </div>
-
-                        {/* Other Notes */}
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <input
-                                    type="checkbox"
-                                    id="showNotesDetails"
-                                    checked={showNotesField}
-                                    onChange={(e) => setShowNotesField(e.target.checked)}
-                                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <label htmlFor="showNotesDetails" className="text-xs font-medium text-zinc-500 select-none cursor-pointer">
-                                    Other Notes
-                                </label>
-                            </div>
-                            {showNotesField && (
-                                <textarea
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    placeholder="Add your notes here..."
-                                    className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none min-h-[80px]"
-                                />
-                            )}
-                        </div>
-
-                        <button
-                            onClick={saveDetails}
-                            disabled={isSavingNotes}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
-                        >
-                            {isSavingNotes ? "Saving..." : "Save Analysis"}
-                        </button>
+                        )}
                     </div>
-                </div>
 
-                {/* Right Column: Metrics Chart */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-fit">
-                    <h3 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">
-                        Virality History
-                    </h3>
-                    <div className="h-[400px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                                <XAxis
-                                    dataKey="date"
-                                    stroke="#6B7280"
-                                    fontSize={12}
-                                    tickMargin={10}
-                                />
-                                <YAxis
-                                    stroke="#6B7280"
-                                    fontSize={12}
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "#1F2937",
-                                        border: "none",
-                                        borderRadius: "8px",
-                                        color: "#F3F4F6",
-                                    }}
-                                />
-                                <Legend />
-                                <Line
-                                    type="monotone"
-                                    dataKey="likes"
-                                    stroke="#6366F1" // Indigo
-                                    strokeWidth={2}
-                                    dot={false}
-                                    name="Likes"
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="comments"
-                                    stroke="#EC4899" // Pink
-                                    strokeWidth={2}
-                                    dot={false}
-                                    name="Comments"
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="shares"
-                                    stroke="#10B981" // Emerald
-                                    strokeWidth={2}
-                                    dot={false}
-                                    name="Shares"
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
+                    <button
+                        onClick={saveDetails}
+                        disabled={isSavingNotes}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+                    >
+                        {isSavingNotes ? "Saving..." : "Save Analysis"}
+                    </button>
                 </div>
             </div>
-        </div >
+
+            {/* Right Column: Metrics Chart */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-fit">
+                <h3 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">
+                    Virality History
+                </h3>
+                <div className="h-[400px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                            <XAxis
+                                dataKey="date"
+                                stroke="#6B7280"
+                                fontSize={12}
+                                tickMargin={10}
+                            />
+                            <YAxis
+                                stroke="#6B7280"
+                                fontSize={12}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: "#1F2937",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    color: "#F3F4F6",
+                                }}
+                            />
+                            <Legend />
+                            <Line
+                                type="monotone"
+                                dataKey="likes"
+                                stroke="#6366F1" // Indigo
+                                strokeWidth={2}
+                                dot={false}
+                                name="Likes"
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="comments"
+                                stroke="#EC4899" // Pink
+                                strokeWidth={2}
+                                dot={false}
+                                name="Comments"
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="shares"
+                                stroke="#10B981" // Emerald
+                                strokeWidth={2}
+                                dot={false}
+                                name="Shares"
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        </div>
     );
 }

@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import QuickAddModal, { QuickAddType } from "./QuickAddModal";
+import SearchableSelect from "./SearchableSelect";
+import AwarenessTooltip from "./AwarenessTooltip";
 import { Ad, AdSnapshot } from "@prisma/client";
 import { useAdTags } from "../hooks/useAdTags";
 
@@ -46,6 +49,7 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
 
     const [selectedFormat, setSelectedFormat] = useState<string | null>(ad.format?.id || null);
     const [selectedHook, setSelectedHook] = useState<string | null>(ad.hook?.id || null);
+    const [activeQuickAdd, setActiveQuickAdd] = useState<QuickAddType | null>(null);
     const [selectedTheme, setSelectedTheme] = useState<string | null>(ad.theme?.id || null);
     const [selectedDesire, setSelectedDesire] = useState<string | null>(ad.desire?.id || null);
     const [selectedAwareness, setSelectedAwareness] = useState<string | null>(ad.awarenessLevel?.id || null);
@@ -133,13 +137,13 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
     // Fetch tags when opening menu
 
 
-    const createFormat = async (name: string) => {
-        const newFormat = await createFormatApi(name);
+    const createFormat = async (data: any) => {
+        const newFormat = await createFormatApi(data);
         if (newFormat) setSelectedFormat(newFormat.id);
     };
 
-    const createHook = async (name: string) => {
-        const newHook = await createHookApi(name);
+    const createHook = async (data: any) => {
+        const newHook = await createHookApi(data);
         if (newHook) setSelectedHook(newHook.id);
     };
 
@@ -163,13 +167,13 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
         }
     };
 
-    const createTheme = async (name: string) => {
-        const newTheme = await createThemeApi(name);
+    const createTheme = async (data: any) => {
+        const newTheme = await createThemeApi(data);
         if (newTheme) setSelectedTheme(newTheme.id);
     };
 
-    const createDesire = async (name: string) => {
-        const newDesire = await createDesireApi(name);
+    const createDesire = async (data: any) => {
+        const newDesire = await createDesireApi(data);
         if (newDesire) setSelectedDesire(newDesire.id);
     };
 
@@ -350,8 +354,8 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                                 ))}
                             </select>
                             <button
-                                onClick={(e) => { e.preventDefault(); const name = prompt("New Format Name:"); if (name) createFormat(name); }}
-                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"
+                                onClick={(e) => { e.preventDefault(); setActiveQuickAdd('formats'); }}
+                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors dark:text-zinc-300"
                                 title="Add New Format"
                             >
                                 +
@@ -389,9 +393,9 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                                 )}
                             </button>
                             <button
-                                onClick={(e) => { e.preventDefault(); const name = prompt("New Hook Name:"); if (name) createHook(name); }}
-                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"
-                                title="Add New Hook (Text Only)"
+                                onClick={(e) => { e.preventDefault(); setActiveQuickAdd('hooks'); }}
+                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors dark:text-zinc-300"
+                                title="Add New Hook"
                             >
                                 +
                             </button>
@@ -400,54 +404,31 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
 
                     <div className="mb-4">
                         <label className="block text-xs font-medium text-zinc-500 mb-1">Theme</label>
-                        <div className="flex gap-2">
-                            <select
-                                value={selectedTheme || ""}
-                                onChange={(e) => setSelectedTheme(e.target.value || null)}
-                                className="flex-1 min-w-0 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <option value="">Select Theme...</option>
-                                {themes.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
-                            <button
-                                onClick={(e) => { e.preventDefault(); const name = prompt("New Theme Name:"); if (name) createTheme(name); }}
-                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"
-                                title="Add New Theme"
-                            >
-                                +
-                            </button>
-                        </div>
+                        <SearchableSelect
+                            options={themes}
+                            value={selectedTheme}
+                            onChange={(val) => setSelectedTheme(val)}
+                            onAdd={() => setActiveQuickAdd('themes')}
+                            placeholder="Select Theme..."
+                        />
                     </div>
 
                     <div className="mb-4">
                         <label className="block text-xs font-medium text-zinc-500 mb-1">Desire</label>
-                        <div className="flex gap-2">
-                            <select
-                                value={selectedDesire || ""}
-                                onChange={(e) => setSelectedDesire(e.target.value || null)}
-                                className="flex-1 min-w-0 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 text-sm"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <option value="">Select Desire...</option>
-                                {desires.map(a => (
-                                    <option key={a.id} value={a.id}>{a.name}</option>
-                                ))}
-                            </select>
-                            <button
-                                onClick={(e) => { e.preventDefault(); const name = prompt("New Desire Name:"); if (name) createDesire(name); }}
-                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"
-                                title="Add New Desire"
-                            >
-                                +
-                            </button>
-                        </div>
+                        <SearchableSelect
+                            options={desires}
+                            value={selectedDesire}
+                            onChange={(val) => setSelectedDesire(val)}
+                            onAdd={() => setActiveQuickAdd('desires')}
+                            placeholder="Select Desire..."
+                        />
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-xs font-medium text-zinc-500 mb-1">Awareness Level</label>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1 flex items-center">
+                            Awareness Level
+                            <AwarenessTooltip />
+                        </label>
                         <div className="flex gap-2">
                             <select
                                 value={selectedAwareness || ""}
@@ -461,14 +442,28 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                                 ))}
                             </select>
                             <button
-                                onClick={(e) => { e.preventDefault(); const name = prompt("New Awareness Level Name:"); if (name) createAwarenessLevel(name); }}
-                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200"
+                                onClick={(e) => { e.preventDefault(); setActiveQuickAdd('awareness-levels'); }}
+                                className="flex-shrink-0 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors dark:text-zinc-300"
                                 title="Add New Awareness Level"
                             >
                                 +
                             </button>
                         </div>
                     </div>
+
+                    {/* Render Modal */}
+                    <QuickAddModal
+                        type={activeQuickAdd}
+                        isOpen={!!activeQuickAdd}
+                        onClose={() => setActiveQuickAdd(null)}
+                        onSave={async (data) => {
+                            if (activeQuickAdd === 'formats') await createFormat(data);
+                            else if (activeQuickAdd === 'hooks') await createHook(data);
+                            else if (activeQuickAdd === 'themes') await createTheme(data);
+                            else if (activeQuickAdd === 'desires') await createDesire(data);
+                            else if (activeQuickAdd === 'awareness-levels') await createAwarenessLevel(data.name);
+                        }}
+                    />
 
 
 
@@ -569,7 +564,7 @@ export default function AdCard({ ad, onQuickView }: AdCardProps) {
                     </div>
 
                     <div className="px-4 pb-3 pt-2 flex flex-col gap-2">
-                        {(ad.format || ad.hook || ad.theme || ad.angle) && (
+                        {(ad.format || ad.hook || ad.theme || ad.desire || ad.awarenessLevel) && (
                             <div className="flex flex-wrap gap-1.5">
                                 {ad.format && (
                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800">

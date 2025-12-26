@@ -34,11 +34,11 @@ export function useAdTags() {
         }
     };
 
-    const createFormat = async (name: string) => {
+    const createFormat = async (data: { name: string; description?: string; audioChoice?: string }) => {
         try {
             const res = await fetch('/api/formats', {
                 method: 'POST',
-                body: JSON.stringify({ name })
+                body: JSON.stringify(data)
             });
             const newFormat = await res.json();
             setFormats(prev => [...prev, newFormat]);
@@ -49,11 +49,11 @@ export function useAdTags() {
         }
     };
 
-    const createHook = async (name: string) => {
+    const createHook = async (data: { name: string; type?: string; content?: string }) => {
         try {
             const res = await fetch('/api/hooks', {
                 method: 'POST',
-                body: JSON.stringify({ name })
+                body: JSON.stringify(data)
             });
             const newHook = await res.json();
             setHooks(prev => [...prev, newHook]);
@@ -93,11 +93,11 @@ export function useAdTags() {
         }
     };
 
-    const createTheme = async (name: string) => {
+    const createTheme = async (data: { name: string; category?: string; description?: string }) => {
         try {
             const res = await fetch('/api/themes', {
                 method: 'POST',
-                body: JSON.stringify({ name })
+                body: JSON.stringify(data)
             });
             const newTheme = await res.json();
             setThemes(prev => [...prev, newTheme]);
@@ -108,11 +108,11 @@ export function useAdTags() {
         }
     };
 
-    const createDesire = async (name: string) => {
+    const createDesire = async (data: { name: string; category?: string; description?: string; brainClicks?: string }) => {
         try {
             const res = await fetch('/api/desires', {
                 method: 'POST',
-                body: JSON.stringify({ name })
+                body: JSON.stringify(data)
             });
             const newDesire = await res.json();
             setDesires(prev => [...prev, newDesire]);

@@ -149,9 +149,11 @@ export async function GET(req: NextRequest) {
 
         // --- AUTOMATIC LINKING LOGIC ---
         try {
-            // Updated regex to support "batch-2a", "batch_2_B", "BATCH 2 A etc"
-            const BATCH_REGEX = /BATCH[\s\-_]*(\d+)[\s\-_]*([A-Z])/i;
-            const potentialMatches: { adIndex: number, batchId: number, variationLabel: string }[] = [];
+            // Updated regex to support "batch-2a", "batch 10", "BATCH 2 A" etc.
+            // Captures ID (group 1) and optional single-letter variation (group 2).
+            // Uses \b to avoid matching the first letter of a word like "Cool" as variation "C".
+            const BATCH_REGEX = /BATCH[\s\-_]*(\d+)(?:[\s\-_]+([A-Z])\b)?/i;
+            const potentialMatches: { adIndex: number, batchId: number, variationLabel?: string }[] = [];
             const batchIdsToFetch = new Set<number>();
 
             // 1. Scan for pattern matches
@@ -159,7 +161,7 @@ export async function GET(req: NextRequest) {
                 const match = ad.name.match(BATCH_REGEX);
                 if (match) {
                     const bid = parseInt(match[1]);
-                    const label = match[2].toUpperCase();
+                    const label = match[2] ? match[2].toUpperCase() : undefined;
                     if (!isNaN(bid)) {
                         batchIdsToFetch.add(bid);
                         potentialMatches.push({ adIndex: idx, batchId: bid, variationLabel: label });
@@ -168,7 +170,7 @@ export async function GET(req: NextRequest) {
             });
 
             if (potentialMatches.length > 0) {
-                // 2. Fetch required batches with items (Sorted by ID for stable index 'A' -> 0)
+                // 2. Fetch required batches with items
                 const batches = await prisma.adBatch.findMany({
                     where: { id: { in: Array.from(batchIdsToFetch) } },
                     include: { items: { orderBy: { id: 'asc' } } }
@@ -181,45 +183,57 @@ export async function GET(req: NextRequest) {
                 for (const pm of potentialMatches) {
                     const batch = batchMap.get(pm.batchId);
                     if (batch) {
-                        const index = pm.variationLabel.charCodeAt(0) - 65; // A=0, B=1...
-                        if (index >= 0 && index < batch.items.length) {
-                            const targetItem = batch.items[index];
-                            const adData = ads[pm.adIndex];
+                        let finalTargetItem = null;
 
-                            // Prepare Upsert (Link this FB Ad to the Batch Item)
-                            linkOperations.push(
-                                prisma.facebookAd.upsert({
-                                    where: { id: adData.id },
-                                    create: {
-                                        id: adData.id,
-                                        name: adData.name,
-                                        status: adData.status,
-                                        spend: adData.spend,
-                                        roas: adData.roas || 0,
-                                        clicks: adData.clicks,
-                                        impressions: adData.impressions,
-                                        cpm: adData.cpm,
-                                        ctr: adData.ctr,
-                                        // Link to Batch & Item
-                                        batchId: batch.id,
-                                        batchItemId: targetItem.id
-                                    },
-                                    update: {
-                                        // Update stats and links
-                                        name: adData.name,
-                                        status: adData.status,
-                                        spend: adData.spend,
-                                        roas: adData.roas || 0,
-                                        clicks: adData.clicks,
-                                        impressions: adData.impressions,
-                                        cpm: adData.cpm,
-                                        ctr: adData.ctr,
-                                        batchId: batch.id,
-                                        batchItemId: targetItem.id
-                                    }
-                                })
-                            );
+                        if (pm.variationLabel) {
+                            // ROBUST MATCHING: Use variationIndex field
+                            finalTargetItem = batch.items.find((item: any) => item.variationIndex === pm.variationLabel);
+
+                            // Fallback: Legacy index-based matching if simple single letter & no robust match found
+                            if (!finalTargetItem && pm.variationLabel.length === 1) {
+                                const legacyIndex = pm.variationLabel.charCodeAt(0) - 65;
+                                const legacyItem: any = batch.items[legacyIndex];
+                                // Only use legacy item if it doesn't already have a different variationIndex assigned
+                                if (legacyItem && !legacyItem.variationIndex) {
+                                    finalTargetItem = legacyItem;
+                                }
+                            }
                         }
+
+                        // Prepare Upsert (Link this FB Ad to Batch, and optionally to Item)
+                        // If finalTargetItem is null, we link to Batch only (Generic Link)
+                        const adData = ads[pm.adIndex];
+
+                        linkOperations.push(
+                            prisma.facebookAd.upsert({
+                                where: { id: adData.id },
+                                create: {
+                                    id: adData.id,
+                                    name: adData.name,
+                                    status: adData.status,
+                                    spend: adData.spend,
+                                    roas: adData.roas || 0,
+                                    clicks: adData.clicks,
+                                    impressions: adData.impressions,
+                                    cpm: adData.cpm,
+                                    ctr: adData.ctr,
+                                    batchId: batch.id,
+                                    batchItemId: finalTargetItem ? finalTargetItem.id : null
+                                },
+                                update: {
+                                    name: adData.name,
+                                    status: adData.status,
+                                    spend: adData.spend,
+                                    roas: adData.roas || 0,
+                                    clicks: adData.clicks,
+                                    impressions: adData.impressions,
+                                    cpm: adData.cpm,
+                                    ctr: adData.ctr,
+                                    batchId: batch.id,
+                                    batchItemId: finalTargetItem ? finalTargetItem.id : null
+                                }
+                            })
+                        );
                     }
                 }
 

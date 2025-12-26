@@ -30,7 +30,7 @@ export async function GET(request: Request) {
             const rawDocs = await prisma.$queryRaw`SELECT id, conceptDoc FROM AdAngle`;
             const docMap = new Map((rawDocs as any[]).map((r: any) => [r.id, r.conceptDoc]));
 
-            concepts.forEach((c: any) => {
+            angles.forEach((c: any) => {
                 c.conceptDoc = docMap.get(c.id);
             });
         } catch (e) {
@@ -57,12 +57,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Invalid IDs provided" }, { status: 400 });
         }
 
-        // The provided snippet uses body.name, so the generatedName logic is removed.
-        // If body.name is not provided, you might want to re-introduce a generated name.
+
+        const generatedName = body.name || `${desire.name} + ${theme.name} + ${demographic.name}`;
 
         const newAngle = await prisma.adAngle.create({
             data: {
-                name: body.name,
+                name: generatedName,
                 desireId: body.desireId,
                 themeId: body.themeId,
                 demographicId: body.demographicId,

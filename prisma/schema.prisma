@@ -48,6 +48,7 @@ model Ad {
 
   awarenessLevelId String?
   awarenessLevel   AdAwarenessLevel? @relation(fields: [awarenessLevelId], references: [id])
+  awarenessLevelReason String?
 
   demographicId    String?
   demographic      AdDemographic?    @relation(fields: [demographicId], references: [id])
@@ -88,6 +89,7 @@ model AdHook {
 model AdTheme {
   id       String @id @default(uuid())
   name     String @unique
+  category String?
   description String?
   ads      Ad[]
   angles   AdAngle[]
@@ -419,6 +421,7 @@ model BatchItem {
   script    String?
   videoUrl  String?  // Link to Google Drive Video
   videoName String?  // Original Filename
+  variationIndex String? // "A", "B", "C" for robust linking
   status    String   @default("PENDING") // PENDING, DONE
   
   facebookAds FacebookAd[] // Linked Ads for this variation
