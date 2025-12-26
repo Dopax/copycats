@@ -51,14 +51,24 @@ You are an expert Direct Response Creative Strategist. Your goal is to write a h
 CONTEXT:
 - Brand Name: [BRAND NAME]
 - Product: [OFFER BRIEF]
-- Target Audience: [AUDIENCE]
+- Target Audience: [DEMOGRAPHIC] ([AUDIENCE])
 - Core Desire: [DESIRE] ([DESIRE DESCRIPTION])
+- Brain Clicks (Original Copy): [BRAIN CLICKS]
 - Awareness Level: [AWARENESS]
 - Visual Theme/Tone: [THEME] ([THEME DESCRIPTION])
 - Main Messaging Focus: [MAIN MESSAGING]
-- Unique Idea/Angle: [IDEA]
+- Unique Idea/Angle: [IDEA] ({[ANGLE]})
+- Format: [FORMAT] ([FORMAT DESCRIPTION])
 
 Brand Info: [BRAND DESCRIPTION]
+
+REFERENCE AD (For Inspiration/Copycat):
+- Headline: [REF_HEADLINE]
+- Primary Text: [REF_PRIMARY_TEXT]
+- Why It Works: [REF_WHY_WORKS]
+- Notes: [REF_NOTES]
+- Awareness Reason: [REF_AWARENESS_REASON]
+- Transcript: [REF_TRANSCRIPT]
 
 INSTRUCTIONS:
 Write a detailed UGC Filming Brief.

@@ -14,7 +14,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
                         desire: true,
                         theme: true,
                         demographic: true,
-                        awarenessLevel: true
+                        awarenessLevel: true,
+                        brand: true
                     }
                 },
                 format: true,
@@ -33,7 +34,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
                         name: true
                     }
                 },
-                facebookAds: true
+                facebookAds: true,
+                assignedCreators: true // Include assigned creators
             },
         });
 

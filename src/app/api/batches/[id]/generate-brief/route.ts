@@ -27,7 +27,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
                         awarenessLevel: true,
                     }
                 },
-                brand: true
+                brand: true,
+                format: true,
+                referenceAd: true
             }
         });
 
@@ -50,6 +52,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
             "\\[THEME\\]": angle.theme.name || "General",
             "\\[THEME DESCRIPTION\\]": angle.theme.description || "",
             "\\[IDEA\\]": batch.idea || "No specific idea notes",
+            "\\[FORMAT\\]": batch.format?.name || "Any Format",
+            "\\[FORMAT DESCRIPTION\\]": batch.format?.description || "",
+            "\\[REF_HEADLINE\\]": batch.referenceAd?.headline || "",
+            "\\[REF_PRIMARY_TEXT\\]": batch.referenceAd?.description || "",
+            "\\[REF_WHY_WORKS\\]": batch.referenceAd?.whyItWorks || "",
+            "\\[REF_NOTES\\]": batch.referenceAd?.notes || "",
+            "\\[REF_AWARENESS_REASON\\]": (batch.referenceAd as any)?.awarenessLevelReason || "",
+            "\\[REF_TRANSCRIPT\\]": batch.referenceAd?.transcript || "",
+            "\\[DEMOGRAPHIC\\]": angle.demographic.name || "General Audience",
+            "\\[ANGLE\\]": angle.name || "General Angle",
+            "\\[BRAIN CLICKS\\]": angle.desire.brainClicks || "",
             "\\[MAIN MESSAGING\\]": (() => {
                 if (!batch.mainMessaging) return "No messaging analysis";
                 try {
