@@ -26,6 +26,7 @@ import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 import VideoReviewModal from "@/components/batches/VideoReviewModal";
 import { PageLoader } from "@/components/LoadingSpinner";
 import { CompetitorSourceBreakdown } from "@/components/batches/CompetitorSourceBreakdown";
+import { BatchHeader } from "@/components/batches/BatchHeader";
 
 const DEFAULT_EDITOR_BRIEF_PROMPT = `Write a concise and professional Editor Brief for this ad batch.
 
@@ -733,243 +734,179 @@ export default function BatchDetailPage() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-20">
-            {/* Header / Navigation */}
-            <div className="flex items-center gap-4 text-zinc-500 mb-2">
-                <Link href="/batches" className="hover:text-zinc-900 dark:hover:text-white flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                    Back to Board
-                </Link>
-                <span>/</span>
-                <span className="text-zinc-900 dark:text-white font-medium truncate">{batch.name}</span>
-            </div>
+            <BatchHeader
+                batch={batch as any}
+                onStatusChange={updateStatus}
+                onDelete={deleteBatch}
+                onViewPersona={setViewingDoc}
+            />
 
-            {/* Top Bar: Status & Meta */}
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                                <span className="font-mono text-zinc-400 mr-2">BATCH{batch.id}:</span>
-                                {batch.name}
-                            </h1>
-                            <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 text-xs font-bold px-2 py-1 rounded uppercase">
-                                {batch.batchType.replace('_', ' ')}
-                            </span>
-                        </div>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-sm flex items-center gap-2 mt-1">
-                            <span className="font-bold text-zinc-400">Angle:</span>
-                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{batch.angle.name}</span>
-                            {(batch.angle as any).conceptDoc && (
-                                <button
-                                    onClick={() => setViewingDoc((batch.angle as any).conceptDoc)}
-                                    className="ml-2 text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors flex items-center gap-1"
-                                >
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                    View Persona
-                                </button>
-                            )}
-                        </p>
-
-
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={deleteBatch}
-                            className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                            title="Delete Batch"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
-
-                        <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700 mx-1"></div>
-
-                        <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-zinc-500">Status:</label>
-                            <select
-                                value={batch.status}
-                                onChange={(e) => updateStatus(e.target.value)}
-                                className="bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg text-sm font-medium px-3 py-2 focus:ring-2 focus:ring-indigo-500"
-                            >
-                                {STATUS_FLOW.map(s => (
-                                    <option key={s} value={s}>{s}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
+            {/* Strategy Sentence - Global Context */}
+            <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm mb-6 relative group">
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={generateStrategy}
+                        disabled={isGeneratingStrategy}
+                        className="p-2 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-50"
+                        title="Regenerate Strategy AI"
+                    >
+                        <svg className={`w-4 h-4 ${isGeneratingStrategy ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </button>
                 </div>
 
-                {/* Strategy Sentence - Global Context */}
-                <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm mb-6 relative group">
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                {strategySentence ? (
+                    <div className="text-center">
+                        <p className="text-zinc-700 dark:text-zinc-300 text-lg leading-relaxed font-medium">
+                            {strategySentence}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="text-center py-4">
+                        <p className="text-zinc-400 mb-3 text-sm">No strategy generated yet.</p>
                         <button
                             onClick={generateStrategy}
                             disabled={isGeneratingStrategy}
-                            className="p-2 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-50"
-                            title="Regenerate Strategy AI"
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:transform-none"
                         >
-                            <svg className={`w-4 h-4 ${isGeneratingStrategy ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            {isGeneratingStrategy ? "Generating..." : "✨ Generate AI Strategy"}
                         </button>
+                        {/* Fallback to old static generated one if needed, or just keep it clean */}
                     </div>
+                )}
+            </div>
 
-                    {strategySentence ? (
-                        <div className="text-center">
-                            <p className="text-zinc-700 dark:text-zinc-300 text-lg leading-relaxed font-medium">
-                                {strategySentence}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="text-center py-4">
-                            <p className="text-zinc-400 mb-3 text-sm">No strategy generated yet.</p>
-                            <button
-                                onClick={generateStrategy}
-                                disabled={isGeneratingStrategy}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:transform-none"
-                            >
-                                {isGeneratingStrategy ? "Generating..." : "✨ Generate AI Strategy"}
-                            </button>
-                            {/* Fallback to old static generated one if needed, or just keep it clean */}
-                        </div>
-                    )}
+            {/* Concept Context Grid - Global Context with Hover Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+
+                {/* Angle Hover Card */}
+                <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900">
+                    <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Angle</span>
+                    <span className="font-medium text-amber-600 dark:text-amber-400">{batch.angle.desire.name}</span>
+
+                    {/* Tooltip */}
+                    <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                        <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.angle.desire.name}</h4>
+                        {batch.angle.desire.description && <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-2">{batch.angle.desire.description}</p>}
+                        {batch.angle.desire.brainClicks && (
+                            <div className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2 rounded border border-amber-100 dark:border-amber-900/50">
+                                <span className="font-bold">Original: </span>{batch.angle.desire.brainClicks}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Concept Context Grid - Global Context with Hover Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                {/* Theme Hover Card */}
+                <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-pink-200 dark:hover:border-pink-900">
+                    <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Theme</span>
+                    <span className="font-medium text-pink-600 dark:text-pink-400">{batch.angle.theme.name}</span>
 
-                    {/* Angle Hover Card */}
-                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900">
-                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Angle</span>
-                        <span className="font-medium text-amber-600 dark:text-amber-400">{batch.angle.desire.name}</span>
-
-                        {/* Tooltip */}
-                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
-                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.angle.desire.name}</h4>
-                            {batch.angle.desire.description && <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-2">{batch.angle.desire.description}</p>}
-                            {batch.angle.desire.brainClicks && (
-                                <div className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2 rounded border border-amber-100 dark:border-amber-900/50">
-                                    <span className="font-bold">Original: </span>{batch.angle.desire.brainClicks}
-                                </div>
-                            )}
-                        </div>
+                    {/* Tooltip */}
+                    <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                        <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.angle.theme.name}</h4>
+                        {batch.angle.theme.description ? (
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.angle.theme.description}</p>
+                        ) : (
+                            <p className="text-xs text-zinc-400 italic">No description available.</p>
+                        )}
                     </div>
+                </div>
 
-                    {/* Theme Hover Card */}
-                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-pink-200 dark:hover:border-pink-900">
-                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Theme</span>
-                        <span className="font-medium text-pink-600 dark:text-pink-400">{batch.angle.theme.name}</span>
+                {/* Demographic Hover Card */}
+                <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-900">
+                    <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Demographic</span>
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">{batch.angle.demographic.name}</span>
 
-                        {/* Tooltip */}
-                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
-                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-2">{batch.angle.theme.name}</h4>
-                            {batch.angle.theme.description ? (
-                                <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.angle.theme.description}</p>
-                            ) : (
-                                <p className="text-xs text-zinc-400 italic">No description available.</p>
-                            )}
-                        </div>
+                    {/* Tooltip */}
+                    <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                        <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-1">Target Audience</h4>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.angle.demographic.name}</p>
                     </div>
+                </div>
 
-                    {/* Demographic Hover Card */}
-                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-900">
-                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Demographic</span>
-                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{batch.angle.demographic.name}</span>
+                {/* Awareness Level */}
+                <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-cyan-200 dark:hover:border-cyan-900">
+                    <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Awareness</span>
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-cyan-600 dark:text-cyan-400 text-sm whitespace-nowrap">
+                            {batch.angle.awarenessLevel?.name || "Not set"}
+                        </span>
+                        {/* Battery Indicator */}
+                        <div className="flex gap-0.5 h-3 items-end">
+                            {[
+                                'Problem Unaware',
+                                'Problem Aware',
+                                'Solution Aware',
+                                'Product Aware',
+                                'Most Aware'
+                            ].map((level, i) => {
+                                const currentLevel = batch.angle.awarenessLevel?.name || '';
+                                const levels = ['Problem Unaware', 'Problem Aware', 'Solution Aware', 'Product Aware', 'Most Aware'];
+                                const currentIndex = levels.indexOf(currentLevel);
+                                // Active if index >= i
+                                const isActive = currentIndex >= 0 && currentIndex >= i;
 
-                        {/* Tooltip */}
-                        <div className="absolute top-full left-0 mt-2 w-64 p-4 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
-                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white mb-1">Target Audience</h4>
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400">{batch.angle.demographic.name}</p>
-                        </div>
-                    </div>
-
-                    {/* Awareness Level */}
-                    <div className="group relative p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 cursor-help transition-all hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md hover:border-cyan-200 dark:hover:border-cyan-900">
-                        <span className="block text-xs uppercase tracking-wider text-zinc-500 mb-1">Awareness</span>
-                        <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium text-cyan-600 dark:text-cyan-400 text-sm whitespace-nowrap">
-                                {batch.angle.awarenessLevel?.name || "Not set"}
-                            </span>
-                            {/* Battery Indicator */}
-                            <div className="flex gap-0.5 h-3 items-end">
-                                {[
-                                    'Problem Unaware',
-                                    'Problem Aware',
-                                    'Solution Aware',
-                                    'Product Aware',
-                                    'Most Aware'
-                                ].map((level, i) => {
-                                    const currentLevel = batch.angle.awarenessLevel?.name || '';
-                                    const levels = ['Problem Unaware', 'Problem Aware', 'Solution Aware', 'Product Aware', 'Most Aware'];
-                                    const currentIndex = levels.indexOf(currentLevel);
-                                    // Active if index >= i
-                                    const isActive = currentIndex >= 0 && currentIndex >= i;
-
-                                    // Height steps: 40%, 55%, 70%, 85%, 100%
-                                    const heightClass = ['h-[40%]', 'h-[55%]', 'h-[70%]', 'h-[85%]', 'h-[100%]'][i];
-
-                                    return (
-                                        <div
-                                            key={level}
-                                            className={`w-1.5 rounded-sm transition-all ${isActive ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'bg-zinc-200 dark:bg-zinc-700'} ${heightClass}`}
-                                            title={level}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="absolute top-full left-0 mt-2 w-80 p-4 bg-zinc-900 rounded-xl shadow-xl border border-zinc-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-                            {(() => {
-                                const levelName = batch.angle.awarenessLevel?.name || "Problem Unaware";
-                                const desireName = batch.angle.desire.name || "the problem";
-
-                                const details: Record<string, { label: string; color: string; desc: React.ReactNode }> = {
-                                    "Problem Unaware": {
-                                        label: "1. Unaware",
-                                        color: "text-red-400",
-                                        desc: <>The customer is not really thinking much about <strong>{desireName}</strong>. Life feels normal, and they do not connect any frustration or missed opportunity with it yet.</>
-                                    },
-                                    "Problem Aware": {
-                                        label: "2. Problem Aware",
-                                        color: "text-orange-400",
-                                        desc: <>The customer starts to feel small annoyances or stress around <strong>{desireName}</strong>. They know something is not ideal, but they have not clearly recognized the specific cause.</>
-                                    },
-                                    "Solution Aware": {
-                                        label: "3. Solution Aware",
-                                        color: "text-amber-400",
-                                        desc: <>The customer realizes that improving how they approach <strong>{desireName}</strong> could make things easier or more enjoyable. They begin looking for solutions.</>
-                                    },
-                                    "Product Aware": {
-                                        label: "4. Product Aware",
-                                        color: "text-emerald-400",
-                                        desc: <>The customer understands that there are products and services designed to help with <strong>{desireName}</strong>. They compare options, reviews, price, and trust.</>
-                                    },
-                                    "Most Aware": {
-                                        label: "5. Most Aware",
-                                        color: "text-indigo-400",
-                                        desc: <>The customer already believes our product is a strong solution for <strong>{desireName}</strong>. They mainly need reassurance about results.</>
-                                    }
-                                };
-
-                                const active = details[levelName] || details["Problem Unaware"];
+                                // Height steps: 40%, 55%, 70%, 85%, 100%
+                                const heightClass = ['h-[40%]', 'h-[55%]', 'h-[70%]', 'h-[85%]', 'h-[100%]'][i];
 
                                 return (
-                                    <>
-                                        <div className="font-bold text-zinc-100 mb-2 border-b border-zinc-700 pb-1">Awareness Stage</div>
-                                        <div className="text-zinc-300 leading-relaxed text-xs text-left">
-                                            <strong className={`${active.color} block mb-0.5`}>{active.label}</strong>
-                                            {active.desc}
-                                        </div>
-                                    </>
+                                    <div
+                                        key={level}
+                                        className={`w-1.5 rounded-sm transition-all ${isActive ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'bg-zinc-200 dark:bg-zinc-700'} ${heightClass}`}
+                                        title={level}
+                                    />
                                 );
-                            })()}
+                            })}
                         </div>
+                    </div>
+
+                    <div className="absolute top-full left-0 mt-2 w-80 p-4 bg-zinc-900 rounded-xl shadow-xl border border-zinc-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                        {(() => {
+                            const levelName = batch.angle.awarenessLevel?.name || "Problem Unaware";
+                            const desireName = batch.angle.desire.name || "the problem";
+
+                            const details: Record<string, { label: string; color: string; desc: React.ReactNode }> = {
+                                "Problem Unaware": {
+                                    label: "1. Unaware",
+                                    color: "text-red-400",
+                                    desc: <>The customer is not really thinking much about <strong>{desireName}</strong>. Life feels normal, and they do not connect any frustration or missed opportunity with it yet.</>
+                                },
+                                "Problem Aware": {
+                                    label: "2. Problem Aware",
+                                    color: "text-orange-400",
+                                    desc: <>The customer starts to feel small annoyances or stress around <strong>{desireName}</strong>. They know something is not ideal, but they have not clearly recognized the specific cause.</>
+                                },
+                                "Solution Aware": {
+                                    label: "3. Solution Aware",
+                                    color: "text-amber-400",
+                                    desc: <>The customer realizes that improving how they approach <strong>{desireName}</strong> could make things easier or more enjoyable. They begin looking for solutions.</>
+                                },
+                                "Product Aware": {
+                                    label: "4. Product Aware",
+                                    color: "text-emerald-400",
+                                    desc: <>The customer understands that there are products and services designed to help with <strong>{desireName}</strong>. They compare options, reviews, price, and trust.</>
+                                },
+                                "Most Aware": {
+                                    label: "5. Most Aware",
+                                    color: "text-indigo-400",
+                                    desc: <>The customer already believes our product is a strong solution for <strong>{desireName}</strong>. They mainly need reassurance about results.</>
+                                }
+                            };
+
+                            const active = details[levelName] || details["Problem Unaware"];
+
+                            return (
+                                <>
+                                    <div className="font-bold text-zinc-100 mb-2 border-b border-zinc-700 pb-1">Awareness Stage</div>
+                                    <div className="text-zinc-300 leading-relaxed text-xs text-left">
+                                        <strong className={`${active.color} block mb-0.5`}>{active.label}</strong>
+                                        {active.desc}
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>
-
-            {/* --- ACCORDION SECTIONS --- */}
-
-            {/* --- ACCORDION SECTIONS --- */}
 
             {/* --- STEPPER NAVIGATION --- */}
             <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar px-1">
