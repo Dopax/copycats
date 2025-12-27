@@ -1,6 +1,5 @@
-
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError, apiSuccess, notFound } from '@/lib/api-utils';
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
     try {
@@ -17,9 +16,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
                         videoUrl: true,
                         createdAt: true
                     },
-                    orderBy: {
-                        createdAt: 'desc'
-                    }
+                    orderBy: { createdAt: 'desc' }
                 },
                 batches: {
                     select: {
@@ -28,21 +25,19 @@ export async function GET(request: Request, { params }: { params: { id: string }
                         status: true,
                         createdAt: true
                     },
-                    orderBy: {
-                        createdAt: 'desc'
-                    }
+                    orderBy: { createdAt: 'desc' }
                 }
             }
         });
 
         if (!format) {
-            return NextResponse.json({ error: "Format not found" }, { status: 404 });
+            return notFound("Format");
         }
 
-        return NextResponse.json(format);
+        return apiSuccess(format);
     } catch (error) {
         console.error("Failed to fetch format details:", error);
-        return NextResponse.json({ error: "Failed to fetch format details" }, { status: 500 });
+        return apiError("Failed to fetch format details");
     }
 }
 
@@ -54,31 +49,24 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
         const format = await prisma.adFormat.update({
             where: { id },
-            data: {
-                name,
-                description,
-                audioChoice
-            }
+            data: { name, description, audioChoice }
         });
 
-        return NextResponse.json(format);
+        return apiSuccess(format);
     } catch (error) {
         console.error("Failed to update format:", error);
-        return NextResponse.json({ error: "Failed to update format" }, { status: 500 });
+        return apiError("Failed to update format");
     }
 }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-
-        await prisma.adFormat.delete({
-            where: { id }
-        });
-
-        return NextResponse.json({ success: true });
+        await prisma.adFormat.delete({ where: { id } });
+        return apiSuccess({ success: true });
     } catch (error) {
         console.error("Failed to delete format:", error);
-        return NextResponse.json({ error: "Failed to delete format" }, { status: 500 });
+        return apiError("Failed to delete format");
     }
 }
+

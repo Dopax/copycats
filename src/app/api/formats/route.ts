@@ -1,6 +1,5 @@
-
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError, apiSuccess } from '@/lib/api-utils';
 
 export async function GET() {
     try {
@@ -31,10 +30,10 @@ export async function GET() {
             ]
         });
 
-        return NextResponse.json(formats);
+        return apiSuccess(formats);
     } catch (error) {
         console.error("Failed to fetch formats:", error);
-        return NextResponse.json({ error: "Failed to fetch formats" }, { status: 500 });
+        return apiError("Failed to fetch formats");
     }
 }
 
@@ -42,6 +41,10 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { name, description, brandId, audioChoice } = body;
+
+        if (!name) {
+            return apiError("Format name is required", 400);
+        }
 
         const format = await prisma.adFormat.create({
             data: {
@@ -52,9 +55,10 @@ export async function POST(request: Request) {
             }
         });
 
-        return NextResponse.json(format);
+        return apiSuccess(format, 201);
     } catch (error) {
         console.error("Failed to create format:", error);
-        return NextResponse.json({ error: "Failed to create format" }, { status: 500 });
+        return apiError("Failed to create format");
     }
 }
+

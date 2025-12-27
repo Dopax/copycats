@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError, apiSuccess } from '@/lib/api-utils';
 
 export async function GET(request: Request) {
     try {
@@ -43,15 +43,21 @@ export async function GET(request: Request) {
                 }
             }
         });
-        return NextResponse.json(hooks);
+        return apiSuccess(hooks);
     } catch (error) {
-        return NextResponse.json({ error: "Failed to fetch hooks" }, { status: 500 });
+        console.error("Failed to fetch hooks:", error);
+        return apiError("Failed to fetch hooks");
     }
 }
 
 export async function POST(request: Request) {
     try {
         const { name, type, content, videoUrl, thumbnailUrl, brandId } = await request.json();
+
+        if (!name) {
+            return apiError("Hook name is required", 400);
+        }
+
         const hook = await prisma.adHook.create({
             data: {
                 name,
@@ -62,8 +68,10 @@ export async function POST(request: Request) {
                 brandId: brandId || null
             }
         });
-        return NextResponse.json(hook);
+        return apiSuccess(hook, 201);
     } catch (error) {
-        return NextResponse.json({ error: "Failed to create hook" }, { status: 500 });
+        console.error("Failed to create hook:", error);
+        return apiError("Failed to create hook");
     }
 }
+
