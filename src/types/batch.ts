@@ -52,6 +52,7 @@ export interface Angle {
     awarenessLevel: AwarenessLevel;
     conceptDoc?: string;
     personaScenarios?: string;
+    brand?: { id: string; name: string };
 }
 
 export interface BatchItem {
@@ -64,7 +65,7 @@ export interface BatchItem {
     videoName?: string;
     requestedDuration?: number;
     variationIndex?: string;
-    format?: { name: string; description: string | null };
+    format?: { id: string; name: string; description: string | null };
     status: string;
 }
 
@@ -85,6 +86,7 @@ export interface ReferenceAd {
     thumbnailUrl?: string;
     videoUrl?: string;
     transcript?: string;
+    facebookLink?: string;
 }
 
 export interface Batch {

@@ -141,7 +141,7 @@ export default function BatchDetailPage() {
     const [availableCreators, setAvailableCreators] = useState<Creator[]>([]);
     const [selectingHookForItem, setSelectingHookForItem] = useState<string | null>(null);
     const [reviewingItem, setReviewingItem] = useState<{ id: string; videoUrl: string; isReadOnly?: boolean } | null>(null);
-    const [hooks, setHooks] = useState<AdHook[]>([]);
+    const [hooks, setHooks] = useState<Hook[]>([]);
 
     // Formats State
     const [formats, setFormats] = useState<AdFormat[]>([]);
@@ -448,7 +448,7 @@ export default function BatchDetailPage() {
                 body: JSON.stringify({ status: newStatus })
             });
             if (res.ok) {
-                setBatch({ ...batch, status: newStatus });
+                setBatch({ ...batch, status: newStatus as Batch['status'] });
             }
         } catch (error) {
             console.error("Failed to update status", error);
@@ -2108,15 +2108,15 @@ export default function BatchDetailPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
                                         <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2 flex items-center gap-2"><span className="text-lg">🖼️</span> Image Prompts</label>
-                                        <textarea value={aiForm.imagePrompt} onChange={(e) => setAiForm({ ...aiForm, imagePrompt: e.target.value })} disabled={getSectionState("AI_BOOST", batch.status) === "future"} className="w-full h-32 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-purple-500" placeholder="Describe image assets..." />
+                                        <textarea value={aiForm.imagePrompt} onChange={(e) => setAiForm({ ...aiForm, imagePrompt: e.target.value })} disabled={getSectionState("AI_BOOST", batch.status) === "upcoming"} className="w-full h-32 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-purple-500" placeholder="Describe image assets..." />
                                     </div>
                                     <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
                                         <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2 flex items-center gap-2"><span className="text-lg">🎥</span> Sora Prompts</label>
-                                        <textarea value={aiForm.videoPrompt} onChange={(e) => setAiForm({ ...aiForm, videoPrompt: e.target.value })} disabled={getSectionState("AI_BOOST", batch.status) === "future"} className="w-full h-32 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-purple-500" placeholder="Direct prompts for Sora..." />
+                                        <textarea value={aiForm.videoPrompt} onChange={(e) => setAiForm({ ...aiForm, videoPrompt: e.target.value })} disabled={getSectionState("AI_BOOST", batch.status) === "upcoming"} className="w-full h-32 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-purple-500" placeholder="Direct prompts for Sora..." />
                                     </div>
                                     <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
                                         <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2 flex items-center gap-2"><span className="text-lg">📝</span> Final Ad Copy</label>
-                                        <textarea value={aiForm.adCopy} onChange={(e) => setAiForm({ ...aiForm, adCopy: e.target.value })} disabled={getSectionState("AI_BOOST", batch.status) === "future"} className="w-full h-40 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-purple-500 font-sans" placeholder="Primary Text, Headline..." />
+                                        <textarea value={aiForm.adCopy} onChange={(e) => setAiForm({ ...aiForm, adCopy: e.target.value })} disabled={getSectionState("AI_BOOST", batch.status) === "upcoming"} className="w-full h-40 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-purple-500 font-sans" placeholder="Primary Text, Headline..." />
                                     </div>
                                 </div>
                             </div>
