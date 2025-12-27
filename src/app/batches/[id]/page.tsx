@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import SearchableSelect from '@/components/SearchableSelect';
 import { DEFAULT_BRIEF_PROMPT } from "@/lib/constants/prompts";
 
 const DEFAULT_EDITOR_BRIEF_PROMPT = `Write a concise and professional Editor Brief for this ad batch.
@@ -49,7 +50,19 @@ interface BatchItem {
     notes?: string;
     script?: string;
     videoUrl?: string; // Edit: Added videoUrl
+    videoName?: string;
+    requestedDuration?: number; // Added
+    variationIndex?: string; // Added
+    format?: { name: string; description: string | null }; // Added
     status: string;
+}
+
+interface AdFormat {
+    id: string;
+    name: string;
+    description: string | null;
+    audioChoice: string | null;
+    category?: string | null; // Added
 }
 interface Batch {
     id: number;
@@ -67,7 +80,7 @@ interface Batch {
         conceptDoc?: string;
         brand?: { id: string; name: string };
     };
-    format?: { name: string };
+    format?: { id: string; name: string; description: string | null };
     assignee?: string;
     items: BatchItem[];
     referenceAd?: {
@@ -484,14 +497,14 @@ export default function BatchDetailPage() {
     const { id } = useParams();
     const router = useRouter();
     const [batch, setBatch] = useState<Batch | null>(null);
-    const [hooks, setHooks] = useState<Hook[]>([]);
+
     const [isLoading, setIsLoading] = useState(true);
 
     // Modal State
     const [viewingDoc, setViewingDoc] = useState<string | null>(null);
 
     // Auto-Brief State
-    // Auto-Brief State
+
     const [isAutoBriefModalOpen, setIsAutoBriefModalOpen] = useState(false);
     const [autoBriefPrompt, setAutoBriefPrompt] = useState(DEFAULT_BRIEF_PROMPT);
     const [autoBriefTarget, setAutoBriefTarget] = useState<'CREATOR' | 'EDITOR'>('CREATOR');
@@ -499,6 +512,45 @@ export default function BatchDetailPage() {
     const [availableCreators, setAvailableCreators] = useState<Creator[]>([]);
     const [selectingHookForItem, setSelectingHookForItem] = useState<string | null>(null);
     const [reviewingItem, setReviewingItem] = useState<{ id: string; videoUrl: string; isReadOnly?: boolean } | null>(null);
+    const [hooks, setHooks] = useState<AdHook[]>([]);
+
+    // Formats State
+    const [formats, setFormats] = useState<AdFormat[]>([]);
+
+    useEffect(() => {
+        fetchFormats();
+    }, []);
+
+    const fetchFormats = async () => {
+        try {
+            const res = await fetch('/api/formats');
+            if (res.ok) setFormats(await res.json());
+        } catch (e) {
+            console.error("Failed to fetch formats");
+        }
+    };
+
+    // Strategy Sentence State
+    const [strategySentence, setStrategySentence] = useState("");
+    const [isGeneratingStrategy, setIsGeneratingStrategy] = useState(false);
+
+    const generateStrategy = async () => {
+        setIsGeneratingStrategy(true);
+        try {
+            const res = await fetch(`/api/batches/${id}/generate-strategy`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                setStrategySentence(data.strategySentence);
+            } else {
+                alert("Failed: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error generating strategy");
+        } finally {
+            setIsGeneratingStrategy(false);
+        }
+    };
 
     // Transcript State
     const [transcribingRef, setTranscribingRef] = useState(false);
@@ -687,6 +739,7 @@ export default function BatchDetailPage() {
                 // Initial Field Set
                 setMainMessaging(data.mainMessaging || "");
                 setLearnings(data.learnings || "");
+                setStrategySentence(data.strategySentence || "");
 
                 // Fetch Available Creators for this Brand
                 const brandId = data.brand?.id || data.angle?.brand?.id;
@@ -981,6 +1034,7 @@ export default function BatchDetailPage() {
 
     const updateItem = async (itemId: string, data: any) => {
         if (!batch) return;
+        console.log("[Frontend] updateItem", itemId, data);
         const updatedItems = batch.items.map(item => item.id === itemId ? { ...item, ...data } : item);
         setBatch({ ...batch, items: updatedItems });
 
@@ -1116,8 +1170,37 @@ export default function BatchDetailPage() {
                 </div>
 
                 {/* Strategy Sentence - Global Context */}
-                <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm mb-6">
-                    {getStrategySentence(batch)}
+                <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm mb-6 relative group">
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            onClick={generateStrategy}
+                            disabled={isGeneratingStrategy}
+                            className="p-2 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-50"
+                            title="Regenerate Strategy AI"
+                        >
+                            <svg className={`w-4 h-4 ${isGeneratingStrategy ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        </button>
+                    </div>
+
+                    {strategySentence ? (
+                        <div className="text-center">
+                            <p className="text-zinc-700 dark:text-zinc-300 text-lg leading-relaxed font-medium">
+                                {strategySentence}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="text-center py-4">
+                            <p className="text-zinc-400 mb-3 text-sm">No strategy generated yet.</p>
+                            <button
+                                onClick={generateStrategy}
+                                disabled={isGeneratingStrategy}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:transform-none"
+                            >
+                                {isGeneratingStrategy ? "Generating..." : "✨ Generate AI Strategy"}
+                            </button>
+                            {/* Fallback to old static generated one if needed, or just keep it clean */}
+                        </div>
+                    )}
                 </div>
 
                 {/* Concept Context Grid - Global Context with Hover Cards */}
@@ -1333,190 +1416,204 @@ export default function BatchDetailPage() {
                 {/* 2. CREATOR BRIEFING */}
                 {activeStep === "CREATOR_BRIEFING" && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-                            {/* Header */}
-                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                                <div>
-                                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                                        <span>📹</span> Creator Briefing
-                                    </h3>
-                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                                        Define what the creator needs to say and do.
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className={`text-xs font-mono transition-colors ${isSavingCreatorBrief ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
-                                        {isSavingCreatorBrief ? "Saving..." : "Saved"}
-                                    </span>
+                        {/* Header */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                            <div>
+                                <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                    <span>📹</span> Creator Briefing
+                                </h3>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                                    Define what the creator needs to say and do.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-xs font-mono transition-colors ${isSavingCreatorBrief ? 'text-indigo-500' : 'text-zinc-300 dark:text-zinc-600'}`}>
+                                    {isSavingCreatorBrief ? "Saving..." : "Saved"}
+                                </span>
+                            </div>
+                        </div>
 
-                                    {/* Auto-Draft Button */}
-                                    <button
-                                        onClick={() => {
-                                            setAutoBriefTarget('CREATOR');
-                                            setAutoBriefPrompt(DEFAULT_BRIEF_PROMPT);
-                                            setIsAutoBriefModalOpen(true);
-                                        }}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
-                                    >
-                                        <span>✨</span> AI Draft
-                                    </button>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                            {/* LEFT COLUMN: Reference & Context (Sticky) */}
+                            <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
+                                {/* Visual Reference - Moved to Left Column */}
+                                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                    <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 flex justify-between items-center">
+                                        <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Visual Reference</h4>
+                                    </div>
+                                    <div className="p-4">
+                                        {batch.referenceAd ? (
+                                            <ReferenceAdIntegration ad={batch.referenceAd as any} />
+                                        ) : (
+                                            <div className="text-center py-8 text-zinc-400 text-sm italic">
+                                                No reference ad linked.
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                                {/* LEFT COLUMN: Context & Visuals (4 cols) */}
-                                <div className="lg:col-span-4 space-y-6">
-                                    {/* 1. Visual Reference */}
-                                    <div className="sticky top-4">
-                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                            <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 flex justify-between items-center">
-                                                <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Visual Reference</h4>
+                            {/* RIGHT COLUMN: Inputs & Instructions */}
+                            <div className="lg:col-span-2 space-y-8">
+                                {/* Main Inputs Container */}
+                                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-8">
+                                    {/* Brief Instructions */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-sm font-bold text-zinc-900 dark:text-white">Brief & Instructions</label>
+                                            <button
+                                                onClick={() => {
+                                                    setAutoBriefTarget('CREATOR');
+                                                    setAutoBriefPrompt(DEFAULT_BRIEF_PROMPT);
+                                                    setIsAutoBriefModalOpen(true);
+                                                }}
+                                                className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 flex items-center gap-1"
+                                            >
+                                                <span>✨</span> AI Draft
+                                            </button>
+                                        </div>
+                                        <div className="relative">
+                                            <textarea
+                                                className="w-full h-[300px] p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-none font-sans leading-relaxed text-sm"
+                                                placeholder="Hello! We'd love for you to create a video that..."
+                                                value={creatorBrief}
+                                                onChange={(e) => setCreatorBrief(e.target.value)}
+                                            />
+                                            <div className="absolute top-2 right-2">
+                                                <button
+                                                    onClick={() => navigator.clipboard.writeText(creatorBrief)}
+                                                    className="p-2 text-zinc-400 hover:text-indigo-500 bg-white/50 dark:bg-black/20 rounded-lg hover:bg-white dark:hover:bg-zinc-700 transition-colors"
+                                                    title="Copy Brief"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                </button>
                                             </div>
-                                            <div className="p-4">
-                                                {batch.referenceAd ? (
-                                                    <ReferenceAdIntegration ad={batch.referenceAd as any} />
-                                                ) : (
-                                                    <div className="text-center py-8 text-zinc-400 text-sm italic">
-                                                        No reference ad linked.
-                                                    </div>
-                                                )}
+                                        </div>
+                                    </div>
+
+                                    {/* Shotlist Builder */}
+                                    <div>
+                                        <label className="flex items-center justify-between mb-3">
+                                            <span className="text-sm font-bold text-zinc-900 dark:text-white">Shotlist / Checklist</span>
+                                            <span className="text-xs text-zinc-500">
+                                                Creators must check off these items to submit.
+                                            </span>
+                                        </label>
+
+                                        <div className="space-y-2 bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                                            {(shotlist || "").split('\n').filter(line => line.trim() !== "").map((shot, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 group">
+                                                    <div className="text-zinc-400 font-mono text-xs select-none w-6 text-right">{idx + 1}.</div>
+                                                    <input
+                                                        type="text"
+                                                        value={shot}
+                                                        onChange={(e) => {
+                                                            const rawLines = (shotlist || "").split('\n');
+                                                            const cleanLines = rawLines.filter(l => l.trim() !== "");
+                                                            cleanLines[idx] = e.target.value;
+                                                            setShotlist(cleanLines.join('\n'));
+                                                        }}
+                                                        className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow"
+                                                    />
+                                                    <button
+                                                        onClick={() => {
+                                                            const rawLines = (shotlist || "").split('\n').filter(l => l.trim() !== "");
+                                                            rawLines.splice(idx, 1);
+                                                            setShotlist(rawLines.join('\n'));
+                                                        }}
+                                                        className="p-2 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </div>
+                                            ))}
+
+                                            {/* Add New Line */}
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <div className="w-6"></div> {/* Spacer */}
+                                                <button
+                                                    onClick={() => {
+                                                        const current = shotlist ? shotlist + "\n" : "";
+                                                        setShotlist(current + "New Shot");
+                                                    }}
+                                                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline flex items-center gap-1"
+                                                >
+                                                    <span>+</span> Add Shot
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* RIGHT COLUMN: Input Forms & Analysis (8 cols) */}
-                                <div className="lg:col-span-8 space-y-8">
-
-                                    {/* 1. INPUTS SECTION */}
-                                    <div className="space-y-6">
-                                        {/* Templates Toolbar */}
-                                        <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800 overflow-x-auto">
-                                            <span className="text-xs font-bold text-zinc-400 px-2 uppercase tracking-wider">Templates:</span>
-                                            {['GENERAL', 'SPECIFIC', 'COPYCAT'].map(t => (
-                                                <button
-                                                    key={t}
-                                                    onClick={() => applyBriefTemplate(t)}
-                                                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors whitespace-nowrap ${creatorBriefType === t
-                                                        ? 'bg-white dark:bg-zinc-800 border-indigo-200 text-indigo-700 dark:text-indigo-400 shadow-sm'
-                                                        : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-white/50 dark:hover:bg-zinc-700'
-                                                        }`}
-                                                >
-                                                    {t.charAt(0) + t.slice(1).toLowerCase()}
-                                                </button>
-                                            ))}
+                                {/* COPYCAT SOURCE ANALYSIS (Display only for Copycat) */}
+                                {batch.batchType === 'COPYCAT' && batch.referenceAd && (
+                                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 bg-zinc-50/50 dark:bg-zinc-800/30">
+                                        <div className="flex items-center gap-2 mb-6">
+                                            <span className="text-xl">🦁</span>
+                                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Competitor Source Breakdown</h3>
                                         </div>
 
-                                        {/* Brief Instructions */}
-                                        <div>
-                                            <label className="flex items-center justify-between mb-2">
-                                                <span className="text-sm font-bold text-zinc-900 dark:text-white">Brief & Instructions</span>
-                                            </label>
-                                            <div className="relative">
-                                                <textarea
-                                                    className="w-full h-[300px] p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-none font-sans leading-relaxed text-sm"
-                                                    placeholder="Hello! We'd love for you to create a video that..."
-                                                    value={creatorBrief}
-                                                    onChange={(e) => setCreatorBrief(e.target.value)}
-                                                />
-                                                <div className="absolute top-2 right-2">
-                                                    <button
-                                                        onClick={() => navigator.clipboard.writeText(creatorBrief)}
-                                                        className="p-2 text-zinc-400 hover:text-indigo-500 bg-white/50 dark:bg-black/20 rounded-lg hover:bg-white dark:hover:bg-zinc-700 transition-colors"
-                                                        title="Copy Brief"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                                    </button>
+                                        {/* Awareness & Reason */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                            <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Target Awareness Level</label>
+                                                <div className="font-bold text-indigo-600 dark:text-indigo-400">
+                                                    {(batch.referenceAd as any).awarenessLevel?.name || "Not specified"}
+                                                </div>
+                                            </div>
+                                            <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Reason</label>
+                                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                                                    {(batch.referenceAd as any).awarenessLevelReason || "No reasoning provided."}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Shotlist */}
+                                        {/* Why It Works & Notes */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Why It Works</label>
+                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
+                                                    {(batch.referenceAd as any).whyItWorks || "No analysis available."}
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">General Notes</label>
+                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
+                                                    {(batch.referenceAd as any).notes || "No notes available."}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Core Messaging Analysis */}
                                         <div>
-                                            <label className="flex items-center justify-between mb-2">
-                                                <span className="text-sm font-bold text-zinc-900 dark:text-white">Shotlist / Scene Breakdown</span>
-                                                <span className="text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">Optional</span>
-                                            </label>
-                                            <textarea
-                                                className="w-full h-40 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 transition-shadow resize-y font-mono text-sm leading-relaxed"
-                                                placeholder="- 0:00-0:03: Hook (Face to camera)&#10;- 0:03-0:10: Problem agitator (B-roll of issue)&#10;- 0:10-0:25: Solution demo (Product in hand)"
-                                                value={shotlist}
-                                                onChange={(e) => setShotlist(e.target.value)}
+                                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-4">Core Messaging</label>
+                                            <MessagingAnalysisToolbox
+                                                value={mainMessaging}
+                                                onChange={(val) => setMainMessaging(val)}
+                                                className="border-none shadow-none bg-transparent p-0"
+                                                variant="exploded"
+                                                readOnly={true}
                                             />
                                         </div>
                                     </div>
+                                )}
 
-                                    {/* 2. COPYCAT SOURCE ANALYSIS (Display only for Copycat) */}
-                                    {batch.batchType === 'COPYCAT' && batch.referenceAd && (
-                                        <div className="border-t-2 border-dashed border-zinc-200 dark:border-zinc-700/50 pt-8 mt-4">
-                                            <div className="flex items-center gap-2 mb-6">
-                                                <span className="text-xl">🦁</span>
-                                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Competitor Source Breakdown</h3>
-                                            </div>
-
-                                            {/* Awareness & Reason */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Target Awareness Level</label>
-                                                    <div className="font-bold text-indigo-600 dark:text-indigo-400">
-                                                        {(batch.referenceAd as any).awarenessLevel?.name || "Not specified"}
-                                                    </div>
-                                                </div>
-                                                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Reason</label>
-                                                    <div className="text-sm text-zinc-700 dark:text-zinc-300">
-                                                        {(batch.referenceAd as any).awarenessLevelReason || "No reasoning provided."}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Why It Works & Notes */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Why It Works</label>
-                                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
-                                                        {(batch.referenceAd as any).whyItWorks || "No analysis available."}
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">General Notes</label>
-                                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
-                                                        {(batch.referenceAd as any).notes || "No notes available."}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Core Messaging Analysis */}
-                                            <div>
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-4">Core Messaging</label>
-                                                <MessagingAnalysisToolbox
-                                                    value={mainMessaging}
-                                                    onChange={(val) => setMainMessaging(val)}
-                                                    className="border-none shadow-none bg-transparent p-0"
-                                                    variant="exploded"
-                                                    readOnly={true}
-                                                />
-                                            </div>
+                                {/* Standard Messaging for Non-Copycat */}
+                                {batch.batchType !== 'COPYCAT' && (
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                        <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800">
+                                            <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Core Messaging Strategy</h4>
                                         </div>
-                                    )}
-
-                                    {/* Standard Messaging for Non-Copycat */}
-                                    {batch.batchType !== 'COPYCAT' && (
-                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                            <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800">
-                                                <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Core Messaging Strategy</h4>
-                                            </div>
-                                            <div className="p-0">
-                                                <MessagingAnalysisToolbox
-                                                    value={mainMessaging}
-                                                    onChange={(val) => setMainMessaging(val)}
-                                                    className="border-none shadow-none bg-transparent"
-                                                />
-                                            </div>
+                                        <div className="p-0">
+                                            <MessagingAnalysisToolbox
+                                                value={mainMessaging}
+                                                onChange={(val) => setMainMessaging(val)}
+                                                className="border-none shadow-none bg-transparent"
+                                            />
                                         </div>
-                                    )}
-
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1593,13 +1690,17 @@ export default function BatchDetailPage() {
                 {/* 4. BRIEFING & STRATEGY */}
                 {activeStep === "BRIEFING" && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex flex-col gap-1">
                                 <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Editor Briefing</h3>
                                 {batch.format && (
-                                    <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs font-bold uppercase tracking-wider rounded border border-zinc-200 dark:border-zinc-700">
-                                        {batch.format.name}
-                                    </span>
+                                    <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-lg p-3 max-w-2xl">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">Chosen Format</span>
+                                            <span className="font-bold text-zinc-900 dark:text-white">{batch.format.name}</span>
+                                        </div>
+                                        <p className="text-xs leading-relaxed opacity-80">{batch.format.description}</p>
+                                    </div>
                                 )}
                             </div>
                             <div className="flex items-center gap-4">
@@ -1756,83 +1857,168 @@ export default function BatchDetailPage() {
                                         <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                                             <span>🎬</span> Variations to Produce
                                         </h3>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); addBatchItem(); }}
-                                            disabled={batch.status !== "EDITOR_BRIEFING"}
-                                            className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1 disabled:opacity-50 disabled:shadow-none"
-                                        >
-                                            <span>+</span> Add Variation
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (!confirm("This will generate 3 new AI variations. Continue?")) return;
+
+                                                    const btn = e.currentTarget;
+                                                    const originalText = btn.innerHTML;
+                                                    btn.innerHTML = "✨ Dreaming...";
+                                                    btn.disabled = true;
+
+                                                    try {
+                                                        const res = await fetch(`/api/batches/${batch.id}/generate-variations`, { method: 'POST' });
+                                                        if (res.ok) {
+                                                            window.location.reload(); // Simple reload to show new items
+                                                        } else {
+                                                            alert("Failed to generate.");
+                                                        }
+                                                    } catch (err) {
+                                                        alert("Error generating.");
+                                                    } finally {
+                                                        btn.innerHTML = originalText;
+                                                        btn.disabled = false;
+                                                    }
+                                                }}
+                                                disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                className="text-xs font-bold text-purple-600 hover:text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1 disabled:opacity-50 disabled:shadow-none"
+                                            >
+                                                <span>✨</span> Auto-Vary
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); addBatchItem(); }}
+                                                disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1 disabled:opacity-50 disabled:shadow-none"
+                                            >
+                                                <span>+</span> Add Variation
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-4">
-                                        {batch.items.map((item, index) => (
-                                            <div key={item.id} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm group">
-                                                <div className="flex flex-col gap-4">
-                                                    {/* Header Row */}
-                                                    <div className="flex items-start justify-between gap-4">
-                                                        <div className="flex items-center gap-4 flex-1">
-                                                            <div className="h-10 w-auto min-w-[3rem] px-2 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center font-bold text-zinc-700 dark:text-zinc-300 text-sm">
-                                                                {getVariationLabel(index)}
-                                                            </div>
-                                                            <div className="flex-1 max-w-md">
-                                                                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Hook</label>
-                                                                <div className="flex gap-2">
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); setSelectingHookForItem(item.id); }}
-                                                                        disabled={batch.status !== "EDITOR_BRIEFING"}
-                                                                        className={`flex-1 text-left px-3 py-2 rounded-lg border text-xs flex items-center justify-between transition-colors ${item.hookId
-                                                                            ? "bg-indigo-50 border-indigo-200 text-indigo-900"
-                                                                            : "bg-white border-zinc-200 text-zinc-500 italic"
-                                                                            }`}
-                                                                    >
-                                                                        <span className="truncate font-medium">{item.hookId ? (hooks.find(h => h.id === item.hookId)?.name || "Unknown Hook") : "Select a Hook..."}</span>
-                                                                        <svg className="w-3 h-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                                                    </button>
-                                                                    {item.hookId && batch.status === "EDITOR_BRIEFING" && (
-                                                                        <button onClick={() => updateItem(item.id, { hookId: null })} className="p-2 hover:bg-zinc-100 rounded text-zinc-400 hover:text-red-500">
-                                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                        </button>
-                                                                    )}
+                                        {[...batch.items]
+                                            .sort((a, b) => (a.variationIndex || 'Z').localeCompare(b.variationIndex || 'Z'))
+                                            .map((item, index) => (
+                                                <div key={item.id} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm group">
+                                                    <div className="flex flex-col gap-4">
+
+
+                                                        {/* Header Row */}
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div className="flex items-center gap-4 flex-1">
+
+                                                                <div className="flex-1 flex gap-2">
+                                                                    {/* Variation Index Badge */}
+                                                                    <div className="h-full flex items-center justify-center">
+                                                                        <div className="h-8 w-8 min-w-[2rem] rounded-lg bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center font-bold text-zinc-700 dark:text-zinc-300 text-sm shadow-sm">
+                                                                            {item.variationIndex || index + 1}
+                                                                        </div>
+                                                                    </div>
+                                                                    {/* Hook Selector */}
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Hook</label>
+                                                                        <div className="flex gap-2">
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); setSelectingHookForItem(item.id); }}
+                                                                                disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                                                className={`flex-1 min-w-0 text-left px-3 py-2 rounded-lg border text-xs flex items-center justify-between transition-colors ${item.hookId
+                                                                                    ? "bg-indigo-50 border-indigo-200 text-indigo-900 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-300"
+                                                                                    : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 italic"
+                                                                                    }`}
+                                                                            >
+                                                                                <span className="truncate font-medium">{item.hookId ? (hooks.find(h => h.id === item.hookId)?.name || "Unknown Hook") : "Select a Hook..."}</span>
+                                                                                <svg className="w-3 h-3 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                                            </button>
+                                                                            {item.hookId && batch.status === "EDITOR_BRIEFING" && (
+                                                                                <button onClick={() => updateItem(item.id, { hookId: null })} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-red-500 flex-shrink-0">
+                                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Format Selector */}
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Format</label>
+                                                                        <div className="relative">
+                                                                            <SearchableSelect
+                                                                                options={formats.map(f => ({
+                                                                                    id: f.id,
+                                                                                    name: f.name,
+                                                                                    category: f.category || "General",
+                                                                                    description: f.description || ""
+                                                                                }))}
+                                                                                value={item.format?.id || null}
+                                                                                onChange={(val) => {
+                                                                                    if (!val) {
+                                                                                        updateItem(item.id, { formatId: null, format: null });
+                                                                                    } else {
+                                                                                        const newFormat = formats.find(f => f.id === val);
+                                                                                        updateItem(item.id, { formatId: val, format: newFormat });
+                                                                                    }
+                                                                                }}
+                                                                                placeholder="Select Format..."
+                                                                                className="w-full"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
+                                                            <button
+                                                                onClick={() => deleteItem(item.id)}
+                                                                disabled={batch.status !== "EDITOR_BRIEFING" || batch.items.length <= 1}
+                                                                className={`transition-colors p-2 ${batch.items.length <= 1 ? 'text-zinc-200 cursor-not-allowed' : 'text-zinc-300 hover:text-red-500'}`}
+                                                                title={batch.items.length <= 1 ? "Cannot delete the last variation" : "Delete Variation"}
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                            {/* Duration Selector */}
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Duration</label>
+                                                                <select
+                                                                    value={item.requestedDuration || ""}
+                                                                    onChange={(e) => updateItem(item.id, { requestedDuration: e.target.value ? parseInt(e.target.value) : null })}
+                                                                    className="w-24 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded p-1 text-xs focus:ring-1 focus:ring-indigo-500 font-mono"
+                                                                    disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                                >
+                                                                    <option value="">Any</option>
+                                                                    {[10, 15, 20, 30, 45, 60, 90].map(sec => (
+                                                                        <option key={sec} value={sec}>{sec}s</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => deleteItem(item.id)}
-                                                            disabled={batch.status !== "EDITOR_BRIEFING"}
-                                                            className="text-zinc-300 hover:text-red-500 transition-colors p-2"
-                                                            title="Delete Variation"
-                                                        >
-                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
-                                                    </div>
 
-                                                    {/* Script & Notes */}
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Script</label>
-                                                            <DebouncedTextarea
-                                                                value={item.script || ""}
-                                                                onCommit={(val: string) => updateItem(item.id, { script: val })}
-                                                                disabled={batch.status !== "EDITOR_BRIEFING"}
-                                                                className="w-full h-24 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 rounded p-3 text-sm resize-none focus:ring-1 focus:ring-indigo-500 dark:text-zinc-200"
-                                                                placeholder="Script/Voiceover..."
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Notes</label>
-                                                            <DebouncedTextarea
-                                                                value={item.notes || ""}
-                                                                onCommit={(val: string) => updateItem(item.id, { notes: val })}
-                                                                disabled={batch.status !== "EDITOR_BRIEFING"}
-                                                                className="w-full h-24 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 rounded p-3 text-sm resize-none focus:ring-1 focus:ring-indigo-500 dark:text-zinc-200"
-                                                                placeholder="Visual notes for editor..."
-                                                            />
+                                                        {/* Script & Notes */}
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Script</label>
+                                                                <DebouncedTextarea
+                                                                    value={item.script || ""}
+                                                                    onCommit={(val: string) => updateItem(item.id, { script: val })}
+                                                                    disabled={batch.status !== "EDITOR_BRIEFING"}
+                                                                    className="w-full h-24 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 rounded p-3 text-sm resize-none focus:ring-1 focus:ring-indigo-500 dark:text-zinc-200"
+                                                                    placeholder="Script/Voiceover..."
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">
+                                                                    {batch.status === "EDITOR_BRIEFING" ? "Visuals" : "Revisions"}
+                                                                </label>
+                                                                <DebouncedTextarea
+                                                                    value={item.notes || ""}
+                                                                    onCommit={(val: string) => updateItem(item.id, { notes: val })}
+                                                                    disabled={batch.status !== "EDITOR_BRIEFING" && batch.status !== "EDITING"}
+                                                                    className={`w-full h-24 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 rounded p-3 text-sm resize-none focus:ring-1 focus:ring-indigo-500 dark:text-zinc-200 ${batch.status === "EDITING" ? "border-amber-200 bg-amber-50/50" : ""}`}
+                                                                    placeholder={batch.status === "EDITOR_BRIEFING" ? "Visual notes for editor..." : "Enter revision feedback..."}
+                                                                />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
 
                                         {batch.items.length === 0 && (
                                             <div className="text-center py-10 text-zinc-400 text-sm italic border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
@@ -1892,7 +2078,7 @@ export default function BatchDetailPage() {
                                             <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">QA Checklist</h4>
                                             <div className="space-y-2">
                                                 {[
-                                                    "Watermark removed/hidden",
+                                                    "Watermark added",
                                                     "All key elements visible in 4:5 crop",
                                                     "Indistinguishable from human content (AI Check)",
                                                     "Voice-over volume balanced with background music",
@@ -1913,49 +2099,7 @@ export default function BatchDetailPage() {
                                             </div>
                                         </div>
 
-                                        {/* Project Files Upload */}
-                                        <div className="space-y-3">
-                                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Project Files (Zip)</label>
-                                            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
-                                                {(batch as any).projectFilesUrl ? (
-                                                    <div className="flex flex-col gap-2">
-                                                        <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                                            <span className="font-bold text-sm">Files Uploaded</span>
-                                                        </div>
-                                                        <a href={(batch as any).projectFilesUrl} target="_blank" className="text-sm text-indigo-600 hover:underline truncate block">
-                                                            Download Project Files
-                                                        </a>
-                                                        <button
-                                                            onClick={() => updateStatus('PROJECT_FILES_REMOVED')}
-                                                            className="text-xs text-red-500 hover:text-red-600 text-left mt-1"
-                                                            disabled={batch.status !== "EDITING"}
-                                                        >
-                                                            Remove / Replace
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-center">
-                                                        <FileUpload
-                                                            batchName={batch.name}
-                                                            type="zip"
-                                                            brandId={(batch as any).brandId || undefined}
-                                                            batchId={String(batch.id)}
-                                                            onUploadComplete={(url) => {
-                                                                const updated = { ...batch, projectFilesUrl: url };
-                                                                setBatch(updated as any);
-                                                                fetch(`/api/batches/${batch.id}`, {
-                                                                    method: 'PUT',
-                                                                    headers: { 'Content-Type': 'application/json' },
-                                                                    body: JSON.stringify({ projectFilesUrl: url })
-                                                                });
-                                                            }}
-                                                        />
-                                                        <p className="text-[10px] text-zinc-400 mt-2">Upload project files for the editor (AE/Premiere/etc)</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+
                                     </div>
                                 </div>
 
@@ -1991,8 +2135,8 @@ export default function BatchDetailPage() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Revision Alert */}
-                                                    {item.status === 'PENDING' && item.notes && (
+                                                    {/* Revision Alert - Only show if we are effectively in a Revision Cycle (EDITING) */}
+                                                    {item.status === 'PENDING' && item.notes && batch.status === 'EDITING' && (
                                                         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200 flex justify-between items-center gap-3">
                                                             <div>
                                                                 <p className="font-bold mb-1 flex items-center gap-2">
@@ -2067,6 +2211,49 @@ export default function BatchDetailPage() {
                                         </div>
                                     )}
 
+                                </div>
+                                {/* Project Files Upload (Moved Here) */}
+                                <div className="space-y-3 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+                                    <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Project Files (Zip)</label>
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
+                                        {(batch as any).projectFilesUrl ? (
+                                            <div className="flex flex-col gap-2">
+                                                <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                    <span className="font-bold text-sm">Files Uploaded</span>
+                                                </div>
+                                                <a href={(batch as any).projectFilesUrl} target="_blank" className="text-sm text-indigo-600 hover:underline truncate block">
+                                                    Download Project Files
+                                                </a>
+                                                <button
+                                                    onClick={() => updateStatus('PROJECT_FILES_REMOVED')}
+                                                    className="text-xs text-red-500 hover:text-red-600 text-left mt-1"
+                                                    disabled={batch.status !== "EDITING"}
+                                                >
+                                                    Remove / Replace
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center">
+                                                <FileUpload
+                                                    batchName={batch.name}
+                                                    type="zip"
+                                                    brandId={(batch as any).brandId || undefined}
+                                                    batchId={String(batch.id)}
+                                                    onUploadComplete={(url) => {
+                                                        const updated = { ...batch, projectFilesUrl: url };
+                                                        setBatch(updated as any);
+                                                        fetch(`/api/batches/${batch.id}`, {
+                                                            method: 'PUT',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ projectFilesUrl: url })
+                                                        });
+                                                    }}
+                                                />
+                                                <p className="text-[10px] text-zinc-400 mt-2">Upload project files for the editor (AE/Premiere/etc)</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2455,6 +2642,6 @@ export default function BatchDetailPage() {
                     )
                 }
             </div>
-        </div>
+        </div >
     );
 }

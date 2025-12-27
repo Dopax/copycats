@@ -52,7 +52,7 @@ export async function POST(request: Request) {
                 source: data.source,
                 messagingPlatform: data.messagingPlatform,
                 paymentMethod: data.paymentMethod,
-                type: data.type || "TEMPORARY",
+                isRecurring: data.isRecurring || false,
                 joinedAt: data.joinedAt ? new Date(data.joinedAt) : new Date(),
                 profileImageUrl: data.profileImageUrl,
                 brandId: data.brandId

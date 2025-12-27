@@ -60,9 +60,11 @@ model AdFormat {
   id          String   @id @default(uuid())
   name        String   @unique
   description String?
+  category    String? // e.g. "Demonstration", "Storytelling", "Skits"
   audioChoice String?  // e.g. "Text Only", "Music Only", "Voice Over", "Person Talking"
   ads         Ad[]
   batches     AdBatch[]
+  batchItems  BatchItem[]
   brandId     String?
   brand       Brand?   @relation(fields: [brandId], references: [id])
 }
@@ -249,7 +251,7 @@ model Creator {
   source        String?
   messagingPlatform String? // Upwork, Slack, Zoho, Whatsapp, Instagram, Gorgias
   paymentMethod     String? // Upwork, Paypal, Bank, Free Kit
-  type          String   @default("TEMPORARY") // TEMPORARY, REPEAT, PERMANENT
+  isRecurring   Boolean  @default(false)
   status        String   @default("APPLIED")   // APPLIED, APPROVED, REJECTED, ARCHIVED
   joinedAt      DateTime @default(now())
   
@@ -401,6 +403,7 @@ model AdBatch {
   mainMessaging String?
   launchedAt    DateTime?
   learnings     String?
+  strategySentence String? // AI Generated Strategy Summary
 
   items       BatchItem[]
   assignedCreators Creator[] @relation("ActiveBatch")
@@ -417,12 +420,16 @@ model BatchItem {
   hookId    String?
   hook      AdHook?  @relation(fields: [hookId], references: [id])
 
+  formatId    String?
+  format      AdFormat? @relation(fields: [formatId], references: [id])
+
   notes     String?
   script    String?
   videoUrl  String?  // Link to Google Drive Video
   videoName String?  // Original Filename
   variationIndex String? // "A", "B", "C" for robust linking
   status    String   @default("PENDING") // PENDING, DONE
+  requestedDuration Int?   // Requested duration in seconds (optional)
   
   facebookAds FacebookAd[] // Linked Ads for this variation
 

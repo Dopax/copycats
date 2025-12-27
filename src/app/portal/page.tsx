@@ -586,6 +586,22 @@ function StepUpload({ data, refresh }: any) {
     const [error, setError] = useState('');
     const [uploadedFiles, setUploadedFiles] = useState<{ name: string, type: 'RAW' | 'TESTIMONIAL' }[]>([]);
 
+    // Shotlist Logic
+    const rawShotlist = data.activeBatch?.shotlist || "";
+    const shotlistItems = rawShotlist.split('\n').filter((l: string) => l.trim() !== "");
+    const [checkedShots, setCheckedShots] = useState<number[]>([]);
+
+    const toggleShot = (index: number) => {
+        if (checkedShots.includes(index)) {
+            setCheckedShots(prev => prev.filter(i => i !== index));
+        } else {
+            setCheckedShots(prev => [...prev, index]);
+        }
+    };
+
+    const isShotlistComplete = shotlistItems.length === 0 || checkedShots.length === shotlistItems.length;
+
+
     // Helper to upload a single file
     const uploadSingleFile = async (file: File, type: 'RAW' | 'TESTIMONIAL', token: string | null) => {
         const formData = new FormData();
@@ -673,13 +689,53 @@ function StepUpload({ data, refresh }: any) {
             <h2 className="text-2xl font-bold mb-4">Upload Your Content</h2>
             <p className="text-zinc-400 text-sm mb-8">Please upload your raw videos and a native language testimonial.</p>
 
+            {/* Shotlist Checklist */}
+            {shotlistItems.length > 0 && (
+                <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-6 mb-8 text-left max-w-lg mx-auto">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-md font-bold text-white flex items-center gap-2">
+                            <span>📋</span> Required Shotlist
+                        </h3>
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${isShotlistComplete ? 'bg-green-900 text-green-300' : 'bg-zinc-700 text-zinc-300'}`}>
+                            {checkedShots.length}/{shotlistItems.length} Completed
+                        </span>
+                    </div>
+
+                    <div className="space-y-3">
+                        {shotlistItems.map((shot: string, index: number) => {
+                            const isChecked = checkedShots.includes(index);
+                            return (
+                                <label key={index} className="flex items-start gap-3 p-3 rounded-lg border border-transparent hover:bg-zinc-800/80 hover:border-zinc-700 cursor-pointer transition-all group">
+                                    <div className="relative flex items-center mt-0.5">
+                                        <input
+                                            type="checkbox"
+                                            checked={isChecked}
+                                            onChange={() => toggleShot(index)}
+                                            className="peer h-5 w-5 rounded border-zinc-600 bg-zinc-900 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        />
+                                    </div>
+                                    <span className={`text-sm select-none ${isChecked ? 'text-zinc-500 line-through decoration-zinc-600' : 'text-zinc-200'}`}>
+                                        {shot}
+                                    </span>
+                                </label>
+                            )
+                        })}
+                    </div>
+                    {!isShotlistComplete && (
+                        <p className="text-xs text-amber-500 mt-4 text-center">
+                            * Please check off all items to confirm you have filmed them.
+                        </p>
+                    )}
+                </div>
+            )}
+
             {error && (
                 <div className="bg-red-900/50 text-red-200 text-sm p-3 rounded mb-6 border border-red-800">
                     {error}
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 ${!isShotlistComplete ? 'opacity-50 pointer-events-none filter blur-[1px]' : ''}`}>
                 {/* Raw Videos - Made larger/full width to emphasize volume */}
                 <div className={`col-span-1 md:col-span-2 border-2 border-dashed border-zinc-700 rounded-xl p-10 flex flex-col items-center justify-center transition-colors cursor-pointer bg-zinc-950/50 relative hover:border-indigo-500 min-h-[250px]`}>
                     <input
@@ -688,7 +744,7 @@ function StepUpload({ data, refresh }: any) {
                         className="absolute inset-0 opacity-0 cursor-pointer"
                         onChange={(e) => handleFileChange(e, 'RAW')}
                         accept="video/*,image/*"
-                        disabled={uploading}
+                        disabled={uploading || !isShotlistComplete}
                     />
                     <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                         <svg className="w-8 h-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
@@ -706,7 +762,7 @@ function StepUpload({ data, refresh }: any) {
                         className="absolute inset-0 opacity-0 cursor-pointer"
                         onChange={(e) => handleFileChange(e, 'TESTIMONIAL')}
                         accept="video/*,image/*"
-                        disabled={uploading}
+                        disabled={uploading || !isShotlistComplete}
                     />
                     <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-3">
                         <svg className="w-6 h-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
@@ -739,8 +795,8 @@ function StepUpload({ data, refresh }: any) {
 
             <button
                 onClick={handleFinish}
-                disabled={uploading || uploadedFiles.length === 0}
-                className="w-full sm:w-auto bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100"
+                disabled={uploading || uploadedFiles.length === 0 || !isShotlistComplete}
+                className="w-full sm:w-auto bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
             >
                 {uploading ? 'Processing...' : 'Finish & Submit'}
             </button>

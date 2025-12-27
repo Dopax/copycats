@@ -21,7 +21,7 @@ interface Creator {
     source?: string;
     messagingPlatform?: string;
     paymentMethod?: string;
-    type: string;
+    isRecurring: boolean;
     joinedAt: string;
     profileImageUrl?: string;
     creatives?: { id: string; thumbnailUrl: string | null; driveFileId: string | null }[];
@@ -69,7 +69,7 @@ export default function CreatorsPage() {
 
     // Form State
     const [formData, setFormData] = useState<Partial<Creator>>({
-        type: 'TEMPORARY',
+        isRecurring: false,
         collabCount: 0,
         pricePerVideo: 0
     });
@@ -190,7 +190,7 @@ export default function CreatorsPage() {
             setSelectedAge(age);
         } else {
             setEditingCreator(null);
-            setFormData({ type: 'TEMPORARY', collabCount: 0, pricePerVideo: 0, joinedAt: new Date().toISOString().split('T')[0], profileImageUrl: '' });
+            setFormData({ isRecurring: false, collabCount: 0, pricePerVideo: 0, joinedAt: new Date().toISOString().split('T')[0], profileImageUrl: '' });
             setSelectedGender("");
             setSelectedAge("");
         }
@@ -381,7 +381,7 @@ export default function CreatorsPage() {
                                     ) : (
                                         <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400">
                                             <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold mb-2">
-                                                {c.name.charAt(0).toUpperCase()}
+                                                {Array.from(c.name)[0]?.toUpperCase()}
                                             </div>
                                             <span className="text-sm">No Content</span>
                                         </div>
@@ -406,10 +406,8 @@ export default function CreatorsPage() {
                                     {/* Top Right Badges */}
                                     <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm
-                                            ${c.type === 'PERMANENT' ? 'bg-green-500 text-white' :
-                                                c.type === 'REPEAT' ? 'bg-blue-500 text-white' :
-                                                    'bg-zinc-500 text-white'}`}>
-                                            {c.type}
+                                            ${c.isRecurring ? 'bg-blue-500 text-white' : 'bg-zinc-500 text-white'}`}>
+                                            {c.isRecurring ? 'RECURRING' : 'ONE-TIME'}
                                         </span>
                                         {/* Status Badge */}
                                         {c.activeBatchId ? (
@@ -501,7 +499,7 @@ export default function CreatorsPage() {
                                     <td className="px-6 py-4 font-medium text-zinc-900 dark:text-white">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
-                                                {c.name.charAt(0).toUpperCase()}
+                                                {Array.from(c.name)[0]?.toUpperCase()}
                                             </div>
                                             {c.name}
                                         </div>
@@ -525,10 +523,9 @@ export default function CreatorsPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
-                                            ${c.type === 'PERMANENT' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                                                c.type === 'REPEAT' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-                                                    'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-400'}`}>
-                                            {c.type}
+                                            ${c.isRecurring ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                            {c.isRecurring ? 'RECURRING' : 'ONE-TIME'}
                                         </span>
                                         {c.source && <div className="text-xs text-zinc-500 mt-1">Via {c.source}</div>}
                                     </td>
@@ -552,7 +549,7 @@ export default function CreatorsPage() {
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && closeModal()}>
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-2xl w-full p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-2xl w-full p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95 max-h-[85vh] overflow-y-auto">
                         <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-white">{editingCreator ? 'Edit Creator' : 'Add New Creator'}</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
@@ -561,12 +558,22 @@ export default function CreatorsPage() {
                                     <input required className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-zinc-500 mb-1">Type</label>
-                                    <select className="w-full p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 text-zinc-900 dark:text-white outline-none transition-all" value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })}>
-                                        <option value="TEMPORARY">Temporary</option>
-                                        <option value="REPEAT">Repeat</option>
-                                        <option value="PERMANENT">Permanent</option>
-                                    </select>
+                                    <div className="flex items-center h-full pt-6">
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <div className="relative">
+                                                <input
+                                                    type="checkbox"
+                                                    className="peer sr-only"
+                                                    checked={formData.isRecurring || false}
+                                                    onChange={e => setFormData({ ...formData, isRecurring: e.target.checked })}
+                                                />
+                                                <div className="w-10 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                                            </div>
+                                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                                                Recurring Creator
+                                            </span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -731,7 +738,7 @@ export default function CreatorsPage() {
             {/* Approve Modal */}
             {isApproveModalOpen && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={(e) => { if (!approvedLink) { e.target === e.currentTarget && setIsApproveModalOpen(false) } }}>
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-lg w-full p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-lg w-full p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95 max-h-[85vh] overflow-y-auto">
                         {approvedLink ? (
                             <div className="text-center">
                                 <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">

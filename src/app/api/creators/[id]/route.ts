@@ -62,7 +62,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
                 source: data.source,
                 messagingPlatform: data.messagingPlatform,
                 paymentMethod: data.paymentMethod,
-                type: data.type,
+                isRecurring: data.isRecurring,
                 status: data.status,
                 joinedAt: data.joinedAt ? new Date(data.joinedAt) : undefined,
                 profileImageUrl: data.profileImageUrl,

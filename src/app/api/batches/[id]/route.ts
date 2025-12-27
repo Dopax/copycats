@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
                     }
                 },
                 format: true,
-                items: { include: { hook: true }, orderBy: { id: 'asc' } },
+                items: { include: { hook: true, format: true }, orderBy: { id: 'asc' } },
                 referenceAd: {
                     include: {
                         snapshots: true,
@@ -109,6 +109,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
                 mainMessaging: data.mainMessaging,
                 learnings: data.learnings,
+                strategySentence: data.strategySentence,
                 ...extraUpdates
             },
         });

@@ -4,7 +4,9 @@ import { prisma } from '@/lib/prisma';
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
-        const { hookId, notes, script, status, videoUrl, videoName, clearComments } = await request.json();
+        const { hookId, formatId, notes, script, status, videoUrl, videoName, clearComments, requestedDuration } = await request.json();
+
+        console.log(`[API] Updating Item ${id}`, { formatId, hookId, status });
 
         // Clear comments if requested (e.g. when replacing a video)
         if (clearComments) {
@@ -15,13 +17,15 @@ export async function PUT(request: Request, { params }: { params: { id: string }
             where: { id },
             data: {
                 hookId: hookId,
+                formatId: formatId,
                 notes: notes,
                 script: script,
                 status: status,
                 videoUrl: videoUrl,
-                videoName: videoName
+                videoName: videoName,
+                requestedDuration: requestedDuration
             },
-            include: { hook: true }
+            include: { hook: true, format: true }
         });
 
         // Loopback: If Revision Requested (PENDING + Notes), revert Batch to EDITING

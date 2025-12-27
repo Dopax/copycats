@@ -9,19 +9,26 @@ export async function GET() {
                 _count: {
                     select: {
                         ads: true,
-                        batches: true
+                        batchItems: true
                     }
                 },
-                batches: {
-                    select: { id: true, name: true, status: true }
+                batchItems: {
+                    select: {
+                        id: true,
+                        variationIndex: true,
+                        batch: {
+                            select: { id: true, name: true, status: true }
+                        }
+                    }
                 },
                 ads: {
                     select: { id: true, postId: true, brand: true, thumbnailUrl: true, videoUrl: true }
                 }
             },
-            orderBy: {
-                name: 'asc'
-            }
+            orderBy: [
+                { category: 'asc' },
+                { name: 'asc' }
+            ]
         });
 
         return NextResponse.json(formats);

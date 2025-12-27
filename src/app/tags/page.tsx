@@ -12,10 +12,14 @@ interface LinkedAd {
     videoUrl: string | null;
 }
 
-interface LinkedBatch {
-    id: number;
-    name: string;
-    status: string;
+interface LinkedVariation {
+    id: string;
+    variationIndex: string | null;
+    batch: {
+        id: number;
+        name: string;
+        status: string;
+    };
 }
 
 interface Tag {
@@ -27,7 +31,7 @@ interface FormatTag extends Tag {
     description?: string;
     audioChoice?: string;
     ads?: LinkedAd[];
-    batches?: LinkedBatch[];
+    batchItems?: LinkedVariation[];
 }
 
 interface Hook extends Tag {
@@ -82,28 +86,28 @@ function FormatCard({ format, onEdit, onDelete }: { format: FormatTag, onEdit: (
             </div>
 
             <div className="flex-1 grid grid-cols-2 divide-x divide-zinc-100 dark:divide-zinc-800 text-sm">
-                {/* Linked Batches */}
+                {/* Linked Variations */}
                 <div className="p-3 bg-zinc-50/50 dark:bg-zinc-800/20">
                     <h4 className="font-semibold text-zinc-700 dark:text-zinc-300 text-[10px] uppercase tracking-wider mb-2 flex items-center gap-1">
-                        Batches ({format.batches?.length || 0})
+                        Variations ({format.batchItems?.length || 0})
                     </h4>
-                    {format.batches && format.batches.length > 0 ? (
+                    {format.batchItems && format.batchItems.length > 0 ? (
                         <ul className="space-y-2">
-                            {format.batches.slice(0, 3).map(batch => (
-                                <li key={batch.id}>
-                                    <a href={`/batches/${batch.id}`} className="block bg-white dark:bg-zinc-800 p-2 rounded border border-zinc-200 dark:border-zinc-700 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors group">
+                            {format.batchItems.slice(0, 3).map(item => (
+                                <li key={item.id}>
+                                    <a href={`/batches/${item.batch.id}`} className="block bg-white dark:bg-zinc-800 p-2 rounded border border-zinc-200 dark:border-zinc-700 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors group">
                                         <div className="flex justify-between items-center mb-1">
-                                            <span className="font-mono text-[10px] text-zinc-400 group-hover:text-indigo-500">#{batch.id}</span>
-                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-500">{batch.status}</span>
+                                            <span className="font-mono text-[10px] text-zinc-400 group-hover:text-indigo-500">#{item.batch.id} {item.variationIndex ? `(${item.variationIndex})` : ''}</span>
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-500">{item.batch.status}</span>
                                         </div>
-                                        <div className="font-medium text-xs truncate text-zinc-800 dark:text-zinc-200">{batch.name}</div>
+                                        <div className="font-medium text-xs truncate text-zinc-800 dark:text-zinc-200">{item.batch.name}</div>
                                     </a>
                                 </li>
                             ))}
-                            {format.batches.length > 3 && <li className="text-[10px] text-zinc-400 pl-1">+{format.batches.length - 3} more...</li>}
+                            {format.batchItems.length > 3 && <li className="text-[10px] text-zinc-400 pl-1">+{format.batchItems.length - 3} more...</li>}
                         </ul>
                     ) : (
-                        <p className="text-zinc-400 text-[10px] italic">No batches.</p>
+                        <p className="text-zinc-400 text-[10px] italic">No variations.</p>
                     )}
                 </div>
 

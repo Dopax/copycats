@@ -4,7 +4,7 @@ import "./globals.css";
 import Shell from "@/components/Shell";
 import { Providers } from "./providers";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin", "latin-ext"] });
 
 export const metadata: Metadata = {
     title: "Brand OS",
