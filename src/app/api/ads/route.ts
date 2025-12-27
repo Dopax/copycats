@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiError, apiSuccess } from "@/lib/api-utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -24,12 +24,10 @@ export async function GET() {
             orderBy: { lastSeen: "desc" },
         });
 
-        return NextResponse.json(ads);
+        return apiSuccess(ads);
     } catch (error) {
         console.error("Error fetching ads:", error);
-        return NextResponse.json(
-            { error: "Internal Server Error" },
-            { status: 500 }
-        );
+        return apiError("Internal Server Error");
     }
 }
+
