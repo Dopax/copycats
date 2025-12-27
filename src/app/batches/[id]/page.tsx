@@ -25,6 +25,7 @@ import ReferenceAdIntegration from "@/components/ReferenceAdIntegration";
 import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 import VideoReviewModal from "@/components/batches/VideoReviewModal";
 import { PageLoader } from "@/components/LoadingSpinner";
+import { CompetitorSourceBreakdown } from "@/components/batches/CompetitorSourceBreakdown";
 
 const DEFAULT_EDITOR_BRIEF_PROMPT = `Write a concise and professional Editor Brief for this ad batch.
 
@@ -1171,56 +1172,12 @@ export default function BatchDetailPage() {
 
                                 {/* COPYCAT SOURCE ANALYSIS (Display only for Copycat) */}
                                 {batch.batchType === 'COPYCAT' && batch.referenceAd && (
-                                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 bg-zinc-50/50 dark:bg-zinc-800/30">
-                                        <div className="flex items-center gap-2 mb-6">
-                                            <span className="text-xl">🦁</span>
-                                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Competitor Source Breakdown</h3>
-                                        </div>
-
-                                        {/* Awareness & Reason */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                            <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Target Awareness Level</label>
-                                                <div className="font-bold text-indigo-600 dark:text-indigo-400">
-                                                    {(batch.referenceAd as any).awarenessLevel?.name || "Not specified"}
-                                                </div>
-                                            </div>
-                                            <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Reason</label>
-                                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
-                                                    {(batch.referenceAd as any).awarenessLevelReason || "No reasoning provided."}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Why It Works & Notes */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Why It Works</label>
-                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
-                                                    {(batch.referenceAd as any).whyItWorks || "No analysis available."}
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">General Notes</label>
-                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
-                                                    {(batch.referenceAd as any).notes || "No notes available."}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Core Messaging Analysis */}
-                                        <div>
-                                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-4">Core Messaging</label>
-                                            <MessagingAnalysisToolbox
-                                                value={mainMessaging}
-                                                onChange={(val) => setMainMessaging(val)}
-                                                className="border-none shadow-none bg-transparent p-0"
-                                                variant="exploded"
-                                                readOnly={true}
-                                            />
-                                        </div>
-                                    </div>
+                                    <CompetitorSourceBreakdown
+                                        referenceAd={batch.referenceAd as any}
+                                        mainMessaging={mainMessaging}
+                                        onMessagingChange={setMainMessaging}
+                                        readOnly={true}
+                                    />
                                 )}
 
                                 {/* Standard Messaging for Non-Copycat */}
@@ -1397,56 +1354,12 @@ export default function BatchDetailPage() {
 
                                 {/* Competitor Source Breakdown (Right Column Below Brief) */}
                                 {batch.referenceAd && (
-                                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 bg-zinc-50/50 dark:bg-zinc-800/30">
-                                        <div className="flex items-center gap-2 mb-6">
-                                            <span className="text-xl">🦁</span>
-                                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Competitor Source Breakdown</h3>
-                                        </div>
-
-                                        {/* Awareness & Reason */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                            <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Target Awareness Level</label>
-                                                <div className="font-bold text-indigo-600 dark:text-indigo-400">
-                                                    {(batch.referenceAd as any).awarenessLevel?.name || "Not specified"}
-                                                </div>
-                                            </div>
-                                            <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2">Reason</label>
-                                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
-                                                    {(batch.referenceAd as any).awarenessLevelReason || "No reasoning provided."}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Why It Works & Notes */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Why It Works</label>
-                                                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
-                                                    {(batch.referenceAd as any).whyItWorks || "No analysis available."}
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">General Notes</label>
-                                                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm leading-relaxed whitespace-pre-wrap">
-                                                    {(batch.referenceAd as any).notes || "No notes available."}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Core Messaging Analysis */}
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Core Messaging</label>
-                                            <MessagingAnalysisToolbox
-                                                value={mainMessaging}
-                                                onChange={(val) => setMainMessaging(val)}
-                                                className="transition-shadow hover:shadow-md"
-                                                readOnly={true}
-                                                variant="exploded"
-                                            />
-                                        </div>
-                                    </div>
+                                    <CompetitorSourceBreakdown
+                                        referenceAd={batch.referenceAd as any}
+                                        mainMessaging={mainMessaging}
+                                        onMessagingChange={setMainMessaging}
+                                        readOnly={true}
+                                    />
                                 )}
 
                                 {/* Production Context */}
