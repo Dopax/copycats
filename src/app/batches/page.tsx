@@ -6,10 +6,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useBrand } from "@/context/BrandContext";
 import SearchableSelect from "@/components/SearchableSelect";
 import AwarenessTooltip from "@/components/AwarenessTooltip";
+import { AdFormat, Desire, Theme, Demographic, AwarenessLevel } from "@/types/batch";
 
-
-// Types
-interface Batch {
+// Local types for this page (not in shared types)
+interface BatchListItem {
     id: number;
     name: string;
     status: string;
@@ -31,11 +31,7 @@ interface AdAngle {
     demographicId: string;
     awarenessLevelId?: string;
 }
-interface Format { id: string; name: string; }
-interface Desire { id: string; name: string; }
-interface Theme { id: string; name: string; }
-interface Demographic { id: string; name: string; }
-interface AwarenessLevel { id: string; name: string; }
+
 interface User { id: string; name: string; role: string; email: string; }
 
 const STATUS_COLUMNS = [
@@ -50,9 +46,9 @@ const STATUS_COLUMNS = [
 ];
 
 function BatchesContent() {
-    const [batches, setBatches] = useState<Batch[]>([]);
+    const [batches, setBatches] = useState<BatchListItem[]>([]);
     const [angles, setAngles] = useState<AdAngle[]>([]);
-    const [formats, setFormats] = useState<Format[]>([]);
+    const [formats, setFormats] = useState<AdFormat[]>([]);
     const [desires, setDesires] = useState<Desire[]>([]);
     const [themes, setThemes] = useState<Theme[]>([]);
     const [demographics, setDemographics] = useState<Demographic[]>([]);
@@ -78,7 +74,7 @@ function BatchesContent() {
 
     // Iteration State
     const [referenceBatchId, setReferenceBatchId] = useState<string | null>(null);
-    const [eligibleBatches, setEligibleBatches] = useState<Batch[]>([]);
+    const [eligibleBatches, setEligibleBatches] = useState<BatchListItem[]>([]);
 
     useEffect(() => {
         if (newBatchType === 'ITERATION' && batches.length > 0) {
