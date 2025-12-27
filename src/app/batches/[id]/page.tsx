@@ -5,6 +5,14 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import SearchableSelect from '@/components/SearchableSelect';
 import { DEFAULT_BRIEF_PROMPT } from "@/lib/constants/prompts";
+import type {
+    Batch,
+    BatchItem,
+    Hook,
+    AdFormat,
+    LinkedFacebookAd,
+    Creator
+} from "@/types";
 
 const DEFAULT_EDITOR_BRIEF_PROMPT = `Write a concise and professional Editor Brief for this ad batch.
 
@@ -38,90 +46,6 @@ INSTRUCTIONS:
 5. Reference Ad: Explain how closely they should mimic the reference ad's editing style.
 
 Be specific and actionable for a video editor.`;
-
-// Types
-interface Hook { id: string; name: string; videoUrl?: string; thumbnailUrl?: string; }
-interface AwarenessLevel { id: string; name: string; }
-
-interface BatchItem {
-    id: string;
-    hook?: Hook;
-    hookId?: string;
-    notes?: string;
-    script?: string;
-    videoUrl?: string; // Edit: Added videoUrl
-    videoName?: string;
-    requestedDuration?: number; // Added
-    variationIndex?: string; // Added
-    format?: { name: string; description: string | null }; // Added
-    status: string;
-}
-
-interface AdFormat {
-    id: string;
-    name: string;
-    description: string | null;
-    audioChoice: string | null;
-    category?: string | null; // Added
-}
-interface Batch {
-    id: number;
-    name: string;
-    status: string;
-    batchType: string;
-    priority: string;
-    brief?: string;
-    angle: {
-        name: string;
-        desire: { name: string; description?: string; brainClicks?: string };
-        theme: { name: string; description?: string };
-        demographic: { name: string };
-        awarenessLevel?: { name: string };
-        conceptDoc?: string;
-        brand?: { id: string; name: string };
-    };
-    format?: { id: string; name: string; description: string | null };
-    assignee?: string;
-    items: BatchItem[];
-    referenceAd?: {
-        postId: string;
-        headline: string;
-        description: string;
-        videoUrl: string | null;
-        thumbnailUrl: string | null;
-        transcript?: string;
-        facebookLink?: string;
-    };
-    // AI Boost Fields
-    aiAdCopy?: string;
-    aiImagePrompt?: string;
-    aiVideoPrompt?: string;
-    projectFilesUrl?: string;
-
-    // New Fields
-    idea?: string;
-    creatorBrief?: string;
-    shotlist?: string;
-    creatorBriefType?: string;
-
-    mainMessaging?: string;
-    learnings?: string;
-    launchedAt?: string;
-    facebookAds?: LinkedFacebookAd[];
-    referenceBatch?: { id: number; name: string };
-
-    // Relations
-    brand?: { id: string; name: string };
-    assignedCreators?: Creator[];
-}
-
-interface Creator {
-    id: string;
-    name: string;
-    profileImageUrl?: string;
-    status: string;
-    activeBatchId?: number | null;
-}
 
 import ReferenceAdIntegration from "@/components/ReferenceAdIntegration";
 import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";

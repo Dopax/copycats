@@ -5,37 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useBrand } from "@/context/BrandContext";
 import { COUNTRIES, LANGUAGES, SOURCES } from "@/lib/constants";
-
-interface Demographic { id: string; name: string; }
-
-interface Creator {
-    id: string;
-    name: string;
-    country?: string;
-    language?: string;
-    pricePerVideo?: number;
-    demographic?: Demographic | null;
-    collabCount: number;
-    email?: string;
-    phone?: string;
-    source?: string;
-    messagingPlatform?: string;
-    paymentMethod?: string;
-    isRecurring: boolean;
-    joinedAt: string;
-    profileImageUrl?: string;
-    creatives?: { id: string; thumbnailUrl: string | null; driveFileId: string | null }[];
-    onboardingStep?: string;
-    status?: string;        // Added
-    gender?: string;        // Added
-    ageGroup?: string;      // Added
-    activeBatchId?: number; // Added
-    offerType?: string;
-    offerAmount?: number;
-    productLink?: string;
-    couponCode?: string;
-    orderNumber?: string;
-}
+import type { Creator, CreatorDemographic as Demographic } from "@/types";
 
 const MESSAGING_PLATFORMS = ["Upwork", "Slack", "Zoho", "Whatsapp", "Instagram", "Gorgias"];
 
