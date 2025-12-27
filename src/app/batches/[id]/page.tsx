@@ -1364,21 +1364,17 @@ export default function BatchDetailPage() {
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                             {/* LEFT COLUMN: Reference & Context (Sticky) */}
                             <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
-                                {/* Visual Reference - Moved to Left Column */}
-                                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                    <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 flex justify-between items-center">
-                                        <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Visual Reference</h4>
-                                    </div>
-                                    <div className="p-4">
-                                        {batch.referenceAd ? (
+                                {/* Visual Reference - Only shown when reference ad exists */}
+                                {batch.referenceAd && (
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                        <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 flex justify-between items-center">
+                                            <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Visual Reference</h4>
+                                        </div>
+                                        <div className="p-4">
                                             <ReferenceAdIntegration ad={batch.referenceAd as any} />
-                                        ) : (
-                                            <div className="text-center py-8 text-zinc-400 text-sm italic">
-                                                No reference ad linked.
-                                            </div>
-                                        )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* RIGHT COLUMN: Inputs & Instructions */}
