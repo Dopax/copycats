@@ -113,19 +113,14 @@ export default function DashboardPage() {
                     subtext="Ideation to Launch"
                 />
                 <StatCard
-                    title="Active Concepts"
-                    value={stats.distributions.topDesires.length + stats.distributions.topThemes.length} // Rough proxy or get real count
-                    subtext="Unique desires & themes tested"
-                />
-                <StatCard
                     title="Top Performing Desire"
                     value={stats.distributions.topDesires[0]?.name || "N/A"}
                     subtext={stats.distributions.topDesires[0] ? `${stats.distributions.topDesires[0].count} batches` : "No data"}
                 />
                 <StatCard
-                    title="Top Performing Desire"
-                    value={stats.distributions.topDesires[0]?.name || "N/A"}
-                    subtext={stats.distributions.topDesires[0] ? `${stats.distributions.topDesires[0].count} batches` : "No data"}
+                    title="Top Performing Theme"
+                    value={stats.distributions.topThemes[0]?.name || "N/A"}
+                    subtext={stats.distributions.topThemes[0] ? `${stats.distributions.topThemes[0].count} batches` : "No data"}
                 />
             </div>
 
