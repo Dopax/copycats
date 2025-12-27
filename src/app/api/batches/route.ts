@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { CreateBatchSchema } from '@/lib/validations';
+import { apiError, validationError, apiSuccess } from '@/lib/api-utils';
+import { BATCH_STATUS, BATCH_TYPE } from '@/lib/constants/status';
 
 export async function GET(request: Request) {
     try {
@@ -11,7 +14,7 @@ export async function GET(request: Request) {
         if (status) {
             where.status = status;
         } else {
-            where.status = { not: "TRASHED" };
+            where.status = { not: BATCH_STATUS.TRASHED };
         }
 
         const batches = await prisma.adBatch.findMany({
@@ -32,33 +35,38 @@ export async function GET(request: Request) {
             },
             orderBy: { updatedAt: 'desc' },
         });
-        return NextResponse.json(batches);
+        return apiSuccess(batches);
     } catch (error) {
         console.error("Failed to fetch batches:", error);
-        return NextResponse.json({ error: "Failed to fetch batches" }, { status: 500 });
+        return apiError("Failed to fetch batches");
     }
 }
 
 export async function POST(request: Request) {
     try {
-        const data = await request.json();
+        const rawData = await request.json();
 
-        // Basic validation
-        if (!data.name || !data.angleId || !data.batchType) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        // Validate input with Zod
+        const parsed = CreateBatchSchema.safeParse(rawData);
+        if (!parsed.success) {
+            return validationError(parsed.error);
         }
+
+        const data = parsed.data;
 
         const batch = await prisma.adBatch.create({
             data: {
                 name: data.name,
-                status: data.batchType === "COPYCAT" ? "CREATOR_BRIEFING" : "IDEATION",
+                status: data.batchType === BATCH_TYPE.COPYCAT
+                    ? BATCH_STATUS.CREATOR_BRIEFING
+                    : BATCH_STATUS.IDEATION,
                 batchType: data.batchType,
                 priority: data.priority,
                 angleId: data.angleId,
                 formatId: data.formatId,
-                assignee: data.assignee, // Legacy/Fallback
-                editorId: data.editorId || null,
-                strategistId: data.strategistId || null,
+                assignee: data.assignee,
+                editorId: data.editorId,
+                strategistId: data.strategistId,
                 brief: data.brief,
                 referenceAdId: data.referenceAdId,
                 brandId: data.brandId,
@@ -71,9 +79,10 @@ export async function POST(request: Request) {
             }
         });
 
-        return NextResponse.json(batch);
+        return apiSuccess(batch, 201);
     } catch (error) {
         console.error("Failed to create batch:", error);
-        return NextResponse.json({ error: `Failed to create batch: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
+        return apiError(`Failed to create batch: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
+
