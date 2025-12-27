@@ -1361,11 +1361,10 @@ export default function BatchDetailPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                            {/* LEFT COLUMN: Reference & Context (Sticky) */}
-                            <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
-                                {/* Visual Reference - Only shown when reference ad exists */}
-                                {batch.referenceAd && (
+                        <div className={`grid gap-8 items-start ${batch.referenceAd ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                            {/* LEFT COLUMN: Reference & Context (Sticky) - Only when reference ad exists */}
+                            {batch.referenceAd && (
+                                <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
                                     <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                                         <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 flex justify-between items-center">
                                             <h4 className="font-bold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Visual Reference</h4>
@@ -1374,11 +1373,11 @@ export default function BatchDetailPage() {
                                             <ReferenceAdIntegration ad={batch.referenceAd as any} />
                                         </div>
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            )}
 
-                            {/* RIGHT COLUMN: Inputs & Instructions */}
-                            <div className="lg:col-span-2 space-y-8">
+                            {/* RIGHT COLUMN: Inputs & Instructions - Takes full width when no reference ad */}
+                            <div className={batch.referenceAd ? 'lg:col-span-2 space-y-8' : 'space-y-8'}>
                                 {/* Main Inputs Container */}
                                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-8">
                                     {/* Brief Instructions */}
