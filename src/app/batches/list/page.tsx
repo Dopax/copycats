@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useBrand } from "@/context/BrandContext";
+import { PageLoader } from "@/components/LoadingSpinner";
 
 interface Batch {
     id: number;
@@ -65,7 +66,7 @@ function BatchesListContent() {
         );
     };
 
-    if (isLoading) return <div className="p-8 text-center text-zinc-500">Loading Batches...</div>;
+    if (isLoading) return <PageLoader text="Loading Batches..." />;
 
     return (
         <div className="p-8">
@@ -119,8 +120,8 @@ function BatchesListContent() {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <span className={`px-2 py-0.5 rounded text-xs font-bold ${batch.priority === 'HIGH' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                                            batch.priority === 'LOW' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                                                'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                        batch.priority === 'LOW' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                            'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
                                         }`}>
                                         {batch.priority}
                                     </span>
@@ -147,7 +148,7 @@ function BatchesListContent() {
 
 export default function BatchesListPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<PageLoader text="Loading..." />}>
             <BatchesListContent />
         </Suspense>
     );

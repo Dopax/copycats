@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useBrand } from "@/context/BrandContext";
 import HeatmapGrid from "@/components/dashboard/HeatmapGrid";
+import { PageLoader } from "@/components/LoadingSpinner";
 
 interface Distribution {
     name: string;
@@ -56,7 +57,7 @@ export default function DashboardPage() {
     };
 
     if (!selectedBrand) return <div className="p-10 text-center text-zinc-500">Please select a brand.</div>;
-    if (isLoading) return <div className="p-10 text-center text-zinc-500">Loading Dashboard...</div>;
+    if (isLoading) return <PageLoader text="Loading Dashboard..." />;
     if (!stats) return <div className="p-10 text-center text-zinc-500">Failed to load stats.</div>;
 
     const StatCard = ({ title, value, subtext }: { title: string, value: string | number, subtext?: string }) => (

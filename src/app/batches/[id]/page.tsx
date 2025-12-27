@@ -24,6 +24,7 @@ import { getStrategySentence } from '@/components/batches/StrategyCard';
 import ReferenceAdIntegration from "@/components/ReferenceAdIntegration";
 import MessagingAnalysisToolbox from "@/components/MessagingAnalysisToolbox";
 import VideoReviewModal from "@/components/batches/VideoReviewModal";
+import { PageLoader } from "@/components/LoadingSpinner";
 
 const DEFAULT_EDITOR_BRIEF_PROMPT = `Write a concise and professional Editor Brief for this ad batch.
 
@@ -1026,7 +1027,7 @@ export default function BatchDetailPage() {
         }
     };
 
-    if (isLoading) return <div className="p-10 text-center text-zinc-500">Loading Batch Details...</div>;
+    if (isLoading) return <PageLoader text="Loading Batch Details..." />;
     if (!batch) return null;
 
     return (

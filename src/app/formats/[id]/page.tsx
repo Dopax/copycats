@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { PageLoader } from "@/components/LoadingSpinner";
 
 interface LinkedAd {
     id: string;
@@ -60,7 +61,7 @@ export default function FormatDetailPage() {
         fetchFormat();
     }, [params.id]);
 
-    if (isLoading) return <div className="p-12 text-center text-zinc-500">Loading format details...</div>;
+    if (isLoading) return <PageLoader text="Loading format details..." />;
     if (!format) return <div className="p-12 text-center text-zinc-500">Format not found.</div>;
 
     return (
